@@ -1,0 +1,37 @@
+.root {
+    flex-grow: 1;
+    flex-direction: column;
+    padding: 8px;
+}
+
+/* HEADER */
+.header {
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+/* BODY */
+.body {
+    flex-grow: 1;
+}
+
+.subtitle {
+    -unity-text-align: upper-center;
+    margin-bottom: 6px;
+}
+
+.paragraph {
+    white-space: normal;
+    -unity-text-align: upper-center;
+}
+
+/* FOOTER */
+.footer {
+    margin-top: 6px;
+}
