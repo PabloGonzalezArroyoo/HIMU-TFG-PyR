@@ -4,7 +4,6 @@
     padding: 8px;
 }
 
-/* HEADER */
 .header {
     align-items: center;
     margin-bottom: 6px;
@@ -16,7 +15,6 @@
     -unity-text-align: middle-center;
 }
 
-/* BODY */
 .body {
     flex-grow: 1;
 }
@@ -24,14 +22,36 @@
 .subtitle {
     -unity-text-align: upper-center;
     margin-bottom: 6px;
+    white-space: normal;
 }
 
 .paragraph {
     white-space: normal;
     -unity-text-align: upper-center;
+    margin-bottom: 10px;
+    margin-top: 10px;
 }
 
-/* FOOTER */
+.objectSelector {
+    -unity-font-style: normal;
+    margin-bottom: 6px;
+    margin-top: 6px;
+}
+
+.objectSelector > .unity-label {
+    -unity-font-style: bold;
+}
+
+.dropdown {
+    -unity-font-style: normal;
+    margin-bottom: 6px;
+    margin-top: 6px;
+}
+
+.dropdown > .unity-label {
+    -unity-font-style: bold;
+}
+
 .footer {
     margin-top: 6px;
 }

@@ -7,8 +7,11 @@ using UnityEngine.UIElements;
 
 public class HimuEditorWindow : EditorWindow
 {
-    Label textTest;
-    Button buttonTest;
+    private Label textTest;
+    private Button buttonTest;
+    private UnityEditor.UIElements.ObjectField sceneField;
+    private DropdownField platformDropdown;
+    private string dropdown;
 
     // Add new tab to the inspector context menus.
     // This has to be done in the "Tools" tab in order to comply with Unity's Asset Store guidelines.
@@ -21,7 +24,7 @@ public class HimuEditorWindow : EditorWindow
     {
         HimuEditorWindow window = GetWindow<HimuEditorWindow>();
         window.titleContent = new GUIContent("HIMU Tool");
-        window.maxSize = new Vector2(900, 600);
+        window.maxSize = new Vector2(600, 400);
         window.minSize = window.maxSize;
 
         UnityEngine.Debug.Log("HIMU: Tab opened.");
@@ -60,34 +63,40 @@ public class HimuEditorWindow : EditorWindow
 
         // Store elements of the VisualTree for future use
         textTest = root.Q<Label>("TestText2");
+        sceneField = root.Q<UnityEditor.UIElements.ObjectField>("SceneField");
+        sceneField.objectType = typeof(SceneAsset);
+        platformDropdown = root.Q<DropdownField>("PlatformDropdown");
+        platformDropdown.choices = new List<string> { "Android", "Web"};
+        platformDropdown.value = "Android";
         buttonTest = root.Q<Button>("TestButton");
 
+        dropdown = "Platform: ";
+        sceneField.RegisterValueChangedCallback(TestField);
+        platformDropdown.RegisterValueChangedCallback(evt => { TestDropdown(evt.newValue); });
         buttonTest.clicked += TestButton;
 
         UnityEngine.Debug.Log("HIMU: GUI created.");
     }
 
+    private void TestField(ChangeEvent<UnityEngine.Object> evt)
+    {
+        if (evt.newValue != null)
+            textTest.text = "Scene: " + evt.newValue.ToString();
+    }
+
+    private void TestDropdown(string changed)
+    {
+        dropdown += " " + changed;
+        textTest.text = dropdown;
+    }
+
     private void TestButton()
     {
-        if (textTest.text == "Funcionaaaaa")
-        {
-            textTest.text = "Sí funciona";
-        }
-        else
-        {
-            textTest.text = "Funcionaaaaa";
-        }
-    }
+        platformDropdown.value = 
+            (platformDropdown.value == platformDropdown.choices[0])
+            ? platformDropdown.choices[1]
+            : platformDropdown.choices[0];
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        sceneField.value = null;
     }
 }
