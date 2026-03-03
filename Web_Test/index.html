@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h2>Test conexión Unity</h2>
+
+<button onclick="sendJump()">Enviar JUMP</button>
+
+<p id="status">Sin conectar</p>
+
+<script>
+const socket = new WebSocket("ws://192.168.1.21:8080");
+
+socket.onopen = () => {
+  document.getElementById("status").innerText = "Conectado a Unity";
+};
+
+socket.onmessage = (event) => {
+  document.getElementById("status").innerText = event.data;
+};
+
+function sendJump() {
+  socket.send("jump");
+}
+</script>
+</body>
+</html>
