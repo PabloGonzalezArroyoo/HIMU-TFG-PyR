@@ -9,13 +9,26 @@ public class FrameCapturePass : ScriptableRenderPass
 
     RenderTexture captureTexture;
 
+    bool frameDone;
+    float time;
+
     int width = 1280;
     int height = 720;
 
     public FrameCapturePass()
     {
-        captureTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+        captureTexture = new RenderTexture(
+            width,
+            height,
+            0,
+            RenderTextureFormat.ARGB32,
+            RenderTextureReadWrite.sRGB
+        );
+
         captureTexture.Create();
+
+        time = 0;
+        frameDone = false;
     }
 
     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
@@ -31,7 +44,7 @@ public class FrameCapturePass : ScriptableRenderPass
         CommandBuffer cmd = CommandBufferPool.Get("FrameCapture");
 
         // copiar frame a textura de captura
-        cmd.Blit(cameraColorTarget, captureTexture, new Vector2(1, -1), new Vector2(0, 1));
+        cmd.Blit(cameraColorTarget, captureTexture);
 
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
@@ -45,7 +58,26 @@ public class FrameCapturePass : ScriptableRenderPass
                 return;
             }
 
-            FrameCaptureManager.LatestFrame = request.GetData<byte>();
+            var data = request.GetData<byte>();
+
+            time += Time.deltaTime;
+            if (time > 2 && !frameDone)
+            {
+                Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                tex.LoadRawTextureData(data);
+                tex.Apply();
+
+                byte[] png = tex.EncodeToPNG();
+
+                string path = Application.dataPath + "/frame_capture.png";
+                System.IO.File.WriteAllBytes(path, png);
+
+                Debug.Log("Frame guardado en: " + path);
+
+                frameDone = true;
+            }
+
+            FrameCaptureManager.LatestFrame = data;
             FrameCaptureManager.HasNewFrame = true;
         });
     }

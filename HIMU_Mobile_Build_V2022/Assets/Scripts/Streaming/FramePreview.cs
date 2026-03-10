@@ -10,7 +10,12 @@ public class FramePreview : MonoBehaviour
     void Start()
     {
         previewTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        GetComponent<Renderer>().material.mainTexture = previewTexture;
+        
+        Renderer renderer = GetComponent<Renderer>();
+        renderer.material.mainTexture = previewTexture;
+
+        renderer.material.mainTextureScale = new Vector2(1, -1);
+        renderer.material.mainTextureOffset = new Vector2(0, 1);
     }
 
     void Update()
