@@ -60,25 +60,30 @@ public class FrameCapturePass : ScriptableRenderPass
 
             var data = request.GetData<byte>();
 
-            time += Time.deltaTime;
-            if (time > 2 && !frameDone)
-            {
-                Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
-                tex.LoadRawTextureData(data);
-                tex.Apply();
-
-                byte[] png = tex.EncodeToPNG();
-
-                string path = Application.dataPath + "/frame_capture.png";
-                System.IO.File.WriteAllBytes(path, png);
-
-                Debug.Log("Frame guardado en: " + path);
-
-                frameDone = true;
-            }
+            SaveToDisk(data);
 
             FrameCaptureManager.LatestFrame = data;
             FrameCaptureManager.HasNewFrame = true;
         });
+    }
+
+    private void SaveToDisk(NativeArray<byte> data)
+    {
+        time += Time.deltaTime;
+        if (time > 2 && !frameDone)
+        {
+            Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            tex.LoadRawTextureData(data);
+            tex.Apply();
+
+            byte[] png = tex.EncodeToPNG();
+
+            string path = Application.dataPath + "/frame_capture.png";
+            System.IO.File.WriteAllBytes(path, png);
+
+            Debug.Log("Frame guardado en: " + path);
+
+            frameDone = true;
+        }
     }
 }
