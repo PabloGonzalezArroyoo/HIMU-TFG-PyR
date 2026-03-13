@@ -23,8 +23,8 @@ public class FramePreview : MonoBehaviour
         if (!FrameCaptureManager.HasNewFrame)
             return;
 
-        previewTexture.LoadRawTextureData(FrameCaptureManager.LatestFrame);
-        previewTexture.Apply();
+        //previewTexture.LoadRawTextureData(FrameCaptureManager.LatestFrame);
+        //previewTexture.Apply();
 
         FrameCaptureManager.HasNewFrame = false;
     }

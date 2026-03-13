@@ -1,3 +1,4 @@
+using System.IO;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -8,10 +9,14 @@ public class FrameCapturePass : ScriptableRenderPass
     RTHandle cameraColorTarget;
 
     RenderTexture captureTexture;
+    Texture2D jpgTexture;
 
-    bool frameDone;
-    float time;
+    long nFrames;
+    int captureEveryNFrames = 1; // [captureEveryNFrames = targetFPS / captureFPS] - 1 = 60 fps
 
+    bool saveFrame;
+
+    // MODIFICAR ESTOS NÚMEROS PARA REDUCIR MB DE FRAME
     int width = 1280;
     int height = 720;
 
@@ -27,8 +32,14 @@ public class FrameCapturePass : ScriptableRenderPass
 
         captureTexture.Create();
 
-        time = 0;
-        frameDone = false;
+        jpgTexture = new Texture2D(
+            width,
+            height,
+            TextureFormat.RGBA32,
+            false);
+
+        saveFrame = false;
+        nFrames = 0;
     }
 
     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
@@ -38,7 +49,7 @@ public class FrameCapturePass : ScriptableRenderPass
 
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
     {
-        if (renderingData.cameraData.cameraType != CameraType.Game)
+        if (Time.frameCount % captureEveryNFrames != 0)
             return;
 
         CommandBuffer cmd = CommandBufferPool.Get("FrameCapture");
@@ -60,30 +71,33 @@ public class FrameCapturePass : ScriptableRenderPass
 
             var data = request.GetData<byte>();
 
-            SaveToDisk(data);
+            ProcessFrame(data);
 
             FrameCaptureManager.LatestFrame = data;
             FrameCaptureManager.HasNewFrame = true;
         });
     }
 
-    private void SaveToDisk(NativeArray<byte> data)
+    private void ProcessFrame(NativeArray<byte> data)
     {
-        time += Time.deltaTime;
-        if (time > 2 && !frameDone)
+        if (jpgTexture != null)
         {
-            Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
-            tex.LoadRawTextureData(data);
-            tex.Apply();
+            jpgTexture.LoadRawTextureData(data);
+            jpgTexture.Apply();
 
-            byte[] png = tex.EncodeToPNG();
+            byte[] jpg = jpgTexture.EncodeToJPG(75);
 
-            string path = Application.dataPath + "/frame_capture.png";
-            System.IO.File.WriteAllBytes(path, png);
+            if (saveFrame)
+            {
+                string path = Application.dataPath + "/frame_capture.jpg";
+                System.IO.File.WriteAllBytes(path, jpg);
+                Debug.Log("Frame guardado en: " + path);
+            }
 
-            Debug.Log("Frame guardado en: " + path);
+            StreamSender.SendFrame(jpg);
 
-            frameDone = true;
+            nFrames++;
+            Debug.Log("Número de frames: " + nFrames);
         }
     }
 }
