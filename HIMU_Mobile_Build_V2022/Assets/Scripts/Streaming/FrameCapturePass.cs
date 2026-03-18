@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -8,13 +9,11 @@ public class FrameCapturePass : ScriptableRenderPass
 {
     RTHandle cameraColorTarget;
 
-    RenderTexture captureTexture;
-    Texture2D jpgTexture;
+    RenderTexture yuvCaptureTexture;
+    Material yuvMaterial;
 
     long nFrames;
     int captureEveryNFrames = 1; // [captureEveryNFrames = targetFPS / captureFPS] - 1 = 60 fps
-
-    bool saveFrame;
 
     // MODIFICAR ESTOS NÚMEROS PARA REDUCIR MB DE FRAME
     int width = 1280;
@@ -22,23 +21,19 @@ public class FrameCapturePass : ScriptableRenderPass
 
     public FrameCapturePass()
     {
-        captureTexture = new RenderTexture(
+        yuvCaptureTexture = new RenderTexture(
             width,
-            height,
+            height + height / 2,
             0,
-            RenderTextureFormat.ARGB32,
-            RenderTextureReadWrite.sRGB
+            RenderTextureFormat.R8
         );
+        yuvCaptureTexture.Create();
 
-        captureTexture.Create();
+        yuvMaterial = new Material(Shader.Find("Hidden/RGBToYUV420"));
 
-        jpgTexture = new Texture2D(
-            width,
-            height,
-            TextureFormat.RGBA32,
-            false);
+        yuvMaterial.SetVector("_TexelSize", new Vector2(1.0f / width, 1.0f / height));
+        yuvMaterial.SetFloat("_Height", height);
 
-        saveFrame = false;
         nFrames = 0;
     }
 
@@ -55,13 +50,13 @@ public class FrameCapturePass : ScriptableRenderPass
         CommandBuffer cmd = CommandBufferPool.Get("FrameCapture");
 
         // copiar frame a textura de captura
-        cmd.Blit(cameraColorTarget, captureTexture);
+        cmd.Blit(cameraColorTarget, yuvCaptureTexture, yuvMaterial);
 
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
 
         // leer GPU sin bloquear
-        AsyncGPUReadback.Request(captureTexture, 0, request =>
+        AsyncGPUReadback.Request(yuvCaptureTexture, 0, request =>
         {
             if (request.hasError)
             {
@@ -80,24 +75,37 @@ public class FrameCapturePass : ScriptableRenderPass
 
     private void ProcessFrame(NativeArray<byte> data)
     {
-        if (jpgTexture != null)
+        int ySize = width * height;
+        int uvSize = ySize / 4;
+
+        byte[] yuv = new byte[ySize + uvSize * 2];
+
+        // Y (primer bloque)
+        NativeArray<byte>.Copy(data, 0, yuv, 0, ySize);
+
+        int uvStart = ySize;
+
+        int uIndex = ySize;
+        int vIndex = ySize + uvSize;
+
+        int packedWidth = width;
+        int packedHeight = height + height / 2;
+
+        int uvOffset = width * height;
+
+        for (int y = 0; y < height / 2; y++)
         {
-            jpgTexture.LoadRawTextureData(data);
-            jpgTexture.Apply();
-
-            byte[] jpg = jpgTexture.EncodeToJPG(75);
-
-            if (saveFrame)
+            for (int x = 0; x < width; x++)
             {
-                string path = Application.dataPath + "/frame_capture.jpg";
-                System.IO.File.WriteAllBytes(path, jpg);
-                Debug.Log("Frame guardado en: " + path);
+                byte val = data[uvOffset + y * width + x];
+
+                if (x < width / 2)
+                    yuv[uIndex++] = val;
+                else
+                    yuv[vIndex++] = val;
             }
-
-            StreamSender.SendFrame(jpg);
-
-            nFrames++;
-            Debug.Log("Número de frames: " + nFrames);
         }
+
+        StreamSender.SendFrame(yuv);
     }
 }
