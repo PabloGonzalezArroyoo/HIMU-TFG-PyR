@@ -14,6 +14,7 @@ Shader "Hidden/RGBToYUV420"
             sampler2D _MainTex;
             float2 _TexelSize;
             float _Height;
+            float _Width;
 
             struct v2f
             {
@@ -34,11 +35,14 @@ Shader "Hidden/RGBToYUV420"
                 return dot(rgb, float3(0.299, 0.587, 0.114));
             }
 
-            float2 RGBtoUV(float3 rgb)
+            float RGBtoU(float3 rgb)
             {
-                float u = dot(rgb, float3(-0.169, -0.331, 0.5)) + 0.5;
-                float v = dot(rgb, float3(0.5, -0.419, -0.081)) + 0.5;
-                return float2(u, v);
+                return dot(rgb, float3(-0.169, -0.331, 0.5)) + 0.5;
+            }
+
+            float RGBtoV(float3 rgb)
+            {
+                return dot(rgb, float3(0.5, -0.419, -0.081)) + 0.5;
             }
 
             float frag(v2f i) : SV_Target
@@ -52,25 +56,30 @@ Shader "Hidden/RGBToYUV420"
                     return RGBtoY(rgb);
                 }
 
-                // -------- UV PLANE --------
+                // -------- U/V plane --------
                 float2 uv = i.uv;
-                
-                // reescalar UV area 
-                uv.y = (yPixel - _Height) / (_Height * 0.5);
 
-                float2 texel = _TexelSize * 2;
+                // Calculamos coordenadas dentro del plano U/V
+                float uvPlaneY = (yPixel - _Height) / (_Height * 0.25); // porque cada plano tiene height/4
+                float uvPlaneX = uv.x * _Width;
 
-                float3 c0 = tex2D(_MainTex, uv).rgb;
-                float3 c1 = tex2D(_MainTex, uv + float2(texel.x, 0)).rgb;
-                float3 c2 = tex2D(_MainTex, uv + float2(0, texel.y)).rgb;
-                float3 c3 = tex2D(_MainTex, uv + texel).rgb;
-                float2 uvAvg = (RGBtoUV(c0) + RGBtoUV(c1) + RGBtoUV(c2) + RGBtoUV(c3)) * 0.25;
-                
-                // izquierda = U, derecha = V
-                if (uv.x < 0.5)
-                    return uvAvg.x;
-                else 
-                    return uvAvg.y;
+                // Calculamos el pixel de 2x2 para downsampling
+                int px = (int)uvPlaneX * 2;
+                int py = (int)uvPlaneY * 2;
+
+                float3 c0 = tex2D(_MainTex, (float2(px, py) + 0.5) * _TexelSize).rgb;
+                float3 c1 = tex2D(_MainTex, (float2(px+1, py) + 0.5) * _TexelSize).rgb;
+                float3 c2 = tex2D(_MainTex, (float2(px, py+1) + 0.5) * _TexelSize).rgb;
+                float3 c3 = tex2D(_MainTex, (float2(px+1, py+1) + 0.5) * _TexelSize).rgb;
+
+                float uAvg = (RGBtoU(c0) + RGBtoU(c1) + RGBtoU(c2) + RGBtoU(c3)) * 0.25;
+                float vAvg = (RGBtoV(c0) + RGBtoV(c1) + RGBtoV(c2) + RGBtoV(c3)) * 0.25;
+
+                // Definimos offset para que U y V estén en planas separadas
+                if (yPixel < _Height + _Height/4)
+                    return uAvg; // primer cuarto del área UV -> U
+                else
+                    return vAvg; // segundo cuarto -> V
             }
 
             ENDHLSL

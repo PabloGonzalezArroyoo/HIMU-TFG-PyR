@@ -2,23 +2,50 @@
 <html>
 <body>
 
-    <img id="stream" width="1280" />
+    <video id="video" autoplay controls></video>
 
     <script>
+        const video = document.getElementById('video');
+        const mediaSource = new MediaSource();
 
-        let img = document.getElementById("stream");
+        video.src = URL.createObjectURL(mediaSource);
 
-        let socket = new WebSocket("ws://localhost:8080");
+        mediaSource.addEventListener('sourceopen', () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E"');
 
-        socket.binaryType = "arraybuffer";
+            const socket = new WebSocket("ws://localhost:8080");
+            socket.binaryType = "arraybuffer";
 
-        socket.onmessage = function (event) {
-            let blob = new Blob([event.data], { type: "image/jpeg" });
-            let url = URL.createObjectURL(blob);
+            let queue = [];
 
-            img.src = url;
-        }
+            socket.onmessage = (event) => {
+                const chunk = new Uint8Array(event.data);
 
+                console.log("Chunk recibido, bytes:", chunk.byteLength, "primeros 16 bytes:", chunk.slice(0, 16));
+
+                if (sourceBuffer.buffered.length > 0) {
+                    let bufferedEnd = sourceBuffer.buffered.end(0);
+                    let currentTime = video.currentTime;
+
+                    if (bufferedEnd - currentTime > 5) {
+                        console.warn("Buffer lleno, descartando chunk");
+                        return;
+                    }
+                }
+
+                if (!sourceBuffer.updating && queue.length === 0) {
+                    sourceBuffer.appendBuffer(chunk);
+                } else {
+                    queue.push(chunk);
+                }
+            };
+
+            sourceBuffer.addEventListener('updateend', () => {
+                if (queue.length > 0 && !sourceBuffer.updating) {
+                    sourceBuffer.appendBuffer(queue.shift());
+                }
+            });
+        });
     </script>
 
 </body>

@@ -66,46 +66,10 @@ public class FrameCapturePass : ScriptableRenderPass
 
             var data = request.GetData<byte>();
 
-            ProcessFrame(data);
+            StreamSender.SendFrame(data.ToArray());
 
             FrameCaptureManager.LatestFrame = data;
             FrameCaptureManager.HasNewFrame = true;
         });
-    }
-
-    private void ProcessFrame(NativeArray<byte> data)
-    {
-        int ySize = width * height;
-        int uvSize = ySize / 4;
-
-        byte[] yuv = new byte[ySize + uvSize * 2];
-
-        // Y (primer bloque)
-        NativeArray<byte>.Copy(data, 0, yuv, 0, ySize);
-
-        int uvStart = ySize;
-
-        int uIndex = ySize;
-        int vIndex = ySize + uvSize;
-
-        int packedWidth = width;
-        int packedHeight = height + height / 2;
-
-        int uvOffset = width * height;
-
-        for (int y = 0; y < height / 2; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                byte val = data[uvOffset + y * width + x];
-
-                if (x < width / 2)
-                    yuv[uIndex++] = val;
-                else
-                    yuv[vIndex++] = val;
-            }
-        }
-
-        StreamSender.SendFrame(yuv);
     }
 }
