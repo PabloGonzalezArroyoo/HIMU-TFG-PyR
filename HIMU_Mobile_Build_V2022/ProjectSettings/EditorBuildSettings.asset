@@ -8,7 +8,10 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/MobileInput.unity
     guid: bc5cabde5dbf1344cb065ba110cef544
+  - enabled: 1
+    path: Assets/Scenes/MobileUSBConnection.unity
+    guid: d9df97b4edf578e4dbb08e3786f147b3
   m_configObjects: {}
