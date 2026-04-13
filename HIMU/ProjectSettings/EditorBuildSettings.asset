@@ -5,9 +5,21 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/MainMenu.unity
+    guid: cec459f88bf8d3644a2fe1e14bd8fe29
+  - enabled: 1
+    path: Assets/Scenes/Mobile_USB_Connection.unity
+    guid: a8100e99069240a4db0059ad433d824a
+  - enabled: 1
+    path: Assets/Scenes/Mobile_Wifi_GamePad.unity
+    guid: 3fac7dcbfd0610247b3655728b810f6a
+  - enabled: 1
+    path: Assets/Scenes/Mobile_Wifi_Multiplayer.unity
+    guid: 0856c5be0f7e3084baa9276e2e4f8713
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
