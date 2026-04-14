@@ -20,12 +20,12 @@ public class FramePreview : MonoBehaviour
 
     void Update()
     {
-        if (!FrameCaptureManager.HasNewFrame)
-            return;
+        //if (!FrameCaptureManager.HasNewFrame)
+        //    return;
 
         //previewTexture.LoadRawTextureData(FrameCaptureManager.LatestFrame);
         //previewTexture.Apply();
 
-        FrameCaptureManager.HasNewFrame = false;
+        //FrameCaptureManager.HasNewFrame = false;
     }
 }

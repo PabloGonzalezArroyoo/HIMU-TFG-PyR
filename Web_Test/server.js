@@ -1,22 +1,37 @@
-const WebSocket = require('ws');
+﻿const WebSocket = require('ws');
 
 const wss = new WebSocket.Server({ port: 8080 });
+console.log("Signaling server en ws://localhost:8080");
 
-console.log("WebSocket server running on ws://localhost:8080");
+// Guardamos las dos partes: Unity y el navegador
+let unityClient = null;
+let browserClient = null;
 
-wss.on('connection', function connection(ws) {
+wss.on('connection', (ws, req) => {
+    const clientType = new URL(req.url, 'http://localhost').searchParams.get('type');
 
-    console.log("Client connected");
+    if (clientType === 'unity') {
+        unityClient = ws;
+        console.log("Unity conectado");
+    } else {
+        browserClient = ws;
+        console.log("Navegador conectado");
+    }
 
-    ws.on('message', function incoming(data) {
+    ws.on('message', (data) => {
+        const msg = JSON.parse(data);
+        console.log(`[${clientType}] → ${msg.type}`);
 
-        // reenviar el frame a todos los clientes conectados
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(data);
-            }
-        });
-
+        // Reenvía al otro extremo
+        const target = clientType === 'unity' ? browserClient : unityClient;
+        if (target?.readyState === WebSocket.OPEN) {
+            target.send(data);
+        }
     });
 
+    ws.on('close', () => {
+        console.log(`${clientType} desconectado`);
+        if (clientType === 'unity') unityClient = null;
+        else browserClient = null;
+    });
 });

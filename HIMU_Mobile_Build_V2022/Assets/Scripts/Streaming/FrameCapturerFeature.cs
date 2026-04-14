@@ -4,10 +4,14 @@ using UnityEngine.Rendering.Universal;
 
 public class FrameCaptureFeature : ScriptableRendererFeature
 {
+    public static FrameCaptureFeature Instance { get; private set; }
+
     FrameCapturePass pass;
+    public RenderTexture CapturedFrame => pass?.OutputTexture;
 
     public override void Create()
     {
+        Instance = this;
         pass = new FrameCapturePass();
         pass.renderPassEvent = RenderPassEvent.AfterRendering;
     }
@@ -21,5 +25,10 @@ public class FrameCaptureFeature : ScriptableRendererFeature
             return;
 
         renderer.EnqueuePass(pass);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        pass?.Cleanup();
     }
 }

@@ -9,11 +9,7 @@ public class FrameCapturePass : ScriptableRenderPass
 {
     RTHandle cameraColorTarget;
 
-    RenderTexture yuvCaptureTexture;
-    Material yuvMaterial;
-
-    long nFrames;
-    int captureEveryNFrames = 1; // [captureEveryNFrames = targetFPS / captureFPS] - 1 = 60 fps
+    public RenderTexture OutputTexture { get; private set; }
 
     // MODIFICAR ESTOS NÚMEROS PARA REDUCIR MB DE FRAME
     int width = 1280;
@@ -21,20 +17,9 @@ public class FrameCapturePass : ScriptableRenderPass
 
     public FrameCapturePass()
     {
-        yuvCaptureTexture = new RenderTexture(
-            width,
-            height + height / 2,
-            0,
-            RenderTextureFormat.R8
-        );
-        yuvCaptureTexture.Create();
-
-        yuvMaterial = new Material(Shader.Find("Hidden/RGBToYUV420"));
-
-        yuvMaterial.SetVector("_TexelSize", new Vector2(1.0f / width, 1.0f / height));
-        yuvMaterial.SetFloat("_Height", height);
-
-        nFrames = 0;
+        OutputTexture = new RenderTexture(width, height, 0, RenderTextureFormat.BGRA32);
+        OutputTexture.enableRandomWrite = true;
+        OutputTexture.Create();
     }
 
     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
@@ -44,32 +29,14 @@ public class FrameCapturePass : ScriptableRenderPass
 
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
     {
-        if (Time.frameCount % captureEveryNFrames != 0)
-            return;
-
         CommandBuffer cmd = CommandBufferPool.Get("FrameCapture");
-
-        // copiar frame a textura de captura
-        cmd.Blit(cameraColorTarget, yuvCaptureTexture, yuvMaterial);
-
+        cmd.Blit(cameraColorTarget, OutputTexture);
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
+    }
 
-        // leer GPU sin bloquear
-        AsyncGPUReadback.Request(yuvCaptureTexture, 0, request =>
-        {
-            if (request.hasError)
-            {
-                Debug.LogError("GPU readback error");
-                return;
-            }
-
-            var data = request.GetData<byte>();
-
-            StreamSender.SendFrame(data.ToArray());
-
-            FrameCaptureManager.LatestFrame = data;
-            FrameCaptureManager.HasNewFrame = true;
-        });
+    public void Cleanup()
+    {
+        OutputTexture?.Release();
     }
 }

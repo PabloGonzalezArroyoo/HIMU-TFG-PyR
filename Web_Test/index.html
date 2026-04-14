@@ -1,52 +1,140 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
-<body>
+<head>
+    <title>HIMU test</title>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
 
-    <video id="video" autoplay controls></video>
+        video {
+            width: 1280px;
+            height: 720px;
+        }
+
+        button {
+            margin-top: 12px;
+            padding: 8px 24px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #status {
+            color: #aaa;
+            margin-top: 8px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <video id="video" autoplay playsinline></video>
+    <button id="btn">Conectar</button>
+    <div id="status">Desconectado</div>
 
     <script>
         const video = document.getElementById('video');
-        const mediaSource = new MediaSource();
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
 
-        video.src = URL.createObjectURL(mediaSource);
+        let pc = null;
+        let ws = null;
 
-        mediaSource.addEventListener('sourceopen', () => {
-            const sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E"');
+        btn.onclick = () => connect();
 
-            const socket = new WebSocket("ws://localhost:8080");
-            socket.binaryType = "arraybuffer";
+        function setStatus(msg) {
+            status.textContent = msg;
+            console.log(msg);
+        }
 
-            let queue = [];
+        async function connect() {
+            btn.disabled = true;
+            let pendingCandidates = [];
+            setStatus('Conectando a señalización...');
 
-            socket.onmessage = (event) => {
-                const chunk = new Uint8Array(event.data);
+            ws = new WebSocket('ws://localhost:8080?type=browser');
+            ws.binaryType = "arraybuffer";
 
-                console.log("Chunk recibido, bytes:", chunk.byteLength, "primeros 16 bytes:", chunk.slice(0, 16));
+            ws.onopen = async () => {
+                setStatus('Conectado a señalización. Creando oferta...');
 
-                if (sourceBuffer.buffered.length > 0) {
-                    let bufferedEnd = sourceBuffer.buffered.end(0);
-                    let currentTime = video.currentTime;
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
 
-                    if (bufferedEnd - currentTime > 5) {
-                        console.warn("Buffer lleno, descartando chunk");
-                        return;
+                pc.ontrack = (event) => {
+                    setStatus('Stream recibido ✓');
+                    video.srcObject = event.streams[0];
+                };
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        ws.send(JSON.stringify({
+                            type: 'ice',
+                            candidate: event.candidate.candidate,
+                            sdpMid: event.candidate.sdpMid,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex
+                        }));
                     }
+                };
+
+                pc.onconnectionstatechange = () => {
+                    setStatus(`WebRTC: ${pc.connectionState}`);
+                    if (pc.connectionState === 'failed') btn.disabled = false;
+                };
+
+                pc.addTransceiver('video', { direction: 'recvonly' });
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                ws.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }));
+                setStatus('Oferta enviada, esperando respuesta...');
+            };
+
+            ws.onmessage = async (event) => {
+                let json;
+                if (event.data instanceof ArrayBuffer) {
+                    json = new TextDecoder().decode(event.data);
+                } else {
+                    json = event.data;
                 }
 
-                if (!sourceBuffer.updating && queue.length === 0) {
-                    sourceBuffer.appendBuffer(chunk);
-                } else {
-                    queue.push(chunk);
+                const msg = JSON.parse(json); // ← fix bug 1
+
+                if (msg.type === 'answer') {
+                    await pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+                    setStatus('Respuesta recibida, negociando ICE...');
+
+                    for (const c of pendingCandidates) {
+                        await pc.addIceCandidate(c).catch(e => console.warn("ICE error:", e));
+                    }
+                    pendingCandidates = [];
+                }
+                else if (msg.type === 'ice') {
+                    const candidate = {
+                        candidate: msg.candidate,
+                        sdpMid: msg.sdpMid,
+                        sdpMLineIndex: msg.sdpMLineIndex
+                    };
+
+                    if (!pc.remoteDescription) {
+                        pendingCandidates.push(candidate);
+                    } else {
+                        await pc.addIceCandidate(candidate).catch(e => console.warn("ICE error:", e));
+                    }
                 }
             };
 
-            sourceBuffer.addEventListener('updateend', () => {
-                if (queue.length > 0 && !sourceBuffer.updating) {
-                    sourceBuffer.appendBuffer(queue.shift());
-                }
-            });
-        });
+            ws.onerror = () => {
+                setStatus('Error de señalización');
+                btn.disabled = false;
+            };
+        }
     </script>
-
 </body>
 </html>
