@@ -3,9 +3,11 @@
 const wss = new WebSocket.Server({ port: 8080 });
 console.log("Signaling server en ws://localhost:8080");
 
-// Guardamos las dos partes: Unity y el navegador
 let unityClient = null;
 let browserClient = null;
+
+// Cola de mensajes pendientes para Unity (por si el browser conecta primero)
+let pendingForUnity = [];
 
 wss.on('connection', (ws, req) => {
     const clientType = new URL(req.url, 'http://localhost').searchParams.get('type');
@@ -13,6 +15,12 @@ wss.on('connection', (ws, req) => {
     if (clientType === 'unity') {
         unityClient = ws;
         console.log("Unity conectado");
+
+        // Enviar mensajes que llegaron antes de que Unity conectara
+        for (const data of pendingForUnity) {
+            ws.send(data);
+        }
+        pendingForUnity = [];
     } else {
         browserClient = ws;
         console.log("Navegador conectado");
@@ -22,10 +30,19 @@ wss.on('connection', (ws, req) => {
         const msg = JSON.parse(data);
         console.log(`[${clientType}] → ${msg.type}`);
 
-        // Reenvía al otro extremo
-        const target = clientType === 'unity' ? browserClient : unityClient;
-        if (target?.readyState === WebSocket.OPEN) {
-            target.send(data);
+        if (clientType === 'unity') {
+            // Unity → Browser
+            if (browserClient?.readyState === WebSocket.OPEN) {
+                browserClient.send(data);
+            }
+        } else {
+            // Browser → Unity (o cola si Unity aún no está)
+            if (unityClient?.readyState === WebSocket.OPEN) {
+                unityClient.send(data);
+            } else {
+                console.log(`Unity no disponible, encolando mensaje: ${msg.type}`);
+                pendingForUnity.push(data);
+            }
         }
     });
 

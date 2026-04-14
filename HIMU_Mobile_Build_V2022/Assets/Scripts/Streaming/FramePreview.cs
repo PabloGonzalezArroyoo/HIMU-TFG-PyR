@@ -1,31 +1,19 @@
 using UnityEngine;
+using System.Collections;
 
 public class FramePreview : MonoBehaviour
 {
-    Texture2D previewTexture;
-
-    int width = 1280;
-    int height = 720;
-
-    void Start()
+    IEnumerator Start()
     {
-        previewTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        
-        Renderer renderer = GetComponent<Renderer>();
-        renderer.material.mainTexture = previewTexture;
+        yield return new WaitUntil(() => FrameCaptureFeature.Instance?.CapturedFrame != null);
 
-        renderer.material.mainTextureScale = new Vector2(1, -1);
-        renderer.material.mainTextureOffset = new Vector2(0, 1);
-    }
+        RenderTexture rt = FrameCaptureFeature.Instance.CapturedFrame;
 
-    void Update()
-    {
-        //if (!FrameCaptureManager.HasNewFrame)
-        //    return;
+        Material mat = GetComponent<Renderer>().material;
+        mat.mainTexture = rt;
 
-        //previewTexture.LoadRawTextureData(FrameCaptureManager.LatestFrame);
-        //previewTexture.Apply();
-
-        //FrameCaptureManager.HasNewFrame = false;
+        // Las RenderTextures están volteadas verticalmente respecto a la UV del plano
+        mat.mainTextureScale = new Vector2(1, -1);
+        mat.mainTextureOffset = new Vector2(0, 1);
     }
 }

@@ -21,6 +21,7 @@ public class WebRTCStreamer : MonoBehaviour
 
     void Start()
     {
+        StartCoroutine(WebRTC.Update());
         StartCoroutine(SetupWebRTC());
     }
 
@@ -176,9 +177,7 @@ public class WebRTCStreamer : MonoBehaviour
 
     void Update()
     {
-        // NativeWebSocket requiere esto en el hilo principal
         signalingSocket?.DispatchMessageQueue();
-        WebRTC.Update();
     }
 
     void OnDestroy()

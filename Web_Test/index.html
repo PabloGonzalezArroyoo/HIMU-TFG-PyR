@@ -33,7 +33,7 @@
     </style>
 </head>
 <body>
-    <video id="video" autoplay playsinline></video>
+    <video id="video" autoplay playsinline muted></video>
     <button id="btn">Conectar</button>
     <div id="status">Desconectado</div>
 
@@ -68,8 +68,23 @@
                 });
 
                 pc.ontrack = (event) => {
+                    const stream = (event.streams && event.streams[0])
+                        ? event.streams[0]
+                        : new MediaStream([event.track]);
+
+                    video.srcObject = stream;
+
+                    // Log para saber qué recibimos
+                    console.log('Tracks en stream:', stream.getVideoTracks().map(t => ({
+                        label: t.label,
+                        readyState: t.readyState,
+                        enabled: t.enabled,
+                        muted: t.muted
+                    })));
+
+                    video.play().catch(e => console.error('play() bloqueado:', e));
+
                     setStatus('Stream recibido ✓');
-                    video.srcObject = event.streams[0];
                 };
 
                 pc.onicecandidate = (event) => {
@@ -104,7 +119,7 @@
                     json = event.data;
                 }
 
-                const msg = JSON.parse(json); // ← fix bug 1
+                const msg = JSON.parse(json); 
 
                 if (msg.type === 'answer') {
                     await pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
