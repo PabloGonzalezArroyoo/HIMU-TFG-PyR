@@ -37,7 +37,6 @@ public class InputServer : MonoBehaviour
             while ((length = stream.Read(buffer, 0, buffer.Length)) != 0)
             {
                 string data = Encoding.UTF8.GetString(buffer, 0, length);
-                //ProcessInput(data);
                 Debug.Log("Informacion recibida desde el movil");
             }
 
