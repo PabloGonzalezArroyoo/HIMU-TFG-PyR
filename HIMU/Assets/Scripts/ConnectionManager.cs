@@ -7,6 +7,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using Unity.Android.Gradle.Manifest;
+using UnityEditor.PackageManager;
 using UnityEngine;
 
 public class ConnectionManager : MonoBehaviour
@@ -22,8 +24,15 @@ public class ConnectionManager : MonoBehaviour
     // Cosas de redes
     TcpListener server;
     WebSocketServer serverWS;
+
+    TcpListener listener;
+    TcpClient client;
+    NetworkStream stream;
     Thread serverThread;
-    bool running = true;
+    bool running;
+    bool mobileConnected = false;
+    InputInfo receivedInput;
+    readonly object lockObj = new object();
 
     UdpClient broadcaster;  //Para anunciar la IP del PC y permitir conexion luego
 
@@ -129,13 +138,6 @@ public class ConnectionManager : MonoBehaviour
 
     #region TCP
 
-    void Broadcast()
-    {
-        string myIP = GetLocalIP();
-        byte[] data = Encoding.UTF8.GetBytes("UNITY_CONTROLLER:" + myIP + ":8052");
-        broadcaster.Send(data, data.Length, "255.255.255.255", 9999);
-    }
-
     string GetLocalIP()
     {
         foreach (var ip in Dns.GetHostAddresses(Dns.GetHostName()))
@@ -144,34 +146,80 @@ public class ConnectionManager : MonoBehaviour
         return "127.0.0.1";
     }
 
+    void Broadcast()
+    {
+        if (mobileConnected) return; // no envía si ya hay conexión
+        string myIP = GetLocalIP();
+        UnityEngine.Debug.Log(myIP);
+        byte[] data = Encoding.UTF8.GetBytes("UNITY_CONTROLLER:" + myIP + ":8052");
+        broadcaster.Send(data, data.Length, "255.255.255.255", 9999);
+    }
+
+    void Receive()
+    {
+        try
+        {
+            client = listener.AcceptTcpClient();
+            mobileConnected = true; // el Broadcast lo leerá en el siguiente tick
+            string clientID = client.Client.RemoteEndPoint.ToString();
+            UnityEngine.Debug.Log("[Receiver] Móvil conectado: " + clientID);
+
+            // Hilo independiente para cada móvil
+            Thread clientThread = new Thread(() => HandleClient(client, clientID));
+            clientThread.IsBackground = true;
+            clientThread.Start();
+        }
+        catch { }
+    }
+
+    void HandleClient(TcpClient client, string clientID)
+    {
+        stream = client.GetStream();
+        byte[] buffer = new byte[1024];
+
+        while (running && client.Connected)
+        {
+            try
+            {
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                if (bytesRead == 0) break; // móvil desconectado
+
+                string json = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
+                InputInfo data = JsonUtility.FromJson<InputInfo>(json);
+                UnityEngine.Debug.Log("[Receiver] Móvil " + clientID + " envio informacion");
+
+                lock (lockObj)
+                {
+                    receivedInput = data;
+                }
+            }
+            catch
+            {
+                break;
+            }
+        }
+
+        client.Close();
+        UnityEngine.Debug.Log("[Receiver] Móvil desconectado: " + clientID);
+    }
+
     public void AnnounceIP()
     {
-        // Anunciar la IP primero:
+        // Anunciar la IP primero
         broadcaster = new UdpClient();
         broadcaster.EnableBroadcast = true;
-        InvokeRepeating(nameof(Broadcast), 0f, 1f); // cada segundo
+        InvokeRepeating(nameof(Broadcast), 0f, 5f);
+
+        listener = new TcpListener(IPAddress.Any, 8052);
+        listener.Start();
+        serverThread = new Thread(Receive);
+        serverThread.IsBackground = true;
+        serverThread.Start();
     }
 
     public void ConfigureTCP()
     {
-        serverWS = new WebSocketServer("ws://192.168.1.21:8052");
-
-        serverWS.Start(socket =>
-        {
-            socket.OnOpen = () => UnityEngine.Debug.Log("Nuevo dispositivo cliente conectado");
-
-            socket.OnClose = () => UnityEngine.Debug.Log("Dispositivo cliente desconectado");
-
-            socket.OnMessage = message =>
-            {
-                UnityEngine.Debug.Log("Movil dice: " + message);
-
-                // responder al móvil
-                socket.Send("Unity dice: " + message);
-            };
-        });
-
-        UnityEngine.Debug.Log("Servidor WebSocket iniciado en puerto 8080");
+        AnnounceIP();
     }
 
     #endregion
@@ -182,6 +230,17 @@ public class ConnectionManager : MonoBehaviour
         {
             ConfigureADB();
         }
+        else
+        {
+            ConfigureTCP();
+        }
+    }
+
+    void OnDestroy()
+    {
+        running = false;
+        listener?.Stop();
+        broadcaster?.Close();
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created

@@ -21,12 +21,14 @@ namespace Assets.Scripts
         DEFAULT, BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, BUTTON_RIGHT, ACTION_BUTTON, MICROPHONE
     };
 
+    [System.Serializable]
     struct DeviceInfo
     {
         string deviceID;
         string deviceIP;
     }
 
+    [System.Serializable]
     struct ConnectionInfo
     {
         ConnectionEvent connectionEvent;
@@ -35,7 +37,7 @@ namespace Assets.Scripts
 
     };
 
-
+    [System.Serializable]
     struct InputInfo
     {
         DeviceInfo infoDevice;
