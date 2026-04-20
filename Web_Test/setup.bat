@@ -1,96 +1,69 @@
 @echo off
-title Launcher WebRTC TFG
-color 0A
+title Launcher WebRTC HIMU
+color 0B
 
-echo ===============================
-echo   INICIANDO ENTORNO TFG
-echo ===============================
+echo ================================
+echo  INITIALIZING HIMU'S ENVIROMENT 
+echo ================================
 echo.
 
-REM ----------- COMPROBAR NODE ----------
-echo [1/5] Comprobando Node.js...
-where npm >nul 2>&1
+REM ----------- CHECK NODE AND NPM ----------
+echo [1/4] Checking Node.js y npm...
+where node >nul 2>&1
 
 IF ERRORLEVEL 1 (
-    echo ERROR: Node.js no está instalado.
-    echo Descargalo de: https://nodejs.org/
+    echo ERROR: Node.js is not installed.
+    echo Download it from: https://nodejs.org/
     pause
     exit /b
-) ELSE (
-    echo OK: Node.js detectado
 )
+echo OK: Node.js y npm detected
 
 echo.
 
-REM ----------- COMPROBAR NPM ----------
-echo [2/5] Comprobando npm...
-
-where npm >nul 2>&1
-IF ERRORLEVEL 1 (
-    echo ERROR: npm no está disponible.
-    pause
-    exit /b
-) ELSE (
-    echo OK: npm detectado
-)
-
-echo.
-
-REM ----------- INICIALIZAR PROYECTO ----------
-echo [3/5] Preparando proyecto...
+REM ----------- INITIALIZING PROJECT ----------
+echo [2/4] Seting up project...
 
 IF NOT EXIST package.json (
-    echo Creando package.json...
+    echo Creating package.json...
     npm init -y
+) ELSE (
+    echo OK: package.json already exists
 )
 
 echo.
 
-REM ----------- INSTALAR DEPENDENCIAS ----------
-echo [4/5] Instalando dependencias necesarias...
+REM ----------- INSTALL DEPENDENCIES ----------
+echo [3/4] Installing dependencies needed...
 
 IF NOT EXIST node_modules (
-    echo Instalando ws...
+    echo Installing ws...
     npm install ws
 ) ELSE (
-    echo Dependencias ya instaladas
+    echo OK: Dependencies already installed
 )
 
 echo.
 
-REM ----------- LANZAR SERVIDOR ----------
-echo [5/5] Lanzando servidor WebSocket...
+REM ----------- LAUNCHING SERVER ----------
+echo [4/4] Launching WebSocket server...
 
-start cmd /k "echo ===== SERVER LOG ===== && node server.js"
-
-echo Esperando 2 segundos para asegurar arranque...
+start "WS Server" cmd /k "echo ===== SERVER LOG ===== && node src/server/server.js"
 timeout /t 2 >nul
+echo OK: WebSocket launched - Its console will show logs
 
-REM ----------- SERVIDOR HTTP ----------
-echo.
-echo Lanzando servidor web para index.html...
-
-npx http-server -p 3000 >nul 2>&1
-
-IF ERRORLEVEL 1 (
-    echo Instalando http-server...
-    npm install -g http-server
-)
-
-start cmd /k "echo ===== HTTP SERVER ===== && npx http-server -p 3000"
+start "HTTP Server" cmd /k "echo ===== HTTP SERVER ===== && npx http-server src/web -p 3000 -c-1 -o"
+timeout /t 2 >nul
+echo OK: HTTP Sever launched - Browser should open itself
 
 echo.
-
-REM ----------- ABRIR NAVEGADOR ----------
-echo Abriendo navegador...
-start http://localhost:3000
-
-echo.
+color 0A
 echo ===============================
-echo   TODO LISTO
+echo   ALL READY
 echo ===============================
 echo.
-echo Servidor WS: ws://localhost:8080
-echo Web:         http://localhost:3000
+echo WS server : ws://localhost:8080
+echo Web       : http://localhost:3000
+echo *NOTE:* Each process opened a console. Close them to terminate the server and socket.
 echo.
 pause

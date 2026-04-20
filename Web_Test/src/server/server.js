@@ -1,7 +1,7 @@
 ﻿const WebSocket = require('ws');
 
 const wss = new WebSocket.Server({ port: 8080 });
-console.log("Signaling server en ws://localhost:8080");
+console.log("INIT: Signaling server en ws://localhost:8080");
 
 let unityClient = null;
 let browserClient = null;
@@ -14,7 +14,7 @@ wss.on('connection', (ws, req) => {
 
     if (clientType === 'unity') {
         unityClient = ws;
-        console.log("Unity conectado");
+        console.log("CONN: Unity conectado");
 
         // Enviar mensajes que llegaron antes de que Unity conectara
         for (const data of pendingForUnity) {
@@ -23,12 +23,12 @@ wss.on('connection', (ws, req) => {
         pendingForUnity = [];
     } else {
         browserClient = ws;
-        console.log("Navegador conectado");
+        console.log("CONN: Navegador conectado");
     }
 
     ws.on('message', (data) => {
         const msg = JSON.parse(data);
-        console.log(`[${clientType}] → ${msg.type}`);
+        console.log(`MSSG: [${clientType}] → ${msg.type}`);
 
         if (clientType === 'unity') {
             // Unity → Browser
@@ -40,14 +40,14 @@ wss.on('connection', (ws, req) => {
             if (unityClient?.readyState === WebSocket.OPEN) {
                 unityClient.send(data);
             } else {
-                console.log(`Unity no disponible, encolando mensaje: ${msg.type}`);
+                console.log(`MSSG: Unity no disponible, encolando mensaje: ${msg.type}`);
                 pendingForUnity.push(data);
             }
         }
     });
 
     ws.on('close', () => {
-        console.log(`${clientType} desconectado`);
+        console.log(`CLSE: ${clientType} desconectado`);
         if (clientType === 'unity') unityClient = null;
         else browserClient = null;
     });
