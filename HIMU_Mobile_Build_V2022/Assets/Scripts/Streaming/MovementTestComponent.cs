@@ -1,7 +1,9 @@
 using UnityEngine;
-using UnityEngine.UIElements;
-using static UnityEngine.EventSystems.EventTrigger;
 
+/// <summary>
+/// Test component that will move an object in a circle repeatedly.
+/// Used for the camera so that each frame rendered has differences.
+/// </summary>
 public class MovementTestComponent : MonoBehaviour
 {
     public float radius;
