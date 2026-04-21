@@ -26,8 +26,8 @@ namespace Assets.Scripts
     [System.Serializable]
     public struct DeviceInfo
     {
-        string deviceID;
-        string deviceIP;
+        public string deviceID;
+        public string deviceIP;
 
         public DeviceInfo(string id, string ip)
         {

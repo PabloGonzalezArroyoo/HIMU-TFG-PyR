@@ -1,5 +1,4 @@
-using Assets.Scripts;
-using Fleck;
+﻿using Assets.Scripts;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +6,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Unity.Android.Gradle.Manifest;
 using UnityEditor.PackageManager;
 using UnityEngine;
 
@@ -19,22 +17,23 @@ public class ConnectionManager : MonoBehaviour
 
     // Cosas de adb
     private string adbPath = "";
-    private List<String> adbDevices = new List<String>();
 
-    // Cosas de redes
-    TcpListener server;
-    WebSocketServer serverWS;
+    // Lista de devices conectados
+    protected List<string> devices = new List<string>();
+    protected string deviceConnected = "";
 
-    TcpListener listener;
-    TcpClient client;
-    NetworkStream stream;
-    Thread serverThread;
-    bool running;
+    UdpClient broadcast;  //Para anunciar la IP del PC y permitir conexion luego
+    [SerializeField]
+    protected int broadcastPort = 8052;
+    [SerializeField]
+    protected int listenPort = 8053;
+
+    private UdpClient listener;
+    private Thread listenThread;
+    private bool running = false;
     bool mobileConnected = false;
-    InputInfo receivedInput;
-    readonly object lockObj = new object();
-
-    UdpClient broadcaster;  //Para anunciar la IP del PC y permitir conexion luego
+    private readonly Queue<string> inputEvents = new Queue<string>();
+    private readonly object queueLock = new object();
 
     #region ADB
     private string FindAdbPath()
@@ -44,7 +43,7 @@ public class ConnectionManager : MonoBehaviour
             System.Environment.SpecialFolder.LocalApplicationData);
 
         string[] candidatas = {
-        // Variable de entorno est�ndar
+        // Variable de entorno estándar
         System.IO.Path.Combine(
             System.Environment.GetEnvironmentVariable("ANDROID_HOME") ?? "",
             "platform-tools", "adb.exe"),
@@ -69,11 +68,11 @@ public class ConnectionManager : MonoBehaviour
             }
         }
 
-        UnityEngine.Debug.LogError("No se encontr� adb.exe. Instala Android Studio o el Android SDK.");
+        UnityEngine.Debug.LogError("No se encontró adb.exe. Instala Android Studio o el Android SDK.");
         return null;
     }
 
-    private void ParseDeviceIds(string adbOutput)
+    private void StoreDeviceIds(string adbOutput)
     {
         string[] lines = adbOutput.Split('\n');
 
@@ -81,17 +80,18 @@ public class ConnectionManager : MonoBehaviour
         {
             string trimmed = line.Trim();
 
-            // Saltamos la cabecera y l�neas vac�as
+            // Saltamos la cabecera y líneas vacías
             if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("List of devices"))
                 continue;
 
-            // Cada dispositivo v�lido tiene formato: "<id>\t<estado>"
+            // Cada dispositivo válido tiene formato: "<id>\t<estado>"
             string[] parts = trimmed.Split('\t');
             if (parts.Length >= 2 && parts[1].Trim() == "device")
-                adbDevices.Add(parts[0].Trim());
+            {
+                devices.Add(parts[0].Trim());
+                UnityEngine.Debug.Log(parts[0]);
+            }
         }
-
-        foreach (string device in adbDevices) UnityEngine.Debug.Log(device);
     }
 
     public string RunAdbCommand(string arguments)
@@ -124,102 +124,187 @@ public class ConnectionManager : MonoBehaviour
         return output.ToString();
     }
 
+    private void StartListening()
+    {
+        listener = new UdpClient(listenPort);
+        listenThread = new Thread(ListenLoopADB) { IsBackground = true };
+        listenThread.Start();
+        UnityEngine.Debug.Log($"[Host-PC] Escuchando UDP en el puerto {listenPort}…");
+    }
+
+    private void ListenLoopADB()
+    {
+        while (running)
+        {
+            try
+            {
+                var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+                byte[] data = listener.Receive(ref remoteEP);
+                string message = Encoding.UTF8.GetString(data);
+
+                // ── Handshake ─────────────────────────────────────────────────
+                if (!mobileConnected && message.StartsWith("CLIENT_HELLO:"))
+                {
+                    deviceConnected = message.Replace("CLIENT_HELLO:", "").Trim();
+                    mobileConnected = true;
+                    UnityEngine.Debug.Log($"[Host-PC] Cliente Android conectado. Info: {deviceConnected}");
+                    continue;
+                }
+
+                // ── Mensajes normales ─────────────────────────────────────────
+                if (mobileConnected)
+                {
+                    lock (queueLock)
+                        inputEvents.Enqueue(message);
+                }
+            }
+            catch (SocketException) { break; }
+            catch (Exception e)
+            {
+                if (running)
+                    UnityEngine.Debug.LogWarning($"[Host-PC] Error en hilo de escucha: {e.Message}");
+            }
+        }
+    }
+
     public void ConfigureADB()
     {
         adbPath = FindAdbPath();
         string output = RunAdbCommand("devices");
-        UnityEngine.Debug.Log("ADB devices Output: " + output);
-        ParseDeviceIds(output);
+        StoreDeviceIds(output);
         output = RunAdbCommand("reverse tcp:8052 tcp:8052");
-        UnityEngine.Debug.Log("ADB tunnel Output: " + output);
 
     }
     #endregion
 
-    #region TCP
+    #region UDP
 
-    string GetLocalIP()
+    void BroadcastIP()
     {
-        foreach (var ip in Dns.GetHostAddresses(Dns.GetHostName()))
-            if (ip.AddressFamily == AddressFamily.InterNetwork)
-                return ip.ToString();
-        return "127.0.0.1";
-    }
+        if (mobileConnected) return; // no envía si ya hay conexión
 
-    void Broadcast()
-    {
-        if (mobileConnected) return; // no env�a si ya hay conexi�n
-        string myIP = GetLocalIP();
-        UnityEngine.Debug.Log(myIP);
-        byte[] data = Encoding.UTF8.GetBytes("UNITY_CONTROLLER:" + myIP + ":8052");
-        broadcaster.Send(data, data.Length, "255.255.255.255", 9999);
-    }
-
-    void Receive()
-    {
         try
         {
-            client = listener.AcceptTcpClient();
-            mobileConnected = true; // el Broadcast lo leer� en el siguiente tick
-            string clientID = client.Client.RemoteEndPoint.ToString();
-            UnityEngine.Debug.Log("[Receiver] M�vil conectado: " + clientID);
+            string localIP = GetLocalIP();
+            string message = "UNITY_CONTROLLER:" + localIP + broadcast.ToString();
+            byte[] data = Encoding.UTF8.GetBytes(message);
 
-            // Hilo independiente para cada m�vil
-            Thread clientThread = new Thread(() => HandleClient(client, clientID));
-            clientThread.IsBackground = true;
-            clientThread.Start();
+            using (var sender = new UdpClient())
+            {
+                sender.EnableBroadcast = true;
+                var endpoint = new IPEndPoint(IPAddress.Broadcast, broadcastPort);
+                sender.Send(data, data.Length, endpoint);
+            }
+
+            UnityEngine.Debug.Log($"[Host] Broadcast enviado → {message}");
         }
-        catch { }
+        catch (Exception e)
+        {
+            UnityEngine.Debug.LogWarning($"[Host] Error al enviar broadcast: {e.Message}");
+        }
     }
 
-    void HandleClient(TcpClient client, string clientID)
+    private void StartListening()
     {
-        stream = client.GetStream();
-        byte[] buffer = new byte[1024];
+        listener = new UdpClient(listenPort);
 
-        while (running && client.Connected)
+        listenThread = new Thread(ListenLoop) { IsBackground = true };
+        listenThread.Start();
+
+        UnityEngine.Debug.Log($"[Host] Escuchando en el puerto {listenPort}…");
+    }
+
+    private void ListenLoop()
+    {
+        while (running)
         {
             try
             {
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                if (bytesRead == 0) break; // m�vil desconectado
+                var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+                byte[] data = listener.Receive(ref remoteEP);
+                string message = Encoding.UTF8.GetString(data);
 
-                string json = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
-                InputInfo data = JsonUtility.FromJson<InputInfo>(json);
-                UnityEngine.Debug.Log("[Receiver] M�vil " + clientID + " envio informacion");
-
-                lock (lockObj)
+                // ── Handshake: el cliente responde con su IP ──────────────────
+                if (!mobileConnected && message.StartsWith("CLIENT_HELLO:"))
                 {
-                    receivedInput = data;
+                    string ip = message.Replace("CLIENT_HELLO:", "").Trim();
+                    deviceConnected = ip;
+                    mobileConnected = true;
+
+                    UnityEngine.Debug.Log($"[Host] Cliente conectado: {deviceConnected}");
+                    // El hilo ya está activo; simplemente seguimos en el mismo loop
+                    continue;
+                }
+
+                // ── Mensajes normales del cliente ─────────────────────────────
+                if (mobileConnected)
+                {
+                    lock (queueLock)
+                    {
+                        inputEvents.Enqueue(message);
+                    }
                 }
             }
-            catch
+            catch (SocketException)
             {
+                // El socket se cerró: salir limpiamente
                 break;
             }
+            catch (Exception e)
+            {
+                if (running)
+                    UnityEngine.Debug.LogWarning($"[Host] Error en hilo de escucha: {e.Message}");
+            }
+        }
+    }
+
+    // ── Callback de mensajes ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Se llama en el hilo principal cada vez que llega un mensaje del cliente.
+    /// Personaliza esta función para reaccionar a los datos recibidos.
+    /// </summary>
+    private void OnMessageReceived(string message)
+    {
+        UnityEngine.Debug.Log($"[Host] Mensaje de {deviceConnected}: {message}");
+        // → Aquí puedes parsear el mensaje y actualizar el estado del juego
+    }
+
+    // ── API pública ───────────────────────────────────────────────────────────
+
+    /// <summary>Envía un mensaje UDP al cliente conectado.</summary>
+    public void SendToClient(string message)
+    {
+        if (!mobileConnected || string.IsNullOrEmpty(deviceConnected))
+        {
+            UnityEngine.Debug.LogWarning("[Host] No hay cliente conectado.");
+            return;
         }
 
-        client.Close();
-        UnityEngine.Debug.Log("[Receiver] M�vil desconectado: " + clientID);
+        try
+        {
+            byte[] data = Encoding.UTF8.GetBytes(message);
+            using (var sender = new UdpClient())
+            {
+                var endpoint = new IPEndPoint(IPAddress.Parse(deviceConnected), listenPort - 1); // puerto del cliente
+                sender.Send(data, data.Length, endpoint);
+            }
+        }
+        catch (Exception e)
+        {
+            UnityEngine.Debug.LogWarning($"[Host] Error al enviar mensaje al cliente: {e.Message}");
+        }
     }
 
-    public void AnnounceIP()
+    public void ConfigureUDP()
     {
-        // Anunciar la IP primero
-        broadcaster = new UdpClient();
-        broadcaster.EnableBroadcast = true;
-        InvokeRepeating(nameof(Broadcast), 0f, 5f);
+        running = true;
 
-        listener = new TcpListener(IPAddress.Any, 8052);
-        listener.Start();
-        serverThread = new Thread(Receive);
-        serverThread.IsBackground = true;
-        serverThread.Start();
-    }
+        // Arranca el socket de escucha antes de empezar a hacer broadcast
+        StartListening();
 
-    public void ConfigureTCP()
-    {
-        AnnounceIP();
+        // Envía broadcasts hasta conectarse
+        InvokeRepeating(nameof(BroadcastIP), 0f, 2f);
     }
 
     #endregion
@@ -232,50 +317,48 @@ public class ConnectionManager : MonoBehaviour
         }
         else
         {
-            ConfigureTCP();
+            ConfigureUDP();
         }
     }
 
     void OnDestroy()
     {
         running = false;
-        listener?.Stop();
-        broadcaster?.Close();
+        CancelInvoke(nameof(BroadcastIP));
+        broadcast?.Close();
+        listener?.Close();
+        listenThread?.Abort();
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        serverThread = new Thread(StartServer);
-        serverThread.IsBackground = true;
-        serverThread.Start();
-    }
 
-    void StartServer()
-    {
-        server = new TcpListener(IPAddress.Any, 8052);
-        server.Start();
-
-        while (running)
-        {
-            TcpClient client = server.AcceptTcpClient();
-            NetworkStream stream = client.GetStream();
-
-            byte[] buffer = new byte[1024];
-            int length;
-
-            while ((length = stream.Read(buffer, 0, buffer.Length)) != 0)
-            {
-                string data = Encoding.UTF8.GetString(buffer, 0, length);
-            }
-
-            client.Close();
-        }
     }
 
     // Update is called once per frame
     void Update()
     {
+        // Procesar mensajes en el hilo principal para poder usar la API de Unity
+        lock (queueLock)
+        {
+            while (inputEvents.Count > 0)
+            {
+                string msg = inputEvents.Dequeue();
+                OnMessageReceived(msg);
+            }
+        }
+    }
 
+    #region USB
+
+    #endregion
+
+    string GetLocalIP()
+    {
+        foreach (var ip in Dns.GetHostAddresses(Dns.GetHostName()))
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+                return ip.ToString();
+        return "127.0.0.1";
     }
 }
