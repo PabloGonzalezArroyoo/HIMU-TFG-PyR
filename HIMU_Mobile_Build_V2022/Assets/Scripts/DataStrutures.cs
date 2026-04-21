@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
-using static UnityEditorInternal.ReorderableList;
 
 namespace Assets.Scripts
 {
@@ -26,8 +25,8 @@ namespace Assets.Scripts
     [System.Serializable]
     public struct DeviceInfo
     {
-        string deviceID;
-        string deviceIP;
+        public string deviceID;
+        public string deviceIP;
 
         public DeviceInfo(string id, string ip)
         {
@@ -41,8 +40,6 @@ namespace Assets.Scripts
     {
         ConnectionEvent connectionEvent;
         DeviceInfo infoDevice;
-
-
     };
 
     [System.Serializable]

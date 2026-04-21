@@ -25,15 +25,13 @@ public class ConnectionManager : MonoBehaviour
     [SerializeField]
     protected GameObject connectionUI;
     [SerializeField]
-    protected Image backgroundImage;
+    protected GameObject successUI;
     [SerializeField]
-    protected List<GameObject> textsToHide;
+    protected Image fadeImage;
     [SerializeField]
     protected float timeToFade = 2.5f;
-    protected float timeToHideText = 2f;
     protected float timer = 0f;
     protected bool isFading = false;
-    protected bool isHidingText = false;
 
     // Info general
     [SerializeField]
@@ -44,19 +42,21 @@ public class ConnectionManager : MonoBehaviour
     protected DeviceInfo deviceIdentifier;
     private bool connected = false;
 
-    // Config ADB
-    TcpClient client;
-    NetworkStream stream;
+    // Config UDP
+    private UdpClient udpClient;
+    private IPEndPoint remoteEndPoint;
 
-
-    public void ConnectTCP(string ip, int port)
+    public void ConnectUDP(string ip, int port)
     {
-        client = new TcpClient(ip, port);
-        stream = client.GetStream();
+        remoteEndPoint = new IPEndPoint(IPAddress.Parse(ip), port);
+        udpClient = new UdpClient();
+        udpClient.Connect(remoteEndPoint);
+
         byte[] buffer = Encoding.UTF8.GetBytes("Conexion establecida");
-        stream.Write(buffer, 0, buffer.Length);
+        udpClient.Send(buffer, buffer.Length);
+
         connected = true;
-        isHidingText = true;
+        Debug.Log($"[UDP] Conectado a {ip}:{port}");
     }
 
     IEnumerator DiscoverAndConnect()
@@ -78,9 +78,7 @@ public class ConnectionManager : MonoBehaviour
             int port = int.Parse(parts[2]);
             listener.Close();
             Debug.Log("[Mobile] PC encontrado en " + ip + ":" + port);
-            ConnectTCP(ip, port);
-            connected = true;
-            isHidingText = true;
+            ConnectUDP(ip, port);
         }
     }
 
@@ -114,14 +112,19 @@ public class ConnectionManager : MonoBehaviour
 
     private async Task EnviarDatosAsync(InputInfo datos)
     {
-        // 1. Serializar el struct a JSON y luego a bytes
+        if (udpClient == null || !connected)
+        {
+            Debug.LogWarning("[UDP] No hay conexion activa.");
+            return;
+        }
+
+        // Serializar el struct a JSON y luego a bytes
+        // UDP es orientado a datagramas: no se necesita enviar la longitud por separado,
+        // cada Send() es un datagrama completo e independiente.
         string json = JsonUtility.ToJson(datos);
         byte[] buffer = Encoding.UTF8.GetBytes(json);
 
-        // 2. Enviar primero la longitud (4 bytes) y luego el contenido
-        byte[] longitudBytes = BitConverter.GetBytes(buffer.Length);
-        await stream.WriteAsync(longitudBytes, 0, longitudBytes.Length);
-        await stream.WriteAsync(buffer, 0, buffer.Length);
+        await udpClient.SendAsync(buffer, buffer.Length);
     }
 
     private void Awake()
@@ -138,9 +141,12 @@ public class ConnectionManager : MonoBehaviour
 
         deviceIdentifier = CreateDeviceIdentifier();
 
+        Debug.Log(deviceIdentifier.deviceIP);
+
+
         if (connectionType == ConnectionType.USB)
         {
-            ConnectTCP("127.0.0.1", 8052);
+            ConnectUDP("127.0.0.1", 8052);
         }
         else
         {
@@ -150,39 +156,28 @@ public class ConnectionManager : MonoBehaviour
 
     void OnApplicationQuit()
     {
-        stream.Close();
-        client.Close();
+        udpClient?.Close();
+        udpClient = null;
+        Debug.Log("[UDP] Conexion cerrada.");
     }
-
 
     private void Update()
     {
-        if (connected && isHidingText)
-        {
-            timer += Time.deltaTime;
-            if (timer >= timeToHideText)
-            {
-                foreach(GameObject g in textsToHide)
-                {
-                    g.SetActive(false);
-                }
-                timer = 0f;
-                isHidingText = false;
-                isFading = true;
-            }
-        }
         if (connected && isFading)
         {
             timer += Time.deltaTime;
-            float alpha = Mathf.Clamp01(1f - timer / timeToFade);
-            Color c = backgroundImage.color;
+            float alpha = Mathf.Clamp01(timer / timeToFade);
+            Color c = fadeImage.color;
             c.a = alpha;
-            backgroundImage.color = c;
+            fadeImage.color = c;
 
             if (timer >= timeToFade)
             {
                 timer = 0f;
                 isFading = false;
+                c.a = 1;
+                fadeImage.color = c;
+                connectionUI.SetActive(false);
             }
         }
     }

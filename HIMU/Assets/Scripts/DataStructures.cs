@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
+using static UnityEditorInternal.ReorderableList;
 
 namespace Assets.Scripts
 {
@@ -13,19 +15,25 @@ namespace Assets.Scripts
 
     public enum ConnectionEvent
     {
-        DEFAULT, CONNECTION, DISCONNECTION, INPUT, PAUSE, START_GAME, END_GAME
+        DEFAULT, CONNECTION, DISCONNECTION, INPUT, START_GAME, END_GAME
     };
 
-    public enum InputEvent
+    public enum InputType
     {
-        DEFAULT, BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, BUTTON_RIGHT, ACTION_BUTTON, MICROPHONE
+        DEFAULT, BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, BUTTON_RIGHT, ACTION_BUTTON, MICROPHONE, PAUSE
     };
 
     [System.Serializable]
-    struct DeviceInfo
+    public struct DeviceInfo
     {
         string deviceID;
         string deviceIP;
+
+        public DeviceInfo(string id, string ip)
+        {
+            deviceID = id;
+            deviceIP = ip;
+        }
     }
 
     [System.Serializable]
@@ -38,10 +46,17 @@ namespace Assets.Scripts
     };
 
     [System.Serializable]
-    struct InputInfo
+    public struct InputInfo
     {
-        DeviceInfo infoDevice;
-        InputEvent inputEvent;
+        DeviceInfo deviceIdentifier;
+        InputType inputEvent;
         float microphoneVolume;
+
+        public InputInfo(DeviceInfo info, InputType e)
+        {
+            deviceIdentifier = info;
+            inputEvent = e;
+            microphoneVolume = 0f;
+        }
     };
 }
