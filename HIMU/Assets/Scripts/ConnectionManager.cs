@@ -8,30 +8,43 @@ using System.Text;
 using System.Threading;
 using UnityEditor.PackageManager;
 using UnityEngine;
+using static UnityEngine.Rendering.GPUSort;
 
 public class ConnectionManager : MonoBehaviour
 {
+    // Singleton
+    public static ConnectionManager Instance
+    {
+        get
+        {
+            return instance;
+        }
+    }
+    private static ConnectionManager instance = null;
+
+
     // Info general
     public ConnectionType connectionType = ConnectionType.USB;
     public bool isGamePad = true;
 
-    // Cosas de adb
-    private string adbPath = "";
-
     // Lista de devices conectados
     protected List<string> devices = new List<string>();
     protected string deviceConnected = "";
-
-    UdpClient broadcast;  //Para anunciar la IP del PC y permitir conexion luego
-    [SerializeField]
-    protected int broadcastPort = 8052;
-    [SerializeField]
-    protected int listenPort = 8053;
-
-    private UdpClient listener;
-    private Thread listenThread;
     private bool running = false;
     bool mobileConnected = false;
+
+    UdpClient broadcast;  //Para anunciar la IP del PC y permitir conexion luego
+    [SerializeField] // Puerto por el cual el PC manda su info
+    protected int broadcastPort = 8052;
+
+    private UdpClient listener; // Para recibir info de cliente
+    [SerializeField] // Puerto por el cual el PC recibe info
+    protected int listenPort = 8053;
+    private Thread listenThread;
+
+    // Cosas de adb
+    private string adbPath = "";
+
     private readonly Queue<string> inputEvents = new Queue<string>();
     private readonly object queueLock = new object();
 
@@ -43,21 +56,21 @@ public class ConnectionManager : MonoBehaviour
             System.Environment.SpecialFolder.LocalApplicationData);
 
         string[] candidatas = {
-        // Variable de entorno estándar
-        System.IO.Path.Combine(
-            System.Environment.GetEnvironmentVariable("ANDROID_HOME") ?? "",
-            "platform-tools", "adb.exe"),
-        System.IO.Path.Combine(
-            System.Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT") ?? "",
-            "platform-tools", "adb.exe"),
+            // Variable de entorno estándar
+            System.IO.Path.Combine(
+                System.Environment.GetEnvironmentVariable("ANDROID_HOME") ?? "",
+                "platform-tools", "adb.exe"),
+            System.IO.Path.Combine(
+                System.Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT") ?? "",
+                "platform-tools", "adb.exe"),
 
-        // Ruta por defecto de Android Studio
-        System.IO.Path.Combine(localAppData, "Android", "Sdk", "platform-tools", "adb.exe"),
+            // Ruta por defecto de Android Studio
+            System.IO.Path.Combine(localAppData, "Android", "Sdk", "platform-tools", "adb.exe"),
 
-        // Ruta si instalaste el SDK manualmente
-        @"C:\Android\sdk\platform-tools\adb.exe",
-        @"C:\android-sdk\platform-tools\adb.exe",
-    };
+            // Ruta si instalaste el SDK manualmente
+            @"C:\Android\sdk\platform-tools\adb.exe",
+            @"C:\android-sdk\platform-tools\adb.exe",
+        };
 
         foreach (string ruta in candidatas)
         {
@@ -88,6 +101,7 @@ public class ConnectionManager : MonoBehaviour
             string[] parts = trimmed.Split('\t');
             if (parts.Length >= 2 && parts[1].Trim() == "device")
             {
+                deviceConnected = parts[0].Trim();
                 devices.Add(parts[0].Trim());
                 UnityEngine.Debug.Log(parts[0]);
             }
@@ -122,14 +136,6 @@ public class ConnectionManager : MonoBehaviour
             UnityEngine.Debug.LogWarning("ADB Error: " + error);
 
         return output.ToString();
-    }
-
-    private void StartListening()
-    {
-        listener = new UdpClient(listenPort);
-        listenThread = new Thread(ListenLoopADB) { IsBackground = true };
-        listenThread.Start();
-        UnityEngine.Debug.Log($"[Host-PC] Escuchando UDP en el puerto {listenPort}…");
     }
 
     private void ListenLoopADB()
@@ -167,17 +173,47 @@ public class ConnectionManager : MonoBehaviour
         }
     }
 
+    private void StartListeningADB()
+    {
+        listener = new UdpClient(listenPort);
+        listenThread = new Thread(ListenLoopADB) { IsBackground = true };
+        listenThread.Start();
+        UnityEngine.Debug.Log("[Host-PC] Escuchando UDP en el puerto : " + listenPort.ToString());
+    }
+
     public void ConfigureADB()
     {
         adbPath = FindAdbPath();
         string output = RunAdbCommand("devices");
         StoreDeviceIds(output);
-        output = RunAdbCommand("reverse tcp:8052 tcp:8052");
+        while (deviceConnected == "")
+        {
+            output = RunAdbCommand("devices");
+            StoreDeviceIds(output);
+        }
+        output = RunAdbCommand("reverse tcp:" + listenPort + "tcp:" + listenPort);
 
+        StartListeningADB();
+    }
+
+    private void ADBDisconnection()
+    {
+        devices.Clear();
+        listener?.Close();
+        listenThread?.Abort();
+        RunAdbCommand("reverse--remove tcp:" + listenPort);
     }
     #endregion
 
     #region UDP
+
+    string GetLocalIP()
+    {
+        foreach (var ip in Dns.GetHostAddresses(Dns.GetHostName()))
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+                return ip.ToString();
+        return "127.0.0.1";
+    }
 
     void BroadcastIP()
     {
@@ -202,16 +238,6 @@ public class ConnectionManager : MonoBehaviour
         {
             UnityEngine.Debug.LogWarning($"[Host] Error al enviar broadcast: {e.Message}");
         }
-    }
-
-    private void StartListening()
-    {
-        listener = new UdpClient(listenPort);
-
-        listenThread = new Thread(ListenLoop) { IsBackground = true };
-        listenThread.Start();
-
-        UnityEngine.Debug.Log($"[Host] Escuchando en el puerto {listenPort}…");
     }
 
     private void ListenLoop()
@@ -258,21 +284,29 @@ public class ConnectionManager : MonoBehaviour
         }
     }
 
-    // ── Callback de mensajes ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// Se llama en el hilo principal cada vez que llega un mensaje del cliente.
-    /// Personaliza esta función para reaccionar a los datos recibidos.
-    /// </summary>
-    private void OnMessageReceived(string message)
+    public void ConfigureUDP()
     {
-        UnityEngine.Debug.Log($"[Host] Mensaje de {deviceConnected}: {message}");
-        // → Aquí puedes parsear el mensaje y actualizar el estado del juego
+        running = true;
+
+        // Abrimos el puerto antes de hacer el broadcast para evitar perdernos un primer mensaje
+        listener = new UdpClient(listenPort);
+        listenThread = new Thread(ListenLoop) { IsBackground = true };
+        listenThread.Start();
+        UnityEngine.Debug.Log($"[Host] Escuchando en el puerto {listenPort}…");
+        InvokeRepeating(nameof(BroadcastIP), 0f, 2f);
     }
 
-    // ── API pública ───────────────────────────────────────────────────────────
+    private void UDPDisconnection()
+    {
+        CancelInvoke(nameof(BroadcastIP));
+        broadcast?.Close();
+        listener?.Close();
+        listenThread?.Abort();
+    }
+    #endregion
 
-    /// <summary>Envía un mensaje UDP al cliente conectado.</summary>
+    #region Metodos comunes
+
     public void SendToClient(string message)
     {
         if (!mobileConnected || string.IsNullOrEmpty(deviceConnected))
@@ -295,21 +329,36 @@ public class ConnectionManager : MonoBehaviour
             UnityEngine.Debug.LogWarning($"[Host] Error al enviar mensaje al cliente: {e.Message}");
         }
     }
-
-    public void ConfigureUDP()
-    {
-        running = true;
-
-        // Arranca el socket de escucha antes de empezar a hacer broadcast
-        StartListening();
-
-        // Envía broadcasts hasta conectarse
-        InvokeRepeating(nameof(BroadcastIP), 0f, 2f);
-    }
-
     #endregion
 
+    void OnDestroy()
+    {
+        running = false;
+        mobileConnected = false;
+        if (connectionType == ConnectionType.USB)
+        {
+            ADBDisconnection();
+        }
+        else
+        {
+            UDPDisconnection();
+        }
+    }
+
     private void Awake()
+    {
+        if (instance)
+        {
+            DestroyImmediate(gameObject);
+            return;
+        }
+
+        instance = this;
+        UnityEngine.Debug.Log(GetLocalIP());
+    }
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
     {
         if (connectionType == ConnectionType.USB)
         {
@@ -321,21 +370,6 @@ public class ConnectionManager : MonoBehaviour
         }
     }
 
-    void OnDestroy()
-    {
-        running = false;
-        CancelInvoke(nameof(BroadcastIP));
-        broadcast?.Close();
-        listener?.Close();
-        listenThread?.Abort();
-    }
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-
-    }
-
     // Update is called once per frame
     void Update()
     {
@@ -345,20 +379,8 @@ public class ConnectionManager : MonoBehaviour
             while (inputEvents.Count > 0)
             {
                 string msg = inputEvents.Dequeue();
-                OnMessageReceived(msg);
+                InputManager.Instance.OnInputReceived(deviceConnected, msg);
             }
         }
-    }
-
-    #region USB
-
-    #endregion
-
-    string GetLocalIP()
-    {
-        foreach (var ip in Dns.GetHostAddresses(Dns.GetHostName()))
-            if (ip.AddressFamily == AddressFamily.InterNetwork)
-                return ip.ToString();
-        return "127.0.0.1";
     }
 }

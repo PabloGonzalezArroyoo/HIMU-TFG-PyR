@@ -1,13 +1,9 @@
 using Assets.Scripts;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -42,6 +38,7 @@ public class ConnectionManager : MonoBehaviour
     protected bool isGamePad = true;
 
     protected string deviceIdentifier;
+    public string hostIP = "";
     private bool connected = false;
 
     // Config UDP
@@ -49,50 +46,56 @@ public class ConnectionManager : MonoBehaviour
     private UdpClient listener;
     private Thread listenThread;
     private bool running = false;
-    private float sendTimer = 0f;
 
     private readonly System.Collections.Generic.Queue<string> messageQueue
         = new System.Collections.Generic.Queue<string>();
     private readonly object queueLock = new object();
 
-    public int hostPort = 8052;
-    public int listenPort = 8053;
-    public float sendInterval = 3f;
-    public string periodicMessage = "PING desde Android";
+    public int hostPort = 8053;
+    public int listenPort = 8052;
 
-    public void ConnectUDP(string ip, int port)
+    private void StartBroadcastListen()
     {
-        remoteEndPoint = new IPEndPoint(IPAddress.Parse(ip), port);
-        listener = new UdpClient();
-        listener.Connect(remoteEndPoint);
+        listener = new UdpClient(listenPort);
 
-        byte[] buffer = Encoding.UTF8.GetBytes("Conexion establecida");
-        listener.Send(buffer, buffer.Length);
-
-        connected = true;
-        Debug.Log($"[UDP] Conectado a {ip}:{port}");
+        listenThread = new Thread(BroadcastListenLoop) { IsBackground = true };
+        listenThread.Start();
     }
 
-    IEnumerator DiscoverAndConnect()
+    private void BroadcastListenLoop()
     {
-        UdpClient listener = new UdpClient(9999);
-        listener.EnableBroadcast = true;
-        Debug.Log("[Mobile] Buscando PC en la red...");
-
-        // Espera recibir el broadcast del PC
-        var task = listener.ReceiveAsync();
-        while (!task.IsCompleted) yield return null;
-
-        string message = Encoding.UTF8.GetString(task.Result.Buffer);
-        // Formato: "UNITY_CONTROLLER:192.168.1.50:8052"
-        if (message.StartsWith("UNITY_CONTROLLER:"))
+        while (running && !connected)
         {
-            string[] parts = message.Split(':');
-            string ip = parts[1];
-            int port = int.Parse(parts[2]);
-            listener.Close();
-            Debug.Log("[Mobile] PC encontrado en " + ip + ":" + port);
-            ConnectUDP(ip, port);
+            try
+            {
+                var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+                byte[] data = listener.Receive(ref remoteEP);
+                string message = Encoding.UTF8.GetString(data);
+
+                if (message.StartsWith("HOST_ANNOUNCE:"))
+                {
+                    string ip = message.Replace("HOST_ANNOUNCE:", "").Trim();
+
+                    // Evitar conectarse a sí mismo si host y cliente corren en la misma máquina
+                    if (ip == deviceIdentifier) continue;
+
+                    hostIP = ip;
+                    connected = true;
+
+                    Debug.Log($"[Client] Host encontrado: {hostIP} — enviando respuesta…");
+                    string response = "CLIENT_HELLO:" + deviceIdentifier;
+                    SendToHost(response, IPAddress.Parse(hostIP));
+                }
+            }
+            catch (SocketException)
+            {
+                break; // Socket cerrado
+            }
+            catch (Exception e)
+            {
+                if (running)
+                    Debug.LogWarning($"[Client] Error en hilo de broadcast: {e.Message}");
+            }
         }
     }
 
@@ -134,55 +137,24 @@ public class ConnectionManager : MonoBehaviour
             }
         }
     }
-
-    private bool SendUdpToHost(string message)
-    {
-        try
-        {
-            byte[] data = Encoding.UTF8.GetBytes(message);
-            var endpoint = new IPEndPoint(IPAddress.Loopback, hostPort); // 127.0.0.1
-
-            using (var sender = new UdpClient())
-                sender.Send(data, data.Length, endpoint);
-
-            return true;
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"[Client-Android] Error al enviar UDP: {e.Message}");
-            return false;
-        }
-    }
-
-    public void SendToHost(string message)
-    {
-        if (!connected)
-        {
-            Debug.LogWarning("[Client-Android] No conectado al host.");
-            return;
-        }
-
-        SendUdpToHost(message);
-        Debug.Log($"[Client-Android] Mensaje enviado al host: {message}");
-    }
-    #endregion
-
     private void SendHello()
     {
         // Incluye info del dispositivo para que el host pueda identificarlo
         string message = "CLIENT_HELLO:" + deviceIdentifier;
 
-        if (SendUdpToHost(message))
+        if (SendToHost(message, IPAddress.Loopback))
         {
             connected = true;
-            Debug.Log($"[Client-Android] Handshake enviado al host (127.0.0.1:{hostPort})");
+            Debug.Log("[Client-Android] Handshake enviado al host 127.0.0.1:" + listenPort.ToString());
         }
         else
         {
             Debug.LogError("[Client-Android] No se pudo enviar el handshake. " +
                            "¿Está activo el adb reverse en el PC?");
+            connected = false;
         }
     }
+    #endregion
 
     #region Getters/Setters
     private string CreateDeviceIdentifier()
@@ -208,29 +180,35 @@ public class ConnectionManager : MonoBehaviour
     {
         return deviceIdentifier;
     }
-
     #endregion
 
-    public void EnviarDatos(InputInfo datos)
-    {
-        EnviarDatosAsync(datos);
-    }
 
-    private async Task EnviarDatosAsync(InputInfo datos)
+    public bool SendToHost(string message, IPAddress address)
     {
-        if (listener == null || !connected)
+        if (!connected || string.IsNullOrEmpty(hostIP))
         {
-            Debug.LogWarning("[UDP] No hay conexion activa.");
-            return;
+            Debug.LogWarning("[Client-Android] No conectado al host.");
+            return false;
         }
 
-        // Serializar el struct a JSON y luego a bytes
-        // UDP es orientado a datagramas: no se necesita enviar la longitud por separado,
-        // cada Send() es un datagrama completo e independiente.
-        string json = JsonUtility.ToJson(datos);
-        byte[] buffer = Encoding.UTF8.GetBytes(json);
+        try
+        {
+            byte[] data = Encoding.UTF8.GetBytes(message);
+            var endpoint = new IPEndPoint(address, hostPort); // 127.0.0.1
 
-        await listener.SendAsync(buffer, buffer.Length);
+            using (var sender = new UdpClient())
+                sender.Send(data, data.Length, endpoint);
+
+            Debug.Log($"[Client-Android] Mensaje enviado al host: {message}");
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[Client-Android] Error al enviar UDP: {e.Message}");
+            connected = false;
+            hostIP = "";
+            return false;
+        }
     }
 
     private void Awake()
@@ -244,24 +222,30 @@ public class ConnectionManager : MonoBehaviour
         instance = this;
 
         DontDestroyOnLoad(gameObject);
+    }
 
+    private void Start()
+    {
+        running = true;
         deviceIdentifier = CreateDeviceIdentifier();
-
         Debug.Log(deviceIdentifier);
-
 
         if (connectionType == ConnectionType.USB)
         {
-            ConnectUDP("127.0.0.1", hostPort);
+            StartListening();
+            SendHello();
         }
         else
         {
-            StartCoroutine(DiscoverAndConnect());
+            StartBroadcastListen();
         }
     }
 
     void OnDestroy()
     {
+        running = false;
+        connected = false;
+        hostIP = null;
         listener?.Close();
         listenThread?.Abort();
         listener = null;
@@ -287,18 +271,9 @@ public class ConnectionManager : MonoBehaviour
                 connectionUI.SetActive(false);
             }
         }
+
+        // Que hacer si running == false
     }
-
-    //private void Start()
-    //{
-    //    running = true;
-
-    //    // Arranca el listener antes del handshake para no perder respuestas inmediatas
-    //    StartListening();
-
-    //    // Inicia el handshake
-    //    SendHello();
-    //}
 
     //private void Update()
     //{
