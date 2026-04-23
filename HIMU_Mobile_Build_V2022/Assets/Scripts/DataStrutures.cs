@@ -45,11 +45,11 @@ namespace Assets.Scripts
     [System.Serializable]
     public struct InputInfo
     {
-        DeviceInfo deviceIdentifier;
+        string deviceIdentifier;
         InputType inputEvent;
         float microphoneVolume;
 
-        public InputInfo(DeviceInfo info, InputType e)
+        public InputInfo(string info, InputType e)
         {
             deviceIdentifier = info;
             inputEvent = e;
