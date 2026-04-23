@@ -2,21 +2,44 @@ using UnityEngine;
 
 public class MicInput : MonoBehaviour
 {
-    AudioClip clip;
-    float[] samples = new float[128];
+    [Header("Configuración del micrófono")]
+    [SerializeField] private int frecuenciaMuestra = 44100;
+    private AudioClip clipMicrofono;
 
-    void Start()
+    private void Start()
     {
-        clip = Microphone.Start(null, true, 10, 44100);
+        StartMicrophone();
+    }
+
+    private void Update()
+    {
+        InputManager.Instance.AddInputEvent(GetVolume());
+    }
+
+    private void StartMicrophone()
+    {
+        if (Microphone.devices.Length == 0)
+        {
+            Debug.LogWarning("InputController: No se detectó ningún micrófono.");
+            return;
+        }
+
+        // Grabación en bucle continuo de 1 segundo
+        clipMicrofono = Microphone.Start(null, true, 1, frecuenciaMuestra);
     }
 
     public float GetVolume()
     {
-        int pos = Microphone.GetPosition(null) - 128;
-        if (pos < 0) return 0;
-        clip.GetData(samples, pos);
-        float sum = 0;
-        foreach (var s in samples) sum += s * s;
-        return Mathf.Sqrt(sum / samples.Length); // RMS
+        int posicion = Microphone.GetPosition(null) - 128;
+        if (posicion < 0) posicion = 0;
+
+        float[] muestras = new float[128];
+        clipMicrofono.GetData(muestras, posicion);
+
+        float suma = 0f;
+        foreach (float muestra in muestras)
+            suma += muestra * muestra;
+
+        return Mathf.Sqrt(suma / muestras.Length);
     }
 }

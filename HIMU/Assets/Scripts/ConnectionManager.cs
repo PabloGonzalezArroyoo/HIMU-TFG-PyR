@@ -6,8 +6,12 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using Unity.VisualScripting;
+using UnityEditor.MemoryProfiler;
 using UnityEditor.PackageManager;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using static UnityEngine.Rendering.GPUSort;
 
 public class ConnectionManager : MonoBehaviour
@@ -22,6 +26,19 @@ public class ConnectionManager : MonoBehaviour
     }
     private static ConnectionManager instance = null;
 
+    // Connection UI
+    [SerializeField]
+    protected GameObject connectionUI;
+    [SerializeField]
+    protected GameObject successUI;
+    [SerializeField]
+    protected GameObject errorUI;
+    [SerializeField]
+    protected Image fadeImage;
+    [SerializeField]
+    protected float timeToFade = 2.5f;
+    protected float timer = 0f;
+    protected bool isFading = false;
 
     // Info general
     public ConnectionType connectionType = ConnectionType.USB;
@@ -45,7 +62,7 @@ public class ConnectionManager : MonoBehaviour
     // Cosas de adb
     private string adbPath = "";
 
-    private readonly Queue<string> inputEvents = new Queue<string>();
+    private readonly Queue<InputInfo> inputEvents = new Queue<InputInfo>();
     private readonly object queueLock = new object();
 
     #region ADB
@@ -138,62 +155,13 @@ public class ConnectionManager : MonoBehaviour
         return output.ToString();
     }
 
-    private void ListenLoopADB()
-    {
-        while (running)
-        {
-            try
-            {
-                var remoteEP = new IPEndPoint(IPAddress.Any, 0);
-                byte[] data = listener.Receive(ref remoteEP);
-                string message = Encoding.UTF8.GetString(data);
-
-                // ── Handshake ─────────────────────────────────────────────────
-                if (!mobileConnected && message.StartsWith("CLIENT_HELLO:"))
-                {
-                    deviceConnected = message.Replace("CLIENT_HELLO:", "").Trim();
-                    mobileConnected = true;
-                    UnityEngine.Debug.Log($"[Host-PC] Cliente Android conectado. Info: {deviceConnected}");
-                    continue;
-                }
-
-                // ── Mensajes normales ─────────────────────────────────────────
-                if (mobileConnected)
-                {
-                    lock (queueLock)
-                        inputEvents.Enqueue(message);
-                }
-            }
-            catch (SocketException) { break; }
-            catch (Exception e)
-            {
-                if (running)
-                    UnityEngine.Debug.LogWarning($"[Host-PC] Error en hilo de escucha: {e.Message}");
-            }
-        }
-    }
-
-    private void StartListeningADB()
+    private void StartListening()
     {
         listener = new UdpClient(listenPort);
-        listenThread = new Thread(ListenLoopADB) { IsBackground = true };
+        listenThread = new Thread(ListenLoop) { IsBackground = true };
         listenThread.Start();
         UnityEngine.Debug.Log("[Host-PC] Escuchando UDP en el puerto : " + listenPort.ToString());
-    }
-
-    public void ConfigureADB()
-    {
-        adbPath = FindAdbPath();
-        string output = RunAdbCommand("devices");
-        StoreDeviceIds(output);
-        while (deviceConnected == "")
-        {
-            output = RunAdbCommand("devices");
-            StoreDeviceIds(output);
-        }
-        output = RunAdbCommand("reverse tcp:" + listenPort + "tcp:" + listenPort);
-
-        StartListeningADB();
+        InvokeRepeating(nameof(BroadcastIP), 0f, 2f);
     }
 
     private void ADBDisconnection()
@@ -201,7 +169,7 @@ public class ConnectionManager : MonoBehaviour
         devices.Clear();
         listener?.Close();
         listenThread?.Abort();
-        RunAdbCommand("reverse--remove tcp:" + listenPort);
+        RunAdbCommand("reverse --remove-all");
     }
     #endregion
 
@@ -222,8 +190,9 @@ public class ConnectionManager : MonoBehaviour
         try
         {
             string localIP = GetLocalIP();
-            string message = "UNITY_CONTROLLER:" + localIP + broadcast.ToString();
-            byte[] data = Encoding.UTF8.GetBytes(message);
+            DeviceInfo localInfo = new DeviceInfo(localIP, localIP);
+            string json = JsonUtility.ToJson(new ConnectionInfo(ConnectionEvent.CONNECTION, localInfo));
+            byte[] data = Encoding.UTF8.GetBytes(json);
 
             using (var sender = new UdpClient())
             {
@@ -232,7 +201,7 @@ public class ConnectionManager : MonoBehaviour
                 sender.Send(data, data.Length, endpoint);
             }
 
-            UnityEngine.Debug.Log($"[Host] Broadcast enviado → {message}");
+            UnityEngine.Debug.Log($"[Host] Broadcast enviado → {json}");
         }
         catch (Exception e)
         {
@@ -250,25 +219,44 @@ public class ConnectionManager : MonoBehaviour
                 byte[] data = listener.Receive(ref remoteEP);
                 string message = Encoding.UTF8.GetString(data);
 
-                // ── Handshake: el cliente responde con su IP ──────────────────
-                if (!mobileConnected && message.StartsWith("CLIENT_HELLO:"))
+                if (string.IsNullOrEmpty(message))
                 {
-                    string ip = message.Replace("CLIENT_HELLO:", "").Trim();
-                    deviceConnected = ip;
+                    UnityEngine.Debug.LogWarning("[UDP] Paquete vacío recibido, ignorando.");
+                    continue;
+                }
+
+                // Mensaje de conexion inicial
+                if (!mobileConnected)
+                {
+                    ConnectionInfo decodedData = JsonUtility.FromJson<ConnectionInfo>(message);
+
+                    if (decodedData.infoDevice.deviceIP == "" || decodedData.connectionEvent != ConnectionEvent.CONNECTION) continue; // Mensaje no valido
+
+                    deviceConnected = decodedData.infoDevice.deviceIP;
                     mobileConnected = true;
+                    isFading = true;
+                    successUI.SetActive(true);
 
                     UnityEngine.Debug.Log($"[Host] Cliente conectado: {deviceConnected}");
                     // El hilo ya está activo; simplemente seguimos en el mismo loop
                     continue;
                 }
 
-                // ── Mensajes normales del cliente ─────────────────────────────
+                // Mensajes comunes - Input
                 if (mobileConnected)
                 {
-                    lock (queueLock)
+                    ConnectionInfo decodedData = JsonUtility.FromJson<ConnectionInfo>(message);
+                    if (decodedData.infoDevice.deviceIP == deviceConnected || decodedData.connectionEvent == ConnectionEvent.DISCONNECTION)
                     {
-                        inputEvents.Enqueue(message);
+                        HandleDisconnection();
+                        continue;
                     }
+
+                    InputInfo inputData = JsonUtility.FromJson<InputInfo>(message);
+                    if (inputData.inputEvent == InputType.DEFAULT || inputData.deviceIdentifier.IsUnityNull()) continue; // MENSAJE NO VALIDO
+                    if (inputData.deviceIdentifier.deviceIP != deviceConnected) continue; // OTRO DISPOSITIVO
+                    lock (queueLock)
+                        inputEvents.Enqueue(inputData);
                 }
             }
             catch (SocketException)
@@ -282,18 +270,6 @@ public class ConnectionManager : MonoBehaviour
                     UnityEngine.Debug.LogWarning($"[Host] Error en hilo de escucha: {e.Message}");
             }
         }
-    }
-
-    public void ConfigureUDP()
-    {
-        running = true;
-
-        // Abrimos el puerto antes de hacer el broadcast para evitar perdernos un primer mensaje
-        listener = new UdpClient(listenPort);
-        listenThread = new Thread(ListenLoop) { IsBackground = true };
-        listenThread.Start();
-        UnityEngine.Debug.Log($"[Host] Escuchando en el puerto {listenPort}…");
-        InvokeRepeating(nameof(BroadcastIP), 0f, 2f);
     }
 
     private void UDPDisconnection()
@@ -320,7 +296,7 @@ public class ConnectionManager : MonoBehaviour
             byte[] data = Encoding.UTF8.GetBytes(message);
             using (var sender = new UdpClient())
             {
-                var endpoint = new IPEndPoint(IPAddress.Parse(deviceConnected), listenPort - 1); // puerto del cliente
+                var endpoint = new IPEndPoint(IPAddress.Parse(deviceConnected), listenPort); // puerto del cliente
                 sender.Send(data, data.Length, endpoint);
             }
         }
@@ -331,7 +307,9 @@ public class ConnectionManager : MonoBehaviour
     }
     #endregion
 
-    void OnDestroy()
+    #region Disconnection
+
+    public void HandleDisconnection()
     {
         running = false;
         mobileConnected = false;
@@ -343,7 +321,16 @@ public class ConnectionManager : MonoBehaviour
         {
             UDPDisconnection();
         }
+        isFading = true;
+        connectionUI.SetActive(true);
+        errorUI.SetActive(true);
     }
+
+    void OnDestroy()
+    {
+        HandleDisconnection();
+    }
+    #endregion
 
     private void Awake()
     {
@@ -360,26 +347,57 @@ public class ConnectionManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        running = true;
         if (connectionType == ConnectionType.USB)
         {
-            ConfigureADB();
+            adbPath = FindAdbPath();
+            string output = RunAdbCommand("devices");
+            StoreDeviceIds(output);
+            while (deviceConnected == "")
+            {
+                output = RunAdbCommand("devices");
+                StoreDeviceIds(output);
+            }
+            output = RunAdbCommand("reverse tcp:" + broadcastPort.ToString() + " tcp:" + broadcastPort.ToString());
         }
-        else
-        {
-            ConfigureUDP();
-        }
+
+        StartListening();
     }
 
     // Update is called once per frame
     void Update()
     {
-        // Procesar mensajes en el hilo principal para poder usar la API de Unity
-        lock (queueLock)
+        if (isFading)
         {
-            while (inputEvents.Count > 0)
+            timer += Time.deltaTime;
+            float alpha = Mathf.Clamp01(timer / timeToFade);
+            Color c = fadeImage.color;
+            c.a = alpha;
+            fadeImage.color = c;
+
+            if (timer >= timeToFade)
             {
-                string msg = inputEvents.Dequeue();
-                InputManager.Instance.OnInputReceived(deviceConnected, msg);
+                timer = 0f;
+                isFading = false;
+                connectionUI.SetActive(!mobileConnected);
+                c.a = 0;
+                fadeImage.color = c;
+                successUI.SetActive(false);
+                errorUI.SetActive(false);
+                if (!running) SceneManager.LoadScene("MainMenu");
+            }
+        }
+
+        if (running)
+        {
+            // Procesar mensajes en el hilo principal para poder usar la API de Unity
+            lock (queueLock)
+            {
+                while (inputEvents.Count > 0)
+                {
+                    InputInfo e = inputEvents.Dequeue();
+                    InputManager.Instance.OnInputReceived(deviceConnected, e);
+                }
             }
         }
     }

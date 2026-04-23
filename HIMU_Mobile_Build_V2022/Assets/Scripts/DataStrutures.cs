@@ -12,14 +12,15 @@ namespace Assets.Scripts
         USB, WIFI // BLUETOOTH?
     }
 
+
     public enum ConnectionEvent
     {
-        DEFAULT, CONNECTION, DISCONNECTION, INPUT, START_GAME, END_GAME
+        DEFAULT, CONNECTION, DISCONNECTION
     };
 
     public enum InputType
     {
-        DEFAULT, BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, BUTTON_RIGHT, ACTION_BUTTON, MICROPHONE, PAUSE
+        DEFAULT, BUTTON_UP, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_LEFT, ACTION_BUTTON, MICROPHONE, PAUSE, START_GAME, END_GAME
     };
 
     [System.Serializable]
@@ -36,24 +37,37 @@ namespace Assets.Scripts
     }
 
     [System.Serializable]
-    struct ConnectionInfo
+    public struct ConnectionInfo
     {
-        ConnectionEvent connectionEvent;
-        DeviceInfo infoDevice;
+        public ConnectionEvent connectionEvent;
+        public DeviceInfo infoDevice;
+
+        public ConnectionInfo(ConnectionEvent e, DeviceInfo d)
+        {
+            connectionEvent = e;
+            infoDevice = d;
+        }
     };
 
     [System.Serializable]
     public struct InputInfo
     {
-        string deviceIdentifier;
+        DeviceInfo deviceIdentifier;
         InputType inputEvent;
         float microphoneVolume;
 
-        public InputInfo(string info, InputType e)
+        public InputInfo(DeviceInfo info, InputType e)
         {
             deviceIdentifier = info;
             inputEvent = e;
             microphoneVolume = 0f;
+        }
+
+        public InputInfo(DeviceInfo info, float v, InputType e)
+        {
+            deviceIdentifier = info;
+            inputEvent = e;
+            microphoneVolume = v;
         }
     };
 }

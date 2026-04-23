@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class ConnectionManager : MonoBehaviour
@@ -25,6 +26,8 @@ public class ConnectionManager : MonoBehaviour
     [SerializeField]
     protected GameObject successUI;
     [SerializeField]
+    protected GameObject errorUI;
+    [SerializeField]
     protected Image fadeImage;
     [SerializeField]
     protected float timeToFade = 2.5f;
@@ -38,18 +41,13 @@ public class ConnectionManager : MonoBehaviour
     protected bool isGamePad = true;
 
     protected string deviceIdentifier;
-    public string hostIP = "";
+    protected string hostIP = "";
     private bool connected = false;
 
     // Config UDP
-    private IPEndPoint remoteEndPoint;
     private UdpClient listener;
     private Thread listenThread;
     private bool running = false;
-
-    private readonly System.Collections.Generic.Queue<string> messageQueue
-        = new System.Collections.Generic.Queue<string>();
-    private readonly object queueLock = new object();
 
     public int hostPort = 8053;
     public int listenPort = 8052;
@@ -72,19 +70,31 @@ public class ConnectionManager : MonoBehaviour
                 byte[] data = listener.Receive(ref remoteEP);
                 string message = Encoding.UTF8.GetString(data);
 
-                if (message.StartsWith("HOST_ANNOUNCE:"))
+                if (string.IsNullOrEmpty(message))
                 {
-                    string ip = message.Replace("HOST_ANNOUNCE:", "").Trim();
+                    UnityEngine.Debug.LogWarning("[UDP] Paquete vacío recibido, ignorando.");
+                    continue;
+                }
+
+                // Mensaje de conexion inicial
+                if (!connected)
+                {
+                    ConnectionInfo decodedData = JsonUtility.FromJson<ConnectionInfo>(message);
+
+                    if (decodedData.infoDevice.deviceIP == "" || decodedData.connectionEvent != ConnectionEvent.CONNECTION) continue; // Mensaje no valido
 
                     // Evitar conectarse a sí mismo si host y cliente corren en la misma máquina
-                    if (ip == deviceIdentifier) continue;
+                    if (decodedData.infoDevice.deviceIP == deviceIdentifier) continue;
 
-                    hostIP = ip;
+                    hostIP = decodedData.infoDevice.deviceIP;
                     connected = true;
 
                     Debug.Log($"[Client] Host encontrado: {hostIP} — enviando respuesta…");
-                    string response = "CLIENT_HELLO:" + deviceIdentifier;
-                    SendToHost(response, IPAddress.Parse(hostIP));
+                    string localIP = deviceIdentifier;
+                    string json = JsonUtility.ToJson(new ConnectionInfo(ConnectionEvent.CONNECTION, new DeviceInfo(localIP, localIP)));
+                    isFading = SendToHost(json, IPAddress.Parse(hostIP));
+                    successUI.SetActive(isFading);
+                    continue;
                 }
             }
             catch (SocketException)
@@ -94,7 +104,10 @@ public class ConnectionManager : MonoBehaviour
             catch (Exception e)
             {
                 if (running)
+                {
                     Debug.LogWarning($"[Client] Error en hilo de broadcast: {e.Message}");
+                    HandleDisconnection();
+                }
             }
         }
     }
@@ -126,8 +139,10 @@ public class ConnectionManager : MonoBehaviour
                 byte[] data = listener.Receive(ref remoteEP);
                 string message = Encoding.UTF8.GetString(data);
 
-                lock (queueLock)
-                    messageQueue.Enqueue(message);
+                ConnectionInfo decodedData = JsonUtility.FromJson<ConnectionInfo>(message);
+
+                if (decodedData.infoDevice.deviceIP == "" || decodedData.connectionEvent != ConnectionEvent.DISCONNECTION) continue; // Mensaje que no nos interesa
+                HandleDisconnection();
             }
             catch (SocketException) { break; }
             catch (Exception e)
@@ -140,9 +155,9 @@ public class ConnectionManager : MonoBehaviour
     private void SendHello()
     {
         // Incluye info del dispositivo para que el host pueda identificarlo
-        string message = "CLIENT_HELLO:" + deviceIdentifier;
+        string json = JsonUtility.ToJson(new ConnectionInfo(ConnectionEvent.CONNECTION, new DeviceInfo(deviceIdentifier, deviceIdentifier)));
 
-        if (SendToHost(message, IPAddress.Loopback))
+        if (SendToHost(true, json, IPAddress.Loopback))
         {
             connected = true;
             Debug.Log("[Client-Android] Handshake enviado al host 127.0.0.1:" + listenPort.ToString());
@@ -151,7 +166,7 @@ public class ConnectionManager : MonoBehaviour
         {
             Debug.LogError("[Client-Android] No se pudo enviar el handshake. " +
                            "¿Está activo el adb reverse en el PC?");
-            connected = false;
+            HandleDisconnection();
         }
     }
     #endregion
@@ -180,12 +195,26 @@ public class ConnectionManager : MonoBehaviour
     {
         return deviceIdentifier;
     }
+
+    public ConnectionType GetConnectionType()
+    {
+        return connectionType;
+    }
+
+    public string GetHostIp() { 
+        return hostIP; 
+    }
     #endregion
 
 
     public bool SendToHost(string message, IPAddress address)
     {
-        if (!connected || string.IsNullOrEmpty(hostIP))
+        return SendToHost(false, message, address);
+    }
+
+    private bool SendToHost(bool firstMessage, string message, IPAddress address)
+    {
+        if (!firstMessage && (!connected || string.IsNullOrEmpty(hostIP)))
         {
             Debug.LogWarning("[Client-Android] No conectado al host.");
             return false;
@@ -220,8 +249,6 @@ public class ConnectionManager : MonoBehaviour
         }
 
         instance = this;
-
-        DontDestroyOnLoad(gameObject);
     }
 
     private void Start()
@@ -241,7 +268,7 @@ public class ConnectionManager : MonoBehaviour
         }
     }
 
-    void OnDestroy()
+    public void HandleDisconnection()
     {
         running = false;
         connected = false;
@@ -250,11 +277,19 @@ public class ConnectionManager : MonoBehaviour
         listenThread?.Abort();
         listener = null;
         Debug.Log("[UDP] Conexion cerrada.");
+        isFading = true;
+        connectionUI.SetActive(true);
+        errorUI.SetActive(true);
+    }
+
+    void OnDestroy()
+    {
+        HandleDisconnection();
     }
 
     private void Update()
     {
-        if (connected && isFading)
+        if (isFading)
         {
             timer += Time.deltaTime;
             float alpha = Mathf.Clamp01(timer / timeToFade);
@@ -266,32 +301,13 @@ public class ConnectionManager : MonoBehaviour
             {
                 timer = 0f;
                 isFading = false;
-                c.a = 1;
+                connectionUI.SetActive(!connected);
+                c.a = 0;
                 fadeImage.color = c;
-                connectionUI.SetActive(false);
+                successUI.SetActive(false);
+                errorUI.SetActive(false);
+                if (!running) SceneManager.LoadScene("MainMenu");
             }
         }
-
-        // Que hacer si running == false
     }
-
-    //private void Update()
-    //{
-    //    // Procesar mensajes del host en el hilo principal
-    //    lock (queueLock)
-    //    {
-    //        while (messageQueue.Count > 0)
-    //            OnMessageReceived(messageQueue.Dequeue());
-    //    }
-
-    //    // Envío periódico
-    //    if (!connected) return;
-
-    //    sendTimer += Time.deltaTime;
-    //    if (sendTimer >= sendInterval)
-    //    {
-    //        sendTimer = 0f;
-    //        SendToHost(periodicMessage);
-    //    }
-    //}
 }

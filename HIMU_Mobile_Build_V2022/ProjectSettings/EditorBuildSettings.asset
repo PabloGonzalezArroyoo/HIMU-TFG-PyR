@@ -11,4 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Mobile_USB_Connection.unity
     guid: d9df97b4edf578e4dbb08e3786f147b3
+  - enabled: 1
+    path: Assets/Scenes/MobileWiFiGamePadConnection.unity
+    guid: 55c2d1ea7af22404f94c898a58ea2e4d
   m_configObjects: {}

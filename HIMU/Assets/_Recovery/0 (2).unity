@@ -1221,7 +1221,6 @@ GameObject:
   - component: {fileID: 1352836449}
   - component: {fileID: 1352836448}
   - component: {fileID: 1352836452}
-  - component: {fileID: 1352836453}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -1353,21 +1352,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 0
---- !u!114 &1352836453
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1352836447}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6adf29e48d967d048b341bafff424365, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  moveSpeed: 5
-  jumpForce: 5
-  groundCheck: {fileID: 1522078042}
 --- !u!1 &1413208903
 GameObject:
   m_ObjectHideFlags: 0
@@ -1380,6 +1364,7 @@ GameObject:
   - component: {fileID: 1413208906}
   - component: {fileID: 1413208905}
   - component: {fileID: 1413208904}
+  - component: {fileID: 1413208908}
   m_Layer: 0
   m_Name: Floor
   m_TagString: Untagged
@@ -1480,6 +1465,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1413208908
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1413208903}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ad66ac860750664d973c15f76938c53, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ControllerReceiver
+  horizontal: 0
+  vertical: 0
+  jump: 0
 --- !u!1 &1431242436
 GameObject:
   m_ObjectHideFlags: 0
@@ -1495,7 +1495,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1431242437
 Transform:
   m_ObjectHideFlags: 0
