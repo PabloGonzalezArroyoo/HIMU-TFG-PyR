@@ -12,7 +12,6 @@ public class BalloonComponent : MonoBehaviour
 
     [Header("Referencias")]
     [SerializeField] private AudioClip sfx;
-    [SerializeField] private TextMeshProUGUI pointsText;
 
     private float currentAir = 0f;
     private AudioSource audioSource;
@@ -49,12 +48,6 @@ public class BalloonComponent : MonoBehaviour
 
     private void Explode()
     {
-        // Sumar puntos a la UI
-        if (pointsText != null)
-        {
-            int puntuacionActual = int.Parse(pointsText.text);
-            pointsText.text = "Puntos: " + (puntuacionActual + pointsToScore).ToString();
-        }
 
         // Reproducir sonido de explosión en una fuente independiente para que no muera con el objeto
         if (sfx != null)
@@ -64,5 +57,10 @@ public class BalloonComponent : MonoBehaviour
         OnPoppedBalloon?.Invoke();
 
         Destroy(gameObject);
+    }
+
+    public int GetPoints()
+    {
+        return pointsToScore;
     }
 }
