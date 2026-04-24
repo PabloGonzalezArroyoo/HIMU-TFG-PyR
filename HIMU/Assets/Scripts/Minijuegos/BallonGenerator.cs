@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.InputSystem.XInput;
 using UnityEngine.UIElements;
 
-public class GloboGenerador : MonoBehaviour
+public class BalloonGenerator : MonoBehaviour
 {
     [Header("Referencias")]
     [SerializeField] private List<GameObject> balloonPrefab;
@@ -28,7 +28,7 @@ public class GloboGenerador : MonoBehaviour
     IEnumerator SpawnBalloon(Vector3 posicion)
     {
         yield return new WaitForSeconds(1.5f); 
-        GameObject nuevoObj = Instantiate(balloonPrefab[Random.Range(0, balloonPrefab.Count)], posicion, Quaternion.identity);
+        GameObject nuevoObj = Instantiate(balloonPrefab[Random.Range(0, balloonPrefab.Count)], posicion, Quaternion.identity, gameObject.transform);
 
         BalloonComponent globo = nuevoObj.GetComponent<BalloonComponent>();
 

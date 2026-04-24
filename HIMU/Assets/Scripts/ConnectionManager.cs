@@ -322,8 +322,8 @@ public class ConnectionManager : MonoBehaviour
             UDPDisconnection();
         }
         isFading = true;
-        connectionUI.SetActive(true);
-        errorUI.SetActive(true);
+        connectionUI?.SetActive(true);
+        errorUI?.SetActive(true);
     }
 
     void OnDestroy()

@@ -5,9 +5,7 @@ public class BalloonInputController : MonoBehaviour
     [Header("Configuración del micrófono")]
     [SerializeField] private float umbralVolumen = 0.05f;   // 0.0 – 1.0
     [SerializeField] private float sensibilidad = 50f;       // Aire por segundo al soplar
-    [SerializeField] private int frecuenciaMuestra = 44100;
     protected float volume = 0f;
-    private AudioClip clipMicrofono;
     private BalloonComponent globoActual;
 
     private void Update()

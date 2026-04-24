@@ -18,7 +18,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &8936441441175594524
 RectTransform:
   m_ObjectHideFlags: 0
@@ -93,4 +93,3 @@ MonoBehaviour:
   maximunScale: 2.5
   pointsToScore: 5
   sfx: {fileID: 0}
-  pointsText: {fileID: 0}
