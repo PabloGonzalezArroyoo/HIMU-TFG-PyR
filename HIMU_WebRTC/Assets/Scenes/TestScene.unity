@@ -254,6 +254,7 @@ GameObject:
   - component: {fileID: 756171695}
   - component: {fileID: 756171694}
   - component: {fileID: 756171698}
+  - component: {fileID: 756171699}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -393,6 +394,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   radius: 3
   speed: 2
+--- !u!114 &756171699
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 756171692}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db4c1cf48557a8a4196ae4a01bc1bffd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  signalingPort: 8080
+  stunServer: stun:stun.l.google.com:19302
 --- !u!1 &832237495
 GameObject:
   m_ObjectHideFlags: 0
