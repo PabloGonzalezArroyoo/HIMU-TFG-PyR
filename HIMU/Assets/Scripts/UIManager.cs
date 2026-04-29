@@ -9,7 +9,7 @@ public class UIManager : MonoBehaviour
     [SerializeField]
     private GameObject connectionButton;
     [SerializeField]
-    private TextMeshPro connectionText;
+    private TextMeshProUGUI connectionText;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()

@@ -1,4 +1,5 @@
 using System;
+using Unity.WebRTC;
 using UnityEngine;
 
 namespace Assets.Scripts
@@ -12,6 +13,21 @@ namespace Assets.Scripts
         DISCONNECT,
         SDP,
         ICE
+    }
+
+    [Serializable]
+    public class IceCandidateData
+    {
+        public string candidate;
+        public string sdpMid;
+        public int sdpMLineIndex;
+
+        public IceCandidateData(RTCIceCandidate c)
+        {
+            candidate = c.Candidate;
+            sdpMid = c.SdpMid;
+            sdpMLineIndex = c.SdpMLineIndex ?? 0;
+        }
     }
 
     [Serializable]

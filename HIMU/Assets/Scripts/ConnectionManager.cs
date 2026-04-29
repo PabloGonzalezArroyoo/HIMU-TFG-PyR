@@ -109,10 +109,10 @@ public class ConnectionManager : MonoBehaviour
         Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
 
         // Mantener el stream vivo para señalización
-        UnityMainThreadDispatcher.Instance().Enqueue(() => 
-            ClientSignalingHandler.Instance?.StartSession(stream, hostIP));
-
-        UIManager.Instance.OnConnectionStarted(hostIP);
+        UnityMainThreadDispatcher.Instance().Enqueue(() => {
+            ClientSignalingHandler.Instance?.StartSession(stream, hostIP);
+            UIManager.Instance.OnConnectionStarted(hostIP);
+        });
     }
 
     void Awake()
