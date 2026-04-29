@@ -9,7 +9,18 @@ namespace Assets.Scripts
         BROADCAST,
         HANDSHAKE,
         SEND,
-        DISCONNECT
+        DISCONNECT,
+        SDP,
+        ICE
+    }
+
+    [Serializable]
+    public class SignalingMessage
+    {
+        public string sourceIp;
+        public string destinationIp;       // IP destino, vacío = broadcast
+        public ConnectionEvent type;
+        public string body;    // SDP serializado o JSON del ICE candidate
     }
 
     [Serializable]
@@ -17,13 +28,13 @@ namespace Assets.Scripts
     {
         public string ipAddress;
         public int port;
-        public ConnectionEvent connEvent;
+        public ConnectionEvent type;
 
         public ConnectionData(string ipAddress, int port, ConnectionEvent connEvent)
         {
             this.ipAddress = ipAddress;
             this.port = port;
-            this.connEvent = connEvent;
+            this.type = connEvent;
         }
     }
 }

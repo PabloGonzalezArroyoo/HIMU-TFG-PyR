@@ -20,7 +20,7 @@ public class ConnectionManager : MonoBehaviour
     private int hostPort;
 
     private string hostIP;
-    private string ipAddress;
+    public static string ipAddress { get; private set; }
 
     public void StartBroadcast()
     {
@@ -55,7 +55,7 @@ public class ConnectionManager : MonoBehaviour
 
                 ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
 
-                if (decodedData.connEvent != ConnectionEvent.BROADCAST)
+                if (decodedData.type != ConnectionEvent.BROADCAST)
                     continue;
 
                 OnConnectionStarted(decodedData);
@@ -97,13 +97,20 @@ public class ConnectionManager : MonoBehaviour
         connected = true;
 
         Debug.Log($"[Client] Host encontrado: {hostIP} — enviando respuesta…");
+
         string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE));
         byte[] responseData = Encoding.UTF8.GetBytes(json);
+
         TcpClient tcp = new TcpClient();
         tcp.Connect(hostIP, hostPort);
         NetworkStream stream = tcp.GetStream();
         stream.Write(responseData, 0, responseData.Length);
+
         Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
+
+        // Mantener el stream vivo para señalización
+        UnityMainThreadDispatcher.Instance().Enqueue(() => 
+            ClientSignalingHandler.Instance?.StartSession(stream, hostIP));
 
         UIManager.Instance.OnConnectionStarted(hostIP);
     }

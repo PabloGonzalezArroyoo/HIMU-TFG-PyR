@@ -53,7 +53,7 @@ public class TCPSender : MonoBehaviour
 
                 ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
 
-                if (decodedData.connEvent != ConnectionEvent.BROADCAST)
+                if (decodedData.type != ConnectionEvent.BROADCAST)
                     continue;
 
                 hostIP = decodedData.ipAddress;
@@ -67,6 +67,7 @@ public class TCPSender : MonoBehaviour
                 tcp.Connect(hostIP, hostPort);
                 NetworkStream stream = tcp.GetStream();
                 stream.Write(responseData, 0, responseData.Length);
+                stream.Flush();
                 Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
             }
             catch (SocketException)

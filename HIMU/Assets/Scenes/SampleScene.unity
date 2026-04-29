@@ -466,9 +466,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: TCPSender, Assembly-CSharp
-        m_MethodName: ButtonStartBroadcast
+      - m_Target: {fileID: 1700886917}
+        m_TargetAssemblyTypeName: ConnectionManager, Assembly-CSharp
+        m_MethodName: StartBroadcast
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -831,7 +831,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -990,6 +990,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1241310950}
   m_CullTransparentMesh: 1
+--- !u!1 &1496597304
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1496597306}
+  - component: {fileID: 1496597305}
+  m_Layer: 0
+  m_Name: UnityMainThreadDispatcher
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1496597305
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496597304}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f8c05cb5c8d9ac4fa9be91ab67dca57, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnityMainThreadDispatcher
+--- !u!4 &1496597306
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496597304}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 72.51959, y: -0.00001, z: -997.9477}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1700886915
 GameObject:
   m_ObjectHideFlags: 0
@@ -1000,6 +1044,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1700886916}
   - component: {fileID: 1700886917}
+  - component: {fileID: 1700886919}
+  - component: {fileID: 1700886918}
   m_Layer: 0
   m_Name: Connection
   m_TagString: Untagged
@@ -1034,6 +1080,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0bebff8ba41b5ab4d9453e15a54ca85b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConnectionManager
+--- !u!114 &1700886918
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700886915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05e60c08f13bf4a46944b3cf10a0bda7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WebRTCReceiver
+  displayTarget: {fileID: 851164026}
+  RemoteIp: 
+--- !u!114 &1700886919
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700886915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50727ef86c44d494aa31bf0d6de75a14, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClientSignalingHandler
 --- !u!1 &2083880723
 GameObject:
   m_ObjectHideFlags: 0
@@ -1163,3 +1235,4 @@ SceneRoots:
   - {fileID: 2083880727}
   - {fileID: 735389614}
   - {fileID: 1700886916}
+  - {fileID: 1496597306}
