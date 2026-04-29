@@ -6,8 +6,10 @@ using System.Threading;
 using UnityEngine;
 using Assets.Scripts;
 
-public class TCPSender : MonoBehaviour
+public class ConnectionManager : MonoBehaviour
 {
+    public static ConnectionManager Instance { get; private set; }
+
     private UdpClient listener;
     private Thread listenThread;
 
@@ -20,7 +22,7 @@ public class TCPSender : MonoBehaviour
     private string hostIP;
     private string ipAddress;
 
-    public void ButtonStartBroadcast()
+    public void StartBroadcast()
     {
         if (!connected)
         {
@@ -31,7 +33,7 @@ public class TCPSender : MonoBehaviour
             listener = new UdpClient(listenPort);
             listenThread = new Thread(BroadcastListenLoop) { IsBackground = true };
             listenThread.Start();
-        }   
+        }
     }
 
     private void BroadcastListenLoop()
@@ -47,7 +49,7 @@ public class TCPSender : MonoBehaviour
 
                 if (string.IsNullOrEmpty(message))
                 {
-                    UnityEngine.Debug.LogWarning("[UDP] Paquete vacío recibido, ignorando.");
+                    UnityEngine.Debug.LogWarning("[UDP] Paquete vacÃ­o recibido, ignorando.");
                     continue;
                 }
 
@@ -56,18 +58,7 @@ public class TCPSender : MonoBehaviour
                 if (decodedData.connEvent != ConnectionEvent.BROADCAST)
                     continue;
 
-                hostIP = decodedData.ipAddress;
-                hostPort = decodedData.port;
-                connected = true;
-                Debug.Log($"[Client] Host encontrado: {hostIP} — enviando respuesta…");
-
-                string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE));
-                byte[] responseData = Encoding.UTF8.GetBytes(json);
-                TcpClient tcp = new TcpClient();
-                tcp.Connect(hostIP, hostPort);
-                NetworkStream stream = tcp.GetStream();
-                stream.Write(responseData, 0, responseData.Length);
-                Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
+                OnConnectionStarted(decodedData);
             }
             catch (SocketException)
             {
@@ -99,8 +90,37 @@ public class TCPSender : MonoBehaviour
         }
     }
 
+    public void OnConnectionStarted(ConnectionData data)
+    {
+        hostIP = data.ipAddress;
+        hostPort = data.port;
+        connected = true;
+
+        Debug.Log($"[Client] Host encontrado: {hostIP} â€” enviando respuestaâ€¦");
+        string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE));
+        byte[] responseData = Encoding.UTF8.GetBytes(json);
+        TcpClient tcp = new TcpClient();
+        tcp.Connect(hostIP, hostPort);
+        NetworkStream stream = tcp.GetStream();
+        stream.Write(responseData, 0, responseData.Length);
+        Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
+
+        UIManager.Instance.OnConnectionStarted(hostIP);
+    }
+
+    void Awake()
+    {
+        if (Instance)
+        {
+            DestroyImmediate(gameObject);
+            return;
+        }
+
+        Instance = this;
+    }
+
     private void Start()
     {
-        
+
     }
 }
