@@ -73,14 +73,14 @@ public class ClientSignalingHandler : MonoBehaviour
     {
         if (msg.type == ConnectionEvent.SDP)
         {
-            var data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
-            var offer = data.ToDesc();
+            SessionDescriptionData data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
+            RTCSessionDescription offer = data.ToRTCDesc();
             StartCoroutine(receiver.HandleOffer(offer));
         }
         else if (msg.type == ConnectionEvent.ICE)
         {
-            var data = JsonUtility.FromJson<IceCandidateData>(msg.body);
-            var init = new RTCIceCandidateInit
+            IceCandidateData data = JsonUtility.FromJson<IceCandidateData>(msg.body);
+            RTCIceCandidateInit init = new RTCIceCandidateInit
             {
                 candidate = data.candidate,
                 sdpMid = data.sdpMid,

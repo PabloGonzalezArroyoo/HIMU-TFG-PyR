@@ -30,6 +30,7 @@ namespace Assets.Scripts
         }
     }
 
+    // Wrapper que guarda los valores de RTCSessionDescription
     [Serializable]
     public class SessionDescriptionData
     {
@@ -42,11 +43,11 @@ namespace Assets.Scripts
             sdp = desc.sdp;
         }
 
-        public RTCSessionDescription ToDesc()
+        public RTCSessionDescription ToRTCDesc()
         {
             return new RTCSessionDescription
             {
-                type = type == "offer" ? RTCSdpType.Offer : RTCSdpType.Answer,
+                type = this.type == "offer" ? RTCSdpType.Offer : RTCSdpType.Answer,
                 sdp = this.sdp
             };
         }
@@ -59,6 +60,14 @@ namespace Assets.Scripts
         public string destinationIp;       // IP destino, vacío = broadcast
         public ConnectionEvent type;
         public string body;    // SDP serializado o JSON del ICE candidate
+
+        public SignalingMessage(string sIP, string dIP, ConnectionEvent e, string b)
+        {
+            sourceIp = sIP;
+            destinationIp = dIP;
+            type = e;
+            body = b;
+        }
     }
 
     [Serializable]
