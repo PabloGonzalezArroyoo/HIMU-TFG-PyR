@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using Unity.WebRTC;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ClientSignalingHandler : MonoBehaviour
 {
@@ -13,6 +14,8 @@ public class ClientSignalingHandler : MonoBehaviour
     private NetworkStream stream;
     private Thread readThread;
     private bool running = false;
+
+    [SerializeField] private RawImage videoPanel;
 
     private WebRTCReceiver receiver;
 
@@ -26,6 +29,7 @@ public class ClientSignalingHandler : MonoBehaviour
         // Crear y configurar el receiver
         var go = new GameObject("WebRTCReceiver");
         receiver = go.AddComponent<WebRTCReceiver>();
+        receiver.displayTarget = videoPanel;
         receiver.RemoteIp = hostIp;
         receiver.OnSignalingMessage = SendSignalingMessage;
         receiver.Initialize();
@@ -69,7 +73,8 @@ public class ClientSignalingHandler : MonoBehaviour
     {
         if (msg.type == ConnectionEvent.SDP)
         {
-            var offer = JsonUtility.FromJson<RTCSessionDescription>(msg.body);
+            var data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
+            var offer = data.ToDesc();
             StartCoroutine(receiver.HandleOffer(offer));
         }
         else if (msg.type == ConnectionEvent.ICE)
@@ -99,6 +104,7 @@ public class ClientSignalingHandler : MonoBehaviour
     {
         if (Instance) { DestroyImmediate(gameObject); return; }
         Instance = this;
+        StartCoroutine(WebRTC.Update());
     }
 
     void OnDestroy()

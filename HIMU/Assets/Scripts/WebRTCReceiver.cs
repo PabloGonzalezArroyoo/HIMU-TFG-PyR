@@ -7,7 +7,7 @@ using Assets.Scripts;
 public class WebRTCReceiver : MonoBehaviour
 {
     RTCPeerConnection peer;
-    public RawImage displayTarget; // UI donde se muestra el vídeo
+    [HideInInspector] public RawImage displayTarget; // UI donde se muestra el vídeo
 
     public System.Action<SignalingMessage> OnSignalingMessage;
     public string RemoteIp;
@@ -30,7 +30,7 @@ public class WebRTCReceiver : MonoBehaviour
                 sourceIp = ConnectionManager.ipAddress,
                 destinationIp = RemoteIp,
                 type = ConnectionEvent.ICE,
-                body = JsonUtility.ToJson(candidate)
+                body = JsonUtility.ToJson(new IceCandidateData(candidate))
             };
             OnSignalingMessage?.Invoke(msg);
         };
@@ -76,7 +76,7 @@ public class WebRTCReceiver : MonoBehaviour
             sourceIp = ConnectionManager.ipAddress,
             destinationIp = RemoteIp,
             type = ConnectionEvent.SDP,
-            body = JsonUtility.ToJson(answer)
+            body = JsonUtility.ToJson(new SessionDescriptionData(answer))
         };
         OnSignalingMessage?.Invoke(msg);
     }

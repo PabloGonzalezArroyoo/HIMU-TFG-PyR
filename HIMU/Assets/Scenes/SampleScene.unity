@@ -1106,6 +1106,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50727ef86c44d494aa31bf0d6de75a14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ClientSignalingHandler
+  videoPanel: {fileID: 851164026}
 --- !u!1 &2083880723
 GameObject:
   m_ObjectHideFlags: 0
