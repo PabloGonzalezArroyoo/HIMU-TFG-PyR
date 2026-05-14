@@ -73,8 +73,10 @@ namespace Assets.Scripts
     [Serializable]
     public class ConnectionData
     {
-        public string ipAddress;
         public int port;
+        public string name;
+        public string info;
+        public string ipAddress;
         public ConnectionEvent type;
 
         public ConnectionData(string ipAddress, int port, ConnectionEvent connEvent)
