@@ -1,7 +1,6 @@
 using Assets.Scripts;
 using System.Net;
 using TMPro;
-using UnityEditor.Rendering;
 using UnityEngine;
 
 public class SessionInfoComponent : MonoBehaviour
@@ -34,13 +33,23 @@ public class SessionInfoComponent : MonoBehaviour
 
     public void SelectSession()
     {
+        if (uiManager.IsChangingScene()) return;                        // No queremos intentar mas conexiones si estamos cambiando de escena
+
         if (ComunicationManager.Instance.TryTCPConnection(IP, port))
         {
             uiManager.ConnectionSuccessful();
         }
         else
         {
-            uiManager.ConnectionSuccessful();
+            Debug.Log("Conexion fallo");
+            uiManager.ConnectionFailed(IP);
         }
+    }
+
+    private void OnDestroy()
+    {
+        uiManager = null;
+        nameText = null;
+        infoText = null;
     }
 }

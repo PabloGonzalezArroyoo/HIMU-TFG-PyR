@@ -297,7 +297,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 3328255463363913879}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 381539652990270984}
+        m_TargetAssemblyTypeName: SessionInfoComponent, Assembly-CSharp
+        m_MethodName: SelectSession
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &7499823965938351757
 MonoBehaviour:
   m_ObjectHideFlags: 0

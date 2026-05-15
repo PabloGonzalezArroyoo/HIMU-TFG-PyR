@@ -107,6 +107,11 @@ public class ClientSignalingHandler : MonoBehaviour
         StartCoroutine(WebRTC.Update());
     }
 
+    private void Start()
+    {
+        StartSession(ComunicationManager.Instance.GetTCPStream(), ComunicationManager.Instance.GetHostIP());
+    }
+
     void OnDestroy()
     {
         running = false;

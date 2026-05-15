@@ -12,9 +12,20 @@ public class ComunicationManager : MonoBehaviour
     [SerializeField] private int listenPort = 8053;
     private TcpClient TCPClient;
     private NetworkStream stream;
+    private string hostIPAddress = string.Empty;
     public static string ipAddress { get; private set; }
 
     public static ComunicationManager Instance { get; private set; }
+
+    public NetworkStream GetTCPStream()
+    {
+        return stream;
+    }
+
+    public string GetHostIP()
+    {
+        return hostIPAddress;
+    }
 
     private void GetIpAddress()
     {
@@ -42,7 +53,7 @@ public class ComunicationManager : MonoBehaviour
 
             TCPClient = new TcpClient();
 
-            if (!TCPClient.ConnectAsync(hostIP, hostPort).Wait(TimeSpan.FromSeconds(5)))
+            if (!TCPClient.ConnectAsync(hostIP, hostPort).Wait(TimeSpan.FromSeconds(2)))
             {
                 Debug.LogError($"[Client] Timeout al conectar con {hostIP}:{hostPort}");
                 TCPClient.Close();
@@ -53,6 +64,7 @@ public class ComunicationManager : MonoBehaviour
             stream.Write(responseData, 0, responseData.Length);
 
             Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
+            hostIPAddress = hostIP;
             return true;
         }
         catch (SocketException ex)
@@ -69,11 +81,11 @@ public class ComunicationManager : MonoBehaviour
         }
         finally
         {
-            if (TCPClient != null && !TCPClient.Connected)
-            {
-                TCPClient.Close();
-                TCPClient = null;
-            }
+            //if (TCPClient != null && !TCPClient.Connected)
+            //{
+            //    TCPClient.Close();
+            //    TCPClient = null;
+            //}
         }
 
         return false;
