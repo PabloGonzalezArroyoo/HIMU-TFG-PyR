@@ -42,7 +42,7 @@ public class SessionListenerComponent : MonoBehaviour
 
                 ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
 
-                if (decodedData.type != ConnectionEvent.BROADCAST)
+                if (decodedData.connType != ConnectionEvent.BROADCAST)
                     continue;
 
                 uiManager.AddNewSessionUI(decodedData);

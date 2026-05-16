@@ -109,7 +109,7 @@ public class ClientSignalingHandler : MonoBehaviour
 
     private void Start()
     {
-        StartSession(ComunicationManager.Instance.GetTCPStream(), ComunicationManager.Instance.GetHostIP());
+        //StartSession(ComunicationManager.Instance.GetTCPStream(), ComunicationManager.Instance.GetHostIP());
     }
 
     void OnDestroy()

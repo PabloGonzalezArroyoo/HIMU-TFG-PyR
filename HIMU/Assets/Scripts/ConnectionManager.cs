@@ -30,6 +30,20 @@ public class ConnectionManager : MonoBehaviour
     {
         if (!connected)
         {
+
+#if UNITY_ANDROID
+            AndroidJavaObject activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer")
+                .GetStatic<AndroidJavaObject>("currentActivity");
+
+            AndroidJavaObject wifiManager = activity
+                .Call<AndroidJavaObject>("getSystemService", "wifi");
+
+            AndroidJavaObject multicastLock = wifiManager
+                .Call<AndroidJavaObject>("createMulticastLock", "myLock");
+
+            multicastLock.Call("acquire");
+#endif
+
             Debug.Log("[Cliente] Lanzando listen loop");
             running = true;
             GetIpAddress();
@@ -61,6 +75,7 @@ public class ConnectionManager : MonoBehaviour
                 var remoteEP = new IPEndPoint(IPAddress.Any, 0);
                 byte[] data = listener.Receive(ref remoteEP);
                 string message = Encoding.UTF8.GetString(data);
+                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[Client] Recibiendo"));
 
                 if (string.IsNullOrEmpty(message))
                 {
@@ -69,10 +84,12 @@ public class ConnectionManager : MonoBehaviour
                 }
 
                 ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
+                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log(message));
 
                 if (decodedData.connType != ConnectionEvent.BROADCAST)
                     continue;
 
+                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[Client] Conexión iniciada"));
                 OnConnectionStarted(decodedData);
             }
             catch (SocketException)
