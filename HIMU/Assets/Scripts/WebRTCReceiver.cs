@@ -33,8 +33,7 @@ public class WebRTCReceiver : MonoBehaviour
             OnSignalingMessage?.Invoke(msg);
         };
 
-        peer.OnIceConnectionChange = state =>
-            Debug.Log($"[WebRTCReceiver] ICE -> {state}");
+        peer.OnIceConnectionChange = state => Debug.Log($"[WebRTCReceiver] ICE -> {state}");
 
         // Aquí llega el track de vídeo cuando la conexión P2P se establece
         peer.OnTrack = e =>

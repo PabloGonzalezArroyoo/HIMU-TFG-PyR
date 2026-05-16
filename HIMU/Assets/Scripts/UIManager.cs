@@ -12,17 +12,6 @@ public class UIManager : MonoBehaviour
     [SerializeField]
     private TextMeshProUGUI connectionText;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
     void Awake()
     {
         if (Instance)
@@ -32,11 +21,6 @@ public class UIManager : MonoBehaviour
         }
 
         Instance = this;
-    }
-
-    public void OnConnectionButtonClicked()
-    {
-        ConnectionManager.Instance.StartBroadcast();
     }
 
     public void OnConnectionStarted(string ip)

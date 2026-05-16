@@ -15,6 +15,13 @@ namespace Assets.Scripts
         ICE
     }
 
+    public enum ClientType
+    {
+        NONE,
+        STREAM,
+        PLAYER
+    }
+
     [Serializable]
     public class IceCandidateData
     {
@@ -77,13 +84,15 @@ namespace Assets.Scripts
         public string name;
         public string info;
         public string ipAddress;
-        public ConnectionEvent type;
+        public ConnectionEvent connType;
+        public ClientType clientType;
 
-        public ConnectionData(string ipAddress, int port, ConnectionEvent connEvent)
+        public ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
         {
             this.ipAddress = ipAddress;
             this.port = port;
-            this.type = connEvent;
+            this.connType = connEvent;
+            this.clientType = clientType;
         }
     }
 }

@@ -1,10 +1,12 @@
+using Assets.Scripts;
 using System;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
-using Assets.Scripts;
+using UnityEngine.Rendering;
 
 public class ConnectionManager : MonoBehaviour
 {
@@ -13,8 +15,8 @@ public class ConnectionManager : MonoBehaviour
     private UdpClient listener;
     private Thread listenThread;
 
-    private bool running = false;
-    private bool connected = false;
+    private bool running;
+    private bool connected;
 
     private int listenPort = 8053;
     private int hostPort;
@@ -22,15 +24,26 @@ public class ConnectionManager : MonoBehaviour
     private string hostIP;
     public static string ipAddress { get; private set; }
 
+    private const string MulticastGroup = "239.0.0.1";
+
     public void StartBroadcast()
     {
         if (!connected)
         {
-            Debug.Log("Lanzando listen loop");
+            Debug.Log("[Cliente] Lanzando listen loop");
             running = true;
             GetIpAddress();
 
-            listener = new UdpClient(listenPort);
+            listener = new UdpClient();
+            listener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            listener.Client.Bind(new IPEndPoint(IPAddress.Any, listenPort));
+
+            //listener.JoinMulticastGroup(IPAddress.Parse(MulticastGroup), IPAddress.Parse(ipAddress));
+            listener.Client.SetSocketOption(
+                SocketOptionLevel.IP,
+                SocketOptionName.AddMembership,
+                new MulticastOption(IPAddress.Parse(MulticastGroup), IPAddress.Any));
+
             listenThread = new Thread(BroadcastListenLoop) { IsBackground = true };
             listenThread.Start();
         }
@@ -38,24 +51,26 @@ public class ConnectionManager : MonoBehaviour
 
     private void BroadcastListenLoop()
     {
+        UnityMainThreadDispatcher.Instance().Enqueue(() =>
+            Debug.Log($"[Client] Loop arrancado - {running} / {connected}"));
         while (running && !connected)
         {
             try
             {
-                Debug.Log("Escuchando");
+                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[Client] Escuchando"));
                 var remoteEP = new IPEndPoint(IPAddress.Any, 0);
                 byte[] data = listener.Receive(ref remoteEP);
                 string message = Encoding.UTF8.GetString(data);
 
                 if (string.IsNullOrEmpty(message))
                 {
-                    UnityEngine.Debug.LogWarning("[UDP] Paquete vacío recibido, ignorando.");
+                    Debug.LogWarning("[UDP] Paquete vacío recibido, ignorando.");
                     continue;
                 }
 
                 ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
 
-                if (decodedData.type != ConnectionEvent.BROADCAST)
+                if (decodedData.connType != ConnectionEvent.BROADCAST)
                     continue;
 
                 OnConnectionStarted(decodedData);
@@ -80,13 +95,17 @@ public class ConnectionManager : MonoBehaviour
         ipAddress = "No disponible";
         try
         {
-            foreach (IPAddress ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
-                    ipAddress = ip.ToString();
+            using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
+            {
+                socket.Connect(MulticastGroup, 65530);
+                IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
+                ipAddress = endPoint.Address.ToString();
+            }
+            Debug.Log($"[Network] IP seleccionada: {ipAddress}");
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
-            Debug.LogError(e);
+            Debug.LogError($"[Network] Error obteniendo IP: {e}");
         }
     }
 
@@ -128,6 +147,7 @@ public class ConnectionManager : MonoBehaviour
 
     private void Start()
     {
-
+        running = false;
+        connected = false;
     }
 }
