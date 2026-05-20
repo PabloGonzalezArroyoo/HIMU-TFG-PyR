@@ -132,23 +132,28 @@ public class ConnectionManager : MonoBehaviour
         hostPort = data.port;
         connected = true;
 
-        Debug.Log($"[Client] Host encontrado: {hostIP} — enviando respuesta…");
+        UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log($"[Client] Host encontrado: {hostIP} — enviando respuesta…"));
 
-        string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE));
-        byte[] responseData = Encoding.UTF8.GetBytes(json);
-
-        TcpClient tcp = new TcpClient();
-        tcp.Connect(hostIP, hostPort);
-        NetworkStream stream = tcp.GetStream();
-        stream.Write(responseData, 0, responseData.Length);
-
-        Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
-
-        // Mantener el stream vivo para señalización
-        UnityMainThreadDispatcher.Instance().Enqueue(() => {
-            ClientSignalingHandler.Instance?.StartSession(stream, hostIP);
-            UIManager.Instance.OnConnectionStarted(hostIP);
-        });
+        try
+        {
+            string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE));
+            byte[] responseData = Encoding.UTF8.GetBytes(json);
+            TcpClient tcp = new TcpClient();
+            tcp.Connect(hostIP, hostPort);
+            NetworkStream stream = tcp.GetStream();
+            stream.Write(responseData, 0, responseData.Length);
+            // Mantener el stream vivo para señalización
+            UnityMainThreadDispatcher.Instance().Enqueue(() => {
+                Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
+                ClientSignalingHandler.Instance?.StartSession(stream, hostIP);
+                UIManager.Instance.OnConnectionStarted(hostIP);
+            });
+        }
+        catch (Exception e)
+        {
+            UnityMainThreadDispatcher.Instance().Enqueue(() =>
+                Debug.LogError($"[Client] Error en TCP connect: {e.Message}"));
+        }
     }
 
     void Awake()
