@@ -95,4 +95,23 @@ namespace Assets.Scripts
             this.clientType = clientType;
         }
     }
+
+    [Serializable]
+    public class InputData
+    {
+        public Vector2 move;      // Dirección de movimiento
+        public Vector2 rotation;      // Delta de rotación
+        public bool sprint;
+        public bool moveUp;
+        public bool moveDown;
+
+        public InputData(Vector2 move, Vector2 rotation, bool sprint, bool moveUp, bool moveDown)
+        {
+            this.move = move;
+            this.rotation = rotation;
+            this.sprint = sprint;
+            this.moveUp = moveUp;
+            this.moveDown = moveDown;
+        }
+    }
 }

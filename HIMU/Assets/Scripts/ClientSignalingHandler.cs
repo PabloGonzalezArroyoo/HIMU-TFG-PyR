@@ -33,6 +33,8 @@ public class ClientSignalingHandler : MonoBehaviour
         receiver.RemoteIp = hostIp;
         receiver.OnSignalingMessage = SendSignalingMessage;
         receiver.Initialize();
+        MovementControls mc = FindFirstObjectByType<MovementControls>();
+        if (mc != null) mc.SetReceiver(receiver);
 
         readThread = new Thread(ReadLoop) { IsBackground = true };
         readThread.Start();

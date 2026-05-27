@@ -1,21 +1,42 @@
+using Assets.Scripts;
 using System.Collections;
 using Unity.WebRTC;
 using UnityEngine;
 using UnityEngine.UI;
-using Assets.Scripts;
 
 /// <summary>
 /// Componente asociado al objeto creado que representa a un cliente
 /// </summary>
 public class WebRTCReceiver : MonoBehaviour
 {
+    #region Variables
+    /// <summary>
+    /// Object that represents the P2P connection
+    /// </summary>
     RTCPeerConnection peer;
-    [HideInInspector] public RawImage displayTarget; // UI donde se muestra el vídeo
 
-    // CallBack e IP del host
+    /// <summary>
+    /// RTC Channel where data will be sent or recieved from the peer
+    /// </summary>
+    RTCDataChannel dataChannel;
+
+    /// <summary>
+    /// UI where the streamed image is displayed
+    /// </summary>
+    [HideInInspector] public RawImage displayTarget;
+
+    /// <summary>
+    /// Callback for when a signaling message is recieved
+    /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
-    public string RemoteIp;
 
+    /// <summary>
+    /// Host IP
+    /// </summary>
+    public string RemoteIp;
+    #endregion
+
+    #region Methods
     public void Initialize()
     {
         Debug.Log("[WebRTC] Inicializando cliente");
@@ -38,18 +59,21 @@ public class WebRTCReceiver : MonoBehaviour
         // Aquí llega el track de vídeo cuando la conexión P2P se establece
         peer.OnTrack = e =>
         {
-            Debug.Log("[WebRTC] Recibiendo video");
             if (e.Track is VideoStreamTrack videoTrack)
-            {
                 videoTrack.OnVideoReceived += tex =>
-                {
-                    if (displayTarget != null)
-                    {
-                        Debug.Log("[WebRTC] Aplicando stream");
-                        displayTarget.texture = tex;
-                    }      
-                };
-            }
+                    UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessVideo(tex));
+        };
+
+        // Configuración del callback de datos
+        peer.OnDataChannel = channel =>
+        {
+            dataChannel = channel;
+            Debug.Log($"[WebRTCReceiver] DataChannel recibido: {channel.Label}");
+
+            channel.OnOpen = () => Debug.Log("[DataChannel] Abierto en cliente");
+            channel.OnClose = () => Debug.Log("[DataChannel] Cerrado en cliente");
+            channel.OnMessage = bytes =>
+                UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessData(bytes));
         };
     }
 
@@ -78,9 +102,40 @@ public class WebRTCReceiver : MonoBehaviour
         peer.AddIceCandidate(new RTCIceCandidate(init));
     }
 
+    private void ProcessData(byte[] b)
+    {
+        string msg = System.Text.Encoding.UTF8.GetString(b);
+        Debug.Log($"[DataChannel] Mensaje recibido: {msg}");
+        // TO-DO: process data from server
+    }
+
+    private void ProcessVideo(Texture tex)
+    {
+        Debug.Log("[WebRTC] Recibiendo video");
+        if (displayTarget != null)
+        {
+            Debug.Log("[WebRTC] Aplicando stream");
+            displayTarget.texture = tex;
+        }
+    }
+
+    public void SendInput(string json)
+    {
+        Debug.Log(dataChannel);
+        Debug.Log(dataChannel.ReadyState);
+        if (dataChannel != null && dataChannel.ReadyState == RTCDataChannelState.Open)
+        {
+            Debug.Log(json);
+            dataChannel.Send(json);
+        }
+    }
+    #endregion
+
+    #region MonoBehaviour
     void OnDestroy()
     {
         peer?.Close();
         peer?.Dispose();
     }
+    #endregion
 }

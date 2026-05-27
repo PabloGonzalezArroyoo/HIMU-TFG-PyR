@@ -26,24 +26,14 @@ public class ConnectionManager : MonoBehaviour
 
     private const string MulticastGroup = "239.0.0.1";
 
-    public void StartBroadcast()
+    [SerializeField]
+    private ClientType clientType;
+
+    public void StartBroadcast(ClientType c)
     {
         if (!connected)
-        {
-
-#if UNITY_ANDROID
-            AndroidJavaObject activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer")
-                .GetStatic<AndroidJavaObject>("currentActivity");
-
-            AndroidJavaObject wifiManager = activity
-                .Call<AndroidJavaObject>("getSystemService", "wifi");
-
-            AndroidJavaObject multicastLock = wifiManager
-                .Call<AndroidJavaObject>("createMulticastLock", "myLock");
-
-            multicastLock.Call("acquire");
-#endif
-
+        { 
+            clientType = c;
             Debug.Log("[Cliente] Lanzando listen loop");
             running = true;
             GetIpAddress();
@@ -111,7 +101,33 @@ public class ConnectionManager : MonoBehaviour
     {
         ipAddress = "No disponible";
         try
-        {
+        {            
+#if UNITY_EDITOR || UNITY_STANDALONE_WIN
+            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                // Excluir adaptadores virtuales (VirtualBox, VMware, Hyper-V, etc.)
+                string name = ni.Name.ToLower();
+                string desc = ni.Description.ToLower();
+                if (name.Contains("virtual") || desc.Contains("virtual") ||
+                    name.Contains("vmware") || desc.Contains("vmware") ||
+                    name.Contains("vbox") || desc.Contains("vbox")) continue;
+
+                IPInterfaceProperties props = ni.GetIPProperties();
+                if (props.GatewayAddresses.Count == 0) continue;
+
+                foreach (UnicastIPAddressInformation addr in props.UnicastAddresses)
+                {
+                    if (addr.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    ipAddress = addr.Address.ToString();
+                    Debug.Log($"[Network] Adaptador: {ni.Name} — IP: {ipAddress}");
+                    return;
+                }
+            }
+#elif UNITY_ANDROID
             using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
             {
                 socket.Connect(MulticastGroup, 65530);
@@ -119,6 +135,7 @@ public class ConnectionManager : MonoBehaviour
                 ipAddress = endPoint.Address.ToString();
             }
             Debug.Log($"[Network] IP seleccionada: {ipAddress}");
+#endif
         }
         catch (Exception e)
         {
@@ -136,7 +153,7 @@ public class ConnectionManager : MonoBehaviour
 
         try
         {
-            string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE));
+            string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE, clientType));
             byte[] responseData = Encoding.UTF8.GetBytes(json);
             TcpClient tcp = new TcpClient();
             tcp.Connect(hostIP, hostPort);
@@ -171,5 +188,6 @@ public class ConnectionManager : MonoBehaviour
     {
         running = false;
         connected = false;
+        clientType = ClientType.NONE;
     }
 }
