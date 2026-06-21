@@ -1,4 +1,3 @@
-using Assets.Scripts;
 using System;
 using System.IO;
 using System.Net;
@@ -81,11 +80,11 @@ public class ComunicationManager : MonoBehaviour
         }
         finally
         {
-            //if (TCPClient != null && !TCPClient.Connected)
-            //{
-            //    TCPClient.Close();
-            //    TCPClient = null;
-            //}
+            if (TCPClient != null && !TCPClient.Connected)
+            {
+                TCPClient.Close();
+                TCPClient = null;
+            }
         }
 
         return false;

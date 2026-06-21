@@ -1,4 +1,3 @@
-using Assets.Scripts;
 using System.Net;
 using TMPro;
 using UnityEngine;

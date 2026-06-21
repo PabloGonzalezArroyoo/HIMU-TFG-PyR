@@ -17,7 +17,7 @@ async function connect() {
     let pendingCandidates = [];
     setStatus('Conectando a señalización...');
 
-    ws = new WebSocket('ws://192.168.1.18:8080?type=browser');
+    ws = new WebSocket('ws://192.168.1.21:8080?type=browser');
 
     ws.onopen = () => {
         ws.binaryType = "arraybuffer"; // forzar arraybuffer en vez de Blob
@@ -38,9 +38,11 @@ async function connect() {
 
     console.log("RAW recibido:", json); // ahora debería mostrar el JSON real
         const msg = JSON.parse(json);
-
+        
+        if (msg.type === 4) { pc?.close(); setStatus('Unity desconectado'); }
+        
         // Unity manda la offer dentro de msg.body como JSON string
-        if (msg.type === 5) { // ConnectionEvent.SDP
+        else if (msg.type === 5) { // ConnectionEvent.SDP
             const sdpData = JSON.parse(msg.body);
 
             pc = new RTCPeerConnection({

@@ -1,4 +1,3 @@
-using Assets.Scripts;
 using UnityEngine;
 
 public class MovementControls : MonoBehaviour

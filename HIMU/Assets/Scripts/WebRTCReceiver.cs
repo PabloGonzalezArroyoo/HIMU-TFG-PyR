@@ -1,4 +1,3 @@
-using Assets.Scripts;
 using System.Collections;
 using Unity.WebRTC;
 using UnityEngine;

@@ -3,7 +3,6 @@ using System;
 using TMPro;
 using System.Collections.Generic;
 using UnityEngine;
-using Assets.Scripts;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
@@ -23,16 +22,14 @@ public class ConnectionUIManager : MonoBehaviour
     private Color auxColor = Color.black;
 
     private List<GameObject> sessionList = new List<GameObject>();
-    private Dictionary<String, GameObject> sessions = new Dictionary<string, GameObject>();
+    private Dictionary<String, GameObject> sessions = new Dictionary<string, GameObject>(); // mapa de sesiones (IP, Objeto en scrollView)
     private int numSessions = 0;
     private bool changingScene = false;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        for (int i = 0; i < 5; i++) {
-            AddNewSessionUI(new ConnectionData("192.0.2."+i.ToString(), 7777, ConnectionEvent.HANDSHAKE));
-        }
+        
     }
 
     // Update is called once per frame
@@ -83,10 +80,13 @@ public class ConnectionUIManager : MonoBehaviour
 
     public void AddNewSessionUI(ConnectionData data)
     {
+        if (sessions.ContainsKey(data.ipAddress)) return;
+
         numSessions++;
         GameObject newSession = Instantiate(sessionPrefab, contentParent);
         SessionInfoComponent infoComponent = newSession.GetComponent<SessionInfoComponent>();
         infoComponent.SetData(data, this);
+        Debug.Log("Sesion nueva en el scrollView");
 
         newSession.name = "Session" + numSessions.ToString();
         sessionList.Add(newSession);
