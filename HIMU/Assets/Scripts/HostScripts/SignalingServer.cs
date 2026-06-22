@@ -84,6 +84,7 @@ public class SignalingServer : MonoBehaviour
         try { listener?.Stop(); } catch { }
 
         listenThread?.Join(500); // cierra el hilo en un plazo de 500ms
+        UnityEngine.Debug.Log("[SignalingServer] Servidor TCP detenido");
     }
 
     /// <summary>
@@ -100,7 +101,8 @@ public class SignalingServer : MonoBehaviour
         listenThread.Start(); 
 
         searchingDevices = true;
-        StartCoroutine(SendBroadcast());
+        StartCoroutine(SendBroadcast()); 
+        UnityEngine.Debug.Log("[SignalingServer] Servidor TCP lanzado");
     }
 
     /// <summary>
@@ -278,7 +280,7 @@ public class SignalingServer : MonoBehaviour
 
     void OnDestroy()
     {
-        StopServer();
+        try { StopServer(); } catch { }
     }
 
     #endregion

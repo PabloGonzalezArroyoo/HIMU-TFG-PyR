@@ -68,23 +68,6 @@ public class StreamManagerHost : MonoBehaviour
     [SerializeField] public bool acceptUSBConnection = true;
     #endregion
 
-    #region Flagged_Methods
-    public void CreateSignalingServer()
-    {
-        signalingServer = gameObject.AddComponent<SignalingServer>();
-    }
-
-    private void CreateWebSocketServer()
-    {
-        webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
-    }
-
-    private void CreateUSBConnection()
-    {
-        // TO DO
-    }
-    #endregion
-
     #region SharedMethods
 
     private void CreateStreamCamera()
@@ -122,6 +105,53 @@ public class StreamManagerHost : MonoBehaviour
         return clients.TryRemove(ip, out var client);
     }
 
+    #endregion
+
+    #region Flagged_Methods
+    public void FlagSignalingServer()
+    {
+        if (acceptTCPConnection)
+        {
+            UnityEngine.Debug.Log("[StreamManager] Deteniendo el servidor TCP");
+            signalingServer.StopServer();
+            acceptTCPConnection = false;
+        }
+
+        else
+        {
+            UnityEngine.Debug.Log("[StreamManager] Relanzando el servidor TCP");
+            signalingServer.StartServer();
+            acceptTCPConnection = true;
+        }
+    }
+
+    public async void FlagWebSocketServer()
+    {
+        if (acceptWebSocketConnection) {
+            UnityEngine.Debug.Log("[StreamManager] Deteniendo el servidor de node");
+            await webSocketServer.DisconnectToNode();
+            webSocketServer.StopServer();
+            acceptWebSocketConnection = false;
+        }
+
+        else {
+            UnityEngine.Debug.Log("[StreamManager] Relanzando el servidor Node");
+            webSocketServer.LaunchServer();
+            webSocketServer.ConnectToNode();
+            acceptWebSocketConnection = true;
+        }
+    }
+
+    private void StopADBServer()
+    {
+        UnityEngine.Debug.Log("[StreamManager] Deteniendo el servidor ADB");
+    }
+
+    private void ResumeADBServer()
+    {
+        UnityEngine.Debug.Log("[StreamManager] Relanzando el servidor ADB");
+
+    }
     #endregion
 
     #region WebSocket
@@ -288,7 +318,6 @@ public class StreamManagerHost : MonoBehaviour
 
     #endregion
 
-
     #region Monobehaviour
     void Awake()
     {
@@ -305,6 +334,8 @@ public class StreamManagerHost : MonoBehaviour
     {
         GetIpAddress();
         CreateStreamCamera();
+        webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
+        signalingServer = gameObject.AddComponent<SignalingServer>();
     }
     #endregion
 }

@@ -7,7 +7,6 @@ let unityClient = null;
 let browserClients = new Map();
 let nextClientId = 0;
 let pendingForUnity = [];
-let cachedOffer = null;
 
 wss.on('connection', (ws, req) => {
     const clientType = new URL(req.url, 'http://localhost').searchParams.get('type');
@@ -28,12 +27,6 @@ wss.on('connection', (ws, req) => {
         // Avisar a Unity que hay un cliente nuevo
         if (unityClient?.readyState === WebSocket.OPEN) {
             unityClient.send(JSON.stringify({ type: 99, clientId }));
-        }
-
-        // Enviar offer cacheada si Unity ya conectó
-        if (cachedOffer) {
-            console.log(`MSSG: Reenviando offer cacheada a browser ${clientId}`);
-            ws.send(cachedOffer);
         }
 
         ws.on('message', (data) => {
@@ -66,8 +59,6 @@ wss.on('connection', (ws, req) => {
         console.log(`MSSG: [unity] → ${msg.type}`);
 
         if (clientType === 'unity') {
-            if (msg.type === 5) cachedOffer = data; // cachear offer
-
             // Si el mensaje va dirigido a un cliente concreto
             if (msg.clientId !== undefined) {
                 const target = browserClients.get(msg.clientId);
@@ -86,9 +77,11 @@ wss.on('connection', (ws, req) => {
     });
 
     ws.on('close', () => {
-        console.log(`CLSE: Unity desconectado`);
-        unityClient = null;
-        pendingForUnity = [];
-        cachedOffer = null;
-    });
+    console.log(`CLSE: Unity desconectado`);
+    unityClient = null;
+    pendingForUnity = [];
+    cachedOffer = null;
+    nextClientId = 0;      // ← añade esto
+    browserClients.clear(); // ← y limpia browsers huérfanos
+});
 });

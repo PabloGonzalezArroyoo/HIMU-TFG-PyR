@@ -52,10 +52,38 @@ public class WebSocketServerRTC : MonoBehaviour
 
     #region Methods
     /// <summary>
+    /// Metodo que desbloquea el bat para poder ejecutarlo
+    /// </summary>
+    /// <param name="path"></param>
+    void UnblockFile(string path)
+    {
+        string zoneIdentifierPath = path + ":Zone.Identifier";
+        try
+        {
+            if (System.IO.File.Exists(zoneIdentifierPath))
+            {
+                System.IO.File.Delete(zoneIdentifierPath);
+                UnityEngine.Debug.Log("[ServerLauncher] Archivo desbloqueado correctamente.");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo desbloquear el archivo: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// PID del proceso del bat lanzado, para poder cerrarlo directamente
+    /// sin depender de buscar por titulo de ventana (poco fiable).
+    /// </summary>
+    Process launchedBatProcess;
+
+    /// <summary>
     /// Lanza el servidor de Node ejecutando el archivo .bat
     /// </summary>
     public void LaunchServer()
     {
+        UnblockFile(batPath);
         ProcessStartInfo psi = new ProcessStartInfo
         {
             FileName = batPath,
@@ -66,8 +94,8 @@ public class WebSocketServerRTC : MonoBehaviour
 
         try
         {
-            Process.Start(psi);
-            UnityEngine.Debug.Log("[ServerLauncher] Script lanzado correctamente.");
+            launchedBatProcess = Process.Start(psi);
+            UnityEngine.Debug.Log($"[ServerLauncher] Script lanzado correctamente. PID: {launchedBatProcess?.Id}");
         }
         catch (System.Exception ex)
         {
@@ -76,35 +104,99 @@ public class WebSocketServerRTC : MonoBehaviour
     }
 
     /// <summary>
-    /// Detiene el servidor de Node
+    /// Detiene el servidor de Node, el servidor HTML y la ventana del bat
     /// </summary>
     public void StopServer()
     {
-        // Eliminar procesos de los comandos ejecutados en el bat (servidor de Node y servidor del html)
+        KillProcessOnPort(nodePort);  // 8080 - server.js
+        KillProcessOnPort(3000);      // 3000 - npx serve
+
+        if (launchedBatProcess != null)
+        {
+            try
+            {
+                ProcessStartInfo killPsi = new ProcessStartInfo
+                {
+                    FileName = "taskkill",
+                    Arguments = $"/PID {launchedBatProcess.Id} /T /F",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                Process.Start(killPsi)?.WaitForExit();
+                UnityEngine.Debug.Log($"[ServerLauncher] Ventana del bat (PID {launchedBatProcess.Id}) cerrada via taskkill /T.");
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar el PID guardado: {ex.Message}");
+            }
+        }
+
+        // Fallback: tambien intentamos por titulo por si alguna razon el PID guardado no es el que contiene la ventana visible, .
         foreach (var process in Process.GetProcessesByName("cmd"))
         {
             try
             {
-                if (process.MainWindowTitle.Contains("Servidor Node") || process.MainWindowTitle.Contains("Servidor HTML"))
+                UnityEngine.Debug.Log($"[ServerLauncher] cmd PID {process.Id} titulo: '{process.MainWindowTitle}'");
+                if (process.MainWindowTitle == "Servidor de Streaming")
                 {
                     process.Kill();
-                    UnityEngine.Debug.Log($"[ServerLauncher] Cerrado: {process.MainWindowTitle}");
+                    UnityEngine.Debug.Log("[ServerLauncher] Ventana del bat cerrada (fallback por titulo).");
                 }
             }
             catch { }
         }
-        // Tambien hace falta matar el proceso node.exe interno
-        foreach (var process in Process.GetProcessesByName("node"))
+    }
+
+    /// <summary>
+    /// Busca que proceso esta escuchando en un puerto TCP dado usando netstat, y lo mata por PID con taskkill
+    /// </summary>
+    void KillProcessOnPort(int port)
+    {
+        try
         {
-            try
+            ProcessStartInfo netstatPsi = new ProcessStartInfo
             {
-                process.Kill();
-                UnityEngine.Debug.Log($"[ServerLauncher] Proceso node (PID {process.Id}) cerrado.");
-            }
-            catch (System.Exception ex)
+                FileName = "cmd.exe",
+                Arguments = $"/c netstat -ano | findstr :{port}",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
+            };
+
+            using (Process netstat = Process.Start(netstatPsi))
             {
-                UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar node: {ex.Message}");
+                string output = netstat.StandardOutput.ReadToEnd();
+                netstat.WaitForExit();
+
+                var seenPids = new HashSet<string>();
+                foreach (string line in output.Split('\n'))
+                {
+                    string trimmed = line.Trim();
+                    if (string.IsNullOrEmpty(trimmed)) continue;
+
+                    // Ultima columna de netstat -ano es el PID
+                    string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 1) continue;
+
+                    string pid = parts[parts.Length - 1];
+                    if (!int.TryParse(pid, out _)) continue;
+                    if (!seenPids.Add(pid)) continue; // evitar matar el mismo PID varias veces
+
+                    ProcessStartInfo killPsi = new ProcessStartInfo
+                    {
+                        FileName = "taskkill",
+                        Arguments = $"/PID {pid} /F /T",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    Process.Start(killPsi)?.WaitForExit();
+                    UnityEngine.Debug.Log($"[ServerLauncher] Proceso en puerto {port} (PID {pid}) cerrado.");
+                }
             }
+        }
+        catch (System.Exception ex)
+        {
+            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar el puerto {port}: {ex.Message}");
         }
     }
 
@@ -128,7 +220,7 @@ public class WebSocketServerRTC : MonoBehaviour
     /// <summary>
     /// Detiene la conexion al servidor de Node
     /// </summary>
-    public async void DisconnectToNode()
+    public async Task DisconnectToNode()
     {
         if (ws?.State == WebSocketState.Open && connectedBrowsers.Count > 0)
         {
@@ -136,7 +228,7 @@ public class WebSocketServerRTC : MonoBehaviour
 
             // copia las claves para no modificar la colección mientras iteras
             foreach (string clientId in new List<string>(connectedBrowsers.Keys))
-            { 
+            {
                 await SendToNodeAsync(byeMsg, clientId);
                 StreamManagerHost.Instance.RemovePeerForBrowser(clientId);
             }
@@ -148,6 +240,12 @@ public class WebSocketServerRTC : MonoBehaviour
             await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnected", CancellationToken.None);
 
         connectedBrowsers.Clear();
+        _cts.Dispose();
+        ws.Dispose();
+        _cts = new CancellationTokenSource();
+        ws = new ClientWebSocket();
+
+        UnityEngine.Debug.Log("[WebSocketServerRTC] Clientes del servidor NODE borrados");
     }
 
     /// <summary>
@@ -159,7 +257,7 @@ public class WebSocketServerRTC : MonoBehaviour
     {
         var buffer = new byte[8192];
         var sb = new StringBuilder();
-        
+
         try
         {
             while (!token.IsCancellationRequested && ws.State == WebSocketState.Open)
@@ -187,12 +285,13 @@ public class WebSocketServerRTC : MonoBehaviour
                     break;
                 }
             }
-        } catch (OperationCanceledException)
+        }
+        catch (OperationCanceledException)
         {
             UnityEngine.Debug.LogError($"[StreamManager] ReceiveLoop: Se detuvo el proceso de recepcion de informacion del servidor de Node");
         }
     }
-    
+
     /// <summary>
     /// Manejo de informacion recibida del servidor de Node
     /// </summary>
@@ -222,7 +321,7 @@ public class WebSocketServerRTC : MonoBehaviour
             if (connectedBrowsers.Remove(clientKey))
                 UnityEngine.Debug.Log($"[StreamManager] Browser eliminado del registro: {clientKey}");
 
-            StreamManagerHost.Instance?.RemovePeerForBrowser(clientKey); 
+            StreamManagerHost.Instance?.RemovePeerForBrowser(clientKey);
         }
         else // SDP o ICE de un browser existente
         {
@@ -278,7 +377,8 @@ public class WebSocketServerRTC : MonoBehaviour
     #region Monobehaviour
     public void Start()
     {
-        string batPath = System.IO.Path.Combine(Application.dataPath, "..", batRelativePath);
+        nodeHost = StreamManagerHost.Instance.GetIP();
+        batPath = System.IO.Path.Combine(Application.dataPath, "..", batRelativePath);
         ws = new ClientWebSocket();
         nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity");
         _cts = new CancellationTokenSource();
@@ -290,8 +390,11 @@ public class WebSocketServerRTC : MonoBehaviour
 
     void OnDestroy()
     {
-        DisconnectToNode();
-        StopServer();
+        try
+        {
+            DisconnectToNode();
+            StopServer();
+        } catch { }
     }
     #endregion
 }

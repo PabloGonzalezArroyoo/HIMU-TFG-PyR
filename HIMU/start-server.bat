@@ -55,25 +55,30 @@ if !errorlevel! neq 0 (
 echo Modulos listos.
 
 :: ============================================================
-:: 3. Lanzar servidor Node en nueva ventana
+:: 3. Lanzar ambos servidores EN SEGUNDO PLANO en esta misma ventana
+::    /B evita abrir ventanas nuevas para cada proceso.
 :: ============================================================
 echo Iniciando server.js...
-start "Servidor Node" /D "%~dp0" cmd /k node server.js
+start /B "" node server.js
 
-:: ============================================================
-:: 4. Lanzar servidor HTML en nueva ventana
-:: ============================================================
 echo Iniciando servidor HTML...
-start "Servidor HTML" /D "%~dp0" cmd /k npx serve .
+start /B "" npx serve . -l 3000
 
 :: ============================================================
-:: 5. Informar al usuario
+:: 4. Informar al usuario
 :: ============================================================
 echo.
 echo =============================================
 echo  Servidores iniciados correctamente
 echo  WebSocket : ws://localhost:8080
 echo  HTML      : http://localhost:3000
+echo  (Esta ventana puede minimizarse, no cerrarse)
 echo =============================================
 echo.
-pause
+
+:: Esta ventana se queda abierta esperando. Cerrarla NO mata los
+:: procesos /B (quedan huerfanos), por eso Unity los cierra por
+:: puerto desde C# usando netstat + taskkill.
+:loop
+timeout /t 3600 /nobreak >nul
+goto loop
