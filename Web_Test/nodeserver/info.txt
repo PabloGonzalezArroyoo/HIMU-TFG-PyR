@@ -1,7 +1,0 @@
-1. Correr servidor de Node (desde la propia terminal de VSCode "node server.js")
-2. Uso el paquete de node ngrok para poder conectar moviles (hay restricciones de seguridad y no deja de primeras). Esto lanza el index.html:
-	- Instalar paquete: npm install -g ngrok
-	- Ejecutar esto: ngrok authtoken TU_TOKEN (usa mi token 1HN47OGUDB08G)
-	- Ahora este: ngrok http 8000 (por consola aparecen links para conectar, uno en local y otro disponible en la propia wifi. En verdad con poner IP:PUERTO desde el movil deberia ir)
-3. Lanzar escena de Unity
-4. Conectar desde navegadores

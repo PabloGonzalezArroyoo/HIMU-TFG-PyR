@@ -1,4 +1,0 @@
-1. Tener node.js instalado (npm -v)
-2. Abrir una terminal y navegar hasta esta carpeta
-3. Hacer en termial: node server.js
-4. Abrir el archivo index.html
