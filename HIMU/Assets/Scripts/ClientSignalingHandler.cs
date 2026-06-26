@@ -1,0 +1,121 @@
+using System;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using Unity.WebRTC;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class ClientSignalingHandler : MonoBehaviour
+{
+    public static ClientSignalingHandler Instance { get; private set; }
+
+    private NetworkStream stream;
+    private Thread readThread;
+    private bool running = false;
+
+    [SerializeField] private RawImage videoPanel;
+
+    private WebRTCReceiver receiver;
+
+    // Llamado desde ClientConnectionManager.OnConnectionStarted()
+    // en lugar de cerrar el TCP tras el handshake
+    public void StartSession(NetworkStream tcpStream, string hostIp)
+    {
+        stream = tcpStream;
+        running = true;
+
+        // Crear y configurar el receiver
+        var go = new GameObject("WebRTCReceiver");
+        receiver = go.AddComponent<WebRTCReceiver>();
+        receiver.displayTarget = videoPanel;
+        receiver.RemoteIp = hostIp;
+        receiver.OnSignalingMessage = SendSignalingMessage;
+        receiver.Initialize();
+        MovementControls mc = FindFirstObjectByType<MovementControls>();
+        if (mc != null) mc.SetReceiver(receiver);
+
+        readThread = new Thread(ReadLoop) { IsBackground = true };
+        readThread.Start();
+    }
+
+    private void ReadLoop()
+    {
+        byte[] header = new byte[4];
+        while (running)
+        {
+            try
+            {
+                // Leer tamaño del mensaje
+                int read = stream.Read(header, 0, 4);
+                if (read == 0) break;
+
+                int size = BitConverter.ToInt32(header, 0);
+                byte[] body = new byte[size];
+                int total = 0;
+                while (total < size)
+                    total += stream.Read(body, total, size - total);
+
+                string json = Encoding.UTF8.GetString(body);
+                var msg = JsonUtility.FromJson<SignalingMessage>(json);
+
+                // Despachar al main thread
+                UnityMainThreadDispatcher.Instance()?.Enqueue(() => HandleMessage(msg));
+            }
+            catch (Exception e)
+            {
+                if (running) Debug.LogWarning($"[ClientSignaling] {e.Message}");
+                break;
+            }
+        }
+    }
+
+    private void HandleMessage(SignalingMessage msg)
+    {
+        if (msg.type == ConnectionEvent.SDP)
+        {
+            SessionDescriptionData data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
+            RTCSessionDescription offer = data.ToRTCDesc();
+            StartCoroutine(receiver.HandleOffer(offer));
+        }
+        else if (msg.type == ConnectionEvent.ICE)
+        {
+            IceCandidateData data = JsonUtility.FromJson<IceCandidateData>(msg.body);
+            RTCIceCandidateInit init = new RTCIceCandidateInit
+            {
+                candidate = data.candidate,
+                sdpMid = data.sdpMid,
+                sdpMLineIndex = data.sdpMLineIndex
+            };
+            receiver.AddIceCandidate(init);
+        }
+    }
+
+    private void SendSignalingMessage(SignalingMessage msg)
+    {
+        string json = JsonUtility.ToJson(msg);
+        byte[] data = Encoding.UTF8.GetBytes(json);
+        byte[] header = BitConverter.GetBytes(data.Length);
+        stream.Write(header, 0, 4);
+        stream.Write(data, 0, data.Length);
+        stream.Flush();
+    }
+
+    void Awake()
+    {
+        if (Instance) { DestroyImmediate(gameObject); return; }
+        Instance = this;
+        StartCoroutine(WebRTC.Update());
+    }
+
+    private void Start()
+    {
+        //StartSession(ComunicationManager.Instance.GetTCPStream(), ComunicationManager.Instance.GetHostIP());
+    }
+
+    void OnDestroy()
+    {
+        running = false;
+        stream?.Close();
+    }
+}

@@ -8,6 +8,21 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 0
+    path: Assets/Scenes/UniversalConnectionAPP/MainMenuScene.unity
+    guid: bad66ba5a1f089b43bf95544b3fddc59
+  - enabled: 0
+    path: Assets/Scenes/UniversalConnectionAPP/ConnectionSelectionScene.unity
+    guid: 5599283ce1fe50348b239c8cefeb5e0e
+  - enabled: 0
+    path: Assets/Scenes/UniversalConnectionAPP/GameScene.unity
+    guid: ce49b2d7c875c774086575bfd5a0a19f
+  - enabled: 1
+    path: Assets/Scenes/HostApp/WaitingConnectionScene.unity
+    guid: 28a7de08b51852d49afa8bd0fbd657ae
+  - enabled: 1
+    path: Assets/Scenes/HostApp/MainGameScene.unity
+    guid: f60fd7a388125804696cceb4324c2621
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

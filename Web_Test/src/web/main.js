@@ -17,7 +17,7 @@ async function connect() {
     let pendingCandidates = [];
     setStatus('Conectando a señalización...');
 
-    ws = new WebSocket('ws://localhost:8080?type=browser');
+    ws = new WebSocket('ws://192.168.1.45:8080');
     ws.binaryType = "arraybuffer";
 
     ws.onopen = async () => {

@@ -1,348 +1,352 @@
-using System.Collections;
+ï»¿using System.Collections;
+using System.Collections.Generic;
 using Unity.WebRTC;
 using UnityEngine;
-using NativeWebSocket;
 
 /// <summary>
-/// Class incharged of seting up WebRTC and the video streaming object. It sets up WebRTC by sending
-/// and processing messages related to the network protocol and making it a part of Unity's update
-/// thread.
+/// Manages WebRTC streaming from Unity to any number of connected clients.
+/// Replaces the previous single-peer design and removes the dependency on the
+/// external Node.js signaling server.
+///
+/// Responsibilities:
+///   - Owns the embedded SignalingServer and polls it each frame
+///   - Creates one RTCPeerConnection + VideoStreamTrack per connected client
+///   - Handles the full WebRTC offer/answer/ICE flow for each peer independently
+///   - Cleans up peer resources when a client disconnects
+///
+/// Clients can be browsers, mobile Unity instances, or any WebRTC-capable device.
+/// They only need to know the host machine's local IP and the configured port.
 /// </summary>
 public class WebRTCStreamer : MonoBehaviour
 {
-    #region Variables
-    /// <summary>
-    /// Connection between peers (local and remote)
-    /// </summary>
-    RTCPeerConnection peerConnection;
+    #region Inspector
+
+    [Header("Signaling")]
+    [Tooltip("Port the embedded WebSocket signaling server will listen on.")]
+    [SerializeField] int signalingPort = 8080;
+
+    [Header("WebRTC")]
+    [Tooltip("STUN server used for ICE candidate gathering. Required when clients are outside the local network.")]
+    [SerializeField] string stunServer = "stun:stun.l.google.com:19302";
+
+    #endregion
+
+    #region Types
 
     /// <summary>
-    /// Video data that is sent to the remote peer. WebRTC will be incharged of encoding
-    /// the video that it stores in this variable so that it can be processed correctly.
+    /// Holds all WebRTC state for a single connected peer.
+    /// One instance exists per client for the lifetime of that connection.
     /// </summary>
-    VideoStreamTrack videoTrack;
+    class PeerSession
+    {
+        /// <summary>Unique ID assigned by the SignalingServer on connection.</summary>
+        public string ClientId;
 
-    /// <summary>
-    /// Socket connected to the signaling server where all packages are sent
-    /// </summary>
-    WebSocket signalingSocket;
+        /// <summary>Core WebRTC object managing ICE, DTLS and media for this peer.</summary>
+        public RTCPeerConnection PeerConnection;
 
-    /// <summary>
-    /// The URL from which Unity will send information
-    /// </summary>
-    [SerializeField] string signalingUrl = "ws://localhost:8080?type=unity";
+        /// <summary>
+        /// Video track carrying the captured frame to this specific peer.
+        /// Each peer gets its own track instance even though all read from the same RenderTexture.
+        /// </summary>
+        public VideoStreamTrack VideoTrack;
 
-    /// <summary>
-    /// Struct that represents a signaling message used between Unity, the signaling server
-    /// and a client.
-    /// </summary>
+        /// <summary>
+        /// ICE candidates that arrived before SetRemoteDescription completed.
+        /// Flushed once the remote description is set.
+        /// </summary>
+        public List<RTCIceCandidateInit> PendingCandidates = new List<RTCIceCandidateInit>();
+
+        /// <summary>True once SetRemoteDescription has completed successfully.</summary>
+        public bool RemoteDescriptionSet = false;
+    }
+
+    /// <summary>JSON-serializable signaling message (offer / answer / ice).</summary>
     [System.Serializable]
     struct SignalingMessage
     {
-        /// <summary>
-        /// Message type (e.g. "offer", "answer", "candidate").
-        /// Determines how the message should be handled in the signaling flow.
-        /// </summary>
         public string type;
-
-        /// <summary>
-        /// Session Description Protocol (SDP) string.
-        /// Contains media configuration details used in offer/answer exchange.
-        /// </summary>
         public string sdp;
-
-        /// <summary>
-        /// ICE candidate string.
-        /// Represents a possible network path for establishing the peer-to-peer connection.
-        /// </summary>
         public string candidate;
-
-        /// <summary>
-        /// Media stream identification tag for the ICE candidate.
-        /// Used to associate the candidate with a specific media section.
-        /// </summary>
         public string sdpMid;
-
-        /// <summary>
-        /// Index of the media description in the SDP.
-        /// Helps identify which media line the ICE candidate belongs to.
-        /// </summary>
         public int sdpMLineIndex;
     }
 
     #endregion
 
-    #region Methods
+    #region Private state
+
+    /// <summary>The embedded signaling server running inside Unity.</summary>
+    SignalingServer signalingServer;
+
     /// <summary>
-    /// Creates an GameObject and attaches this component to ensure it is initialized
-    /// before any scene is loaded. The object is marked as DontDestroyOnLoad so it
-    /// persists across scene transitions.
+    /// Active peer sessions keyed by client ID.
+    /// Only accessed from the main thread (inside coroutines and Update).
     /// </summary>
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    static void CreateInstance()
+    Dictionary<string, PeerSession> sessions = new Dictionary<string, PeerSession>();
+
+    #endregion
+
+    #region MonoBehaviour
+
+    void Start()
     {
-        var obj = new GameObject("WebRTCStreamer");
-        obj.AddComponent<WebRTCStreamer>();
-        Object.DontDestroyOnLoad(obj);
+        // Start the WebRTC background update coroutine required by Unity's WebRTC package
+        StartCoroutine(WebRTC.Update());
+
+        // Start the signaling server and wire up connection events
+        signalingServer = new SignalingServer(signalingPort);
+        signalingServer.OnClientConnected += OnClientConnected;
+        signalingServer.OnClientDisconnected += OnClientDisconnected;
+        signalingServer.Start();
+
+        Debug.Log($"[WebRTCStreamer] Ready. Clients should connect to ws://<this-machine-ip>:{signalingPort}");
     }
 
+    void Update()
+    {
+        // Fire queued connect/disconnect events on the main thread
+        signalingServer.Tick();
+
+        // Process all signaling messages that arrived this frame
+        while (signalingServer.IncomingMessages.TryDequeue(out SignalingServer.IncomingMessage msg))
+            StartCoroutine(HandleSignalingMessage(msg.ClientId, msg.Json));
+    }
+
+    void OnDestroy()
+    {
+        signalingServer?.Stop();
+
+        // Dispose all active peer sessions
+        foreach (var session in sessions.Values)
+            CleanupSession(session);
+
+        sessions.Clear();
+    }
+
+    #endregion
+
+    #region Client connect / disconnect
 
     /// <summary>
-    /// Initializes and configures the WebRTC connection.
-    /// Waits until a captured frame is available, creates a video track from it,
-    /// sets up the peer connection with STUN servers, registers event handlers,
-    /// and starts the signaling process to establish the connection.
+    /// Called on the main thread when a new client completes the WebSocket handshake.
+    /// Creates a PeerSession with its own RTCPeerConnection and VideoStreamTrack.
     /// </summary>
-    /// <returns>IEnumerator required by Unity's coroutine system</returns>
-    IEnumerator SetupWebRTC()
+    void OnClientConnected(string clientId)
     {
-        // Don't initialize WebRTC until a frame is captured
+        Debug.Log($"[WebRTCStreamer] New client: {clientId}. Waiting for offer...");
+
+        // Wait until the frame capturer is ready before accepting peers
+        // (in practice the server starts after the scene is loaded, so this is almost instant)
+        StartCoroutine(InitSessionWhenReady(clientId));
+    }
+
+    /// <summary>
+    /// Waits for a captured frame to be available, then creates the peer session.
+    /// This handles the rare case where a client connects in the very first frame.
+    /// </summary>
+    IEnumerator InitSessionWhenReady(string clientId)
+    {
         yield return new WaitUntil(() => FrameCaptureFeature.Instance?.GetFrame() != null);
 
+        // Guard: client may have disconnected while we were waiting
+        if (sessions.ContainsKey(clientId)) yield break;
+
         RenderTexture rt = FrameCaptureFeature.Instance.GetFrame();
-        Debug.Log($"RenderTexture: {rt.width}x{rt.height}, format: {rt.format}, created: {rt.IsCreated()}");
 
-        videoTrack = new VideoStreamTrack(rt);
-
-        // Creates the WebRTC connection using an specified configuration.
+        // Build the RTCConfiguration with the STUN server
         var config = new RTCConfiguration
         {
-            // Servers used to discover web routes. Google STUN obtains the public IP corresponding
-            // to this deviece to surpass the NAT adress translation in the private network
-            iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } }
+            iceServers = new[] { new RTCIceServer { urls = new[] { stunServer } } }
         };
 
-        // Core of the connection, incharge of handling ICE and tracks
-        peerConnection = new RTCPeerConnection(ref config);
-
-        // Callback for when a possible route is discovered (candidate).
-        // It creates a signaling message to send to the other peer through the server
-        // to stablish connection with the ICE protocol.
-        peerConnection.OnIceCandidate = candidate =>
+        var session = new PeerSession
         {
-            SendSignalingMessage(new SignalingMessage
+            ClientId = clientId,
+            PeerConnection = new RTCPeerConnection(ref config),
+            VideoTrack = new VideoStreamTrack(rt)
+        };
+
+        // ICE candidate discovered locally â†’ forward to this client via signaling
+        session.PeerConnection.OnIceCandidate = candidate =>
+        {
+            // This callback fires on a WebRTC internal thread; SendTo is thread-safe
+            var msg = new SignalingMessage
             {
                 type = "ice",
                 candidate = candidate.Candidate,
                 sdpMid = candidate.SdpMid,
                 sdpMLineIndex = candidate.SdpMLineIndex ?? 0
-            });
+            };
+            signalingServer.SendTo(clientId, JsonUtility.ToJson(msg));
         };
 
-        // Debug callback to show which state was changed the connection to
-        peerConnection.OnConnectionStateChange = state =>
+        session.PeerConnection.OnConnectionStateChange = state =>
         {
-            Debug.Log($"WebRTC state: {state}");
-            if (state == RTCPeerConnectionState.Connected)
+            Debug.Log($"[WebRTCStreamer] {clientId} â†’ WebRTC state: {state}");
+
+            if (state == RTCPeerConnectionState.Failed ||
+                state == RTCPeerConnectionState.Closed ||
+                state == RTCPeerConnectionState.Disconnected)
             {
-                Debug.Log($"VideoTrack enabled: {videoTrack.Enabled}, readyState: {videoTrack.ReadyState}");
+                // Schedule cleanup on the main thread
+                // (OnConnectionStateChange fires on a WebRTC thread)
+                // We simply mark it â€” Update will not find it in the dict after removal
+                Debug.LogWarning($"[WebRTCStreamer] {clientId} connection lost ({state})");
             }
         };
 
-        // Add the video tracker to the established connection so that it can be sent. This is
-        // who sends the video for streaming, is souley handled by WebRTC and not us.
-        peerConnection.AddTrack(videoTrack);
+        // Attach the video track so this peer receives the stream
+        session.PeerConnection.AddTrack(session.VideoTrack);
 
-        // Wait till the connection is done
-        yield return StartCoroutine(ConnectSignaling());
+        sessions[clientId] = session;
+        Debug.Log($"[WebRTCStreamer] Session ready for {clientId}");
     }
 
 
     /// <summary>
-    /// Establishes the connection with the Webscoket signaling server, overriding callbacks for
-    /// messages, connections and errors; and manages the main loop for receiving and processing
-    /// messages.
+    /// Called on the main thread when a client disconnects.
+    /// Tears down its PeerConnection and VideoStreamTrack.
     /// </summary>
-    /// <returns>
-    /// IEnumerator requiered by Unity's coroutine system
-    /// </returns>
-    IEnumerator ConnectSignaling()
+    void OnClientDisconnected(string clientId)
     {
-        // Creates a websocket that points to the signaling server
-        signalingSocket = new WebSocket(signalingUrl);
+        if (!sessions.TryGetValue(clientId, out PeerSession session)) return;
 
-        // Queue to store incoming messages in a safe-thread manner since WebScokect 
-        // callbacks are managed on another thread
-        var messageQueue = new System.Collections.Generic.Queue<string>();
+        Debug.Log($"[WebRTCStreamer] Cleaning up session for {clientId}");
+        CleanupSession(session);
+        sessions.Remove(clientId);
+    }
 
-        // Callback for when a binary message arrives. It enqueues in the prior message queue.
-        signalingSocket.OnMessage += bytes =>
+    /// <summary>
+    /// Disposes all WebRTC resources associated with a session.
+    /// </summary>
+    void CleanupSession(PeerSession session)
+    {
+        session.VideoTrack?.Dispose();
+        session.PeerConnection?.Close();
+        session.PeerConnection?.Dispose();
+    }
+
+    #endregion
+
+    #region Signaling message handling
+
+    /// <summary>
+    /// Dispatches an incoming JSON message to the appropriate handler based on its type.
+    /// Runs as a coroutine because SetRemoteDescription and CreateAnswer are async operations
+    /// that must be yielded on Unity's main thread.
+    /// </summary>
+    IEnumerator HandleSignalingMessage(string clientId, string json)
+    {
+        // Look up the session â€” it might not exist yet if the client sent a message
+        // before InitSessionWhenReady finished (extremely unlikely but safe to guard)
+        if (!sessions.TryGetValue(clientId, out PeerSession session))
         {
-            string json = System.Text.Encoding.UTF8.GetString(bytes);
-            messageQueue.Enqueue(json);
-        };
-
-        // Control flags
-        bool connected = false;
-        bool error = false;
-
-        // Changes flags to mark the connection
-        signalingSocket.OnOpen += () => connected = true;
-
-        // Changes the flag to mark an error ocurred
-        signalingSocket.OnError += e =>
-        {
-            Debug.LogError("WebSocket error: " + e);
-            error = true;
-        };
-
-        // Starts the connection asynchronously (doesn't block the thread)
-        // NOTE: "_" means "discard" to the compiler in C# so that no warning is shown in the
-        // console for not saving the vaule returned by Connect()
-        _ = signalingSocket.Connect();
-
-        // Suspends the corutine until it has connected succesfuly or if an error ocurred
-        yield return new WaitUntil(() => connected || error);
-
-        // Logs the error and exits the coroutine early if it ocurred
-        if (error)
-        {
-            Debug.LogError("No se pudo conectar al servidor de señalización");
+            Debug.LogWarning($"[WebRTCStreamer] Message from unknown client {clientId}, ignoring");
             yield break;
         }
 
-        Debug.Log("Conectado al servidor de señalización");
-
-        // Main loop: dispatches WebSocket messages and processes the queue
-        while (true)
-        {
-            // Moves messages from the network thread to Unity's main thread, which triggers
-            // OnMessage callbacks
-            signalingSocket.DispatchMessageQueue();
-
-            // Processes all messages that arrived during this frame
-            while (messageQueue.Count > 0)
-            {
-                string json = messageQueue.Dequeue();
-
-                // Each message is processed in a new corutine, and suspends this one
-                // until the message has been processed
-                yield return StartCoroutine(HandleSignalingMessage(json));
-            }
-
-            // Gives control back to Unity until the next frame avoiding thread blocking
-            // NOTE: This is Unity's corutine standar for pausing one while saving all the
-            // data it generated. Is a way of the corutine to say "my work for this frame
-            // is done, keep going till is my turn in the next frame". It doesn't exit the
-            // while loop because it doesn't work as a "return" or "break".
-            yield return null;
-        }
-    }
-
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="json">JSON message to be handled</param>
-    /// <returns>IEnumerator required by Unity's coroutine system</returns>
-    IEnumerator HandleSignalingMessage(string json)
-    {
-        // Formats the string recieved into a JSON
         var msg = JsonUtility.FromJson<SignalingMessage>(json);
 
-        // NOTE: Offer messages indicates what we are going to send and how. An "SDP offer" is sent,
-        // which contains the peer's capabilities (codes, resolution, data type...). It can be seen
-        // as a format agreement.
-        if (msg.type == "offer")
+        switch (msg.type)
         {
-            Debug.Log("Oferta recibida, generando respuesta...");
+            case "offer":
+                yield return StartCoroutine(HandleOffer(session, msg.sdp));
+                break;
 
-            // Builds a RTCSessionDescription from the recieved SDP offer.
-            var desc = new RTCSessionDescription { type = RTCSdpType.Offer, sdp = msg.sdp };
+            case "ice":
+                HandleIceCandidate(session, msg);
+                break;
 
-            // Applies the remote SDP description to the peer connection so that both peers can
-            // exchange messages they support and waits for completion
-            var setRemote = peerConnection.SetRemoteDescription(ref desc);
-            yield return setRemote;
-            if (setRemote.IsError)
-            {
-                Debug.LogError("Error en SetRemoteDescription: " + setRemote.Error.message);
-                yield break;
-            }
-
-            // Generates an SDP answer to be sent to the remote peer so that it can also configure
-            // its connection with the capabilities of this peer and waits for completion
-            var answerOp = peerConnection.CreateAnswer();
-            yield return answerOp;
-            if (answerOp.IsError)
-            {
-                Debug.LogError("Error en CreateAnswer: " + answerOp.Error.message);
-                yield break;
-            }
-
-            // Retrieves the generated answer and applies it as the local SDP description
-            var answer = answerOp.Desc;
-            var setLocal = peerConnection.SetLocalDescription(ref answer);
-            yield return setLocal;
-
-            // Sends the SDP answer back to the remote peer through the signaling server
-            SendSignalingMessage(new SignalingMessage { type = "answer", sdp = answer.sdp });
-            Debug.Log("Respuesta enviada");
-        }
-
-        // NOTE: ICE messages indicates where are we going to send it. An "ICE candidate" is sent,
-        // which contains the network route (local IP, public IP...) so that devieces can communicate
-        // with each other even if NATs or Firewalls are on their way.
-        else if (msg.type == "ice")
-        {
-            // Builds an RTCIceCandidateInit from the received ICE candidate data
-            var candidate = new RTCIceCandidateInit
-            {
-                candidate = msg.candidate,
-                sdpMid = msg.sdpMid,
-                sdpMLineIndex = msg.sdpMLineIndex
-            };
-
-            // Resgisters the ICE candidate into the peer connection so that they can negotitate
-            // the best available network route
-            peerConnection.AddIceCandidate(new RTCIceCandidate(candidate));
+            default:
+                Debug.LogWarning($"[WebRTCStreamer] Unknown message type '{msg.type}' from {clientId}");
+                break;
         }
     }
 
 
     /// <summary>
-    /// Converts the message to be sent in JSON format and sends it in UTF8 format
-    /// through the connection's socket
+    /// Processes an SDP offer from a client:
+    ///   1. Sets it as the remote description
+    ///   2. Creates an SDP answer
+    ///   3. Sets the answer as the local description
+    ///   4. Sends the answer back to the client
+    ///   5. Flushes any ICE candidates that arrived before the offer was processed
     /// </summary>
-    /// <param name="msg">Information to be sent</param>
-    async void SendSignalingMessage(SignalingMessage msg)
+    IEnumerator HandleOffer(PeerSession session, string sdp)
     {
-        if (signalingSocket?.State == WebSocketState.Open)
+        Debug.Log($"[WebRTCStreamer] Offer received from {session.ClientId}");
+
+        var desc = new RTCSessionDescription { type = RTCSdpType.Offer, sdp = sdp };
+
+        var setRemote = session.PeerConnection.SetRemoteDescription(ref desc);
+        yield return setRemote;
+
+        if (setRemote.IsError)
         {
-            string json = JsonUtility.ToJson(msg);
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
-            await signalingSocket.Send(bytes);
+            Debug.LogError($"[WebRTCStreamer] SetRemoteDescription failed for {session.ClientId}: {setRemote.Error.message}");
+            yield break;
+        }
+
+        session.RemoteDescriptionSet = true;
+
+        // Flush ICE candidates that arrived before the offer
+        foreach (var candidate in session.PendingCandidates)
+            session.PeerConnection.AddIceCandidate(new RTCIceCandidate(candidate));
+
+        session.PendingCandidates.Clear();
+
+        // Generate answer
+        var answerOp = session.PeerConnection.CreateAnswer();
+        yield return answerOp;
+
+        if (answerOp.IsError)
+        {
+            Debug.LogError($"[WebRTCStreamer] CreateAnswer failed for {session.ClientId}: {answerOp.Error.message}");
+            yield break;
+        }
+
+        var answer = answerOp.Desc;
+        var setLocal = session.PeerConnection.SetLocalDescription(ref answer);
+        yield return setLocal;
+
+        if (setLocal.IsError)
+        {
+            Debug.LogError($"[WebRTCStreamer] SetLocalDescription failed for {session.ClientId}: {setLocal.Error.message}");
+            yield break;
+        }
+
+        // Send answer back to client
+        var replyMsg = new SignalingMessage { type = "answer", sdp = answer.sdp };
+        signalingServer.SendTo(session.ClientId, JsonUtility.ToJson(replyMsg));
+
+        Debug.Log($"[WebRTCStreamer] Answer sent to {session.ClientId}");
+    }
+
+
+    /// <summary>
+    /// Registers an ICE candidate from a client.
+    /// If the remote description is not yet set, queues it for later processing.
+    /// </summary>
+    void HandleIceCandidate(PeerSession session, SignalingMessage msg)
+    {
+        var candidateInit = new RTCIceCandidateInit
+        {
+            candidate = msg.candidate,
+            sdpMid = msg.sdpMid,
+            sdpMLineIndex = msg.sdpMLineIndex
+        };
+
+        if (!session.RemoteDescriptionSet)
+        {
+            // Queue until SetRemoteDescription completes in HandleOffer
+            session.PendingCandidates.Add(candidateInit);
+        }
+        else
+        {
+            session.PeerConnection.AddIceCandidate(new RTCIceCandidate(candidateInit));
         }
     }
-    #endregion
 
-    #region Monobehaviour
-    /// <summary>
-    /// Initializes WebRTC and its update rutine
-    /// </summary>
-    void Start()
-    {
-        StartCoroutine(WebRTC.Update());
-        StartCoroutine(SetupWebRTC());
-    }
-
-    /// <summary>
-    /// Dispatches enqued messages to the signaling server
-    /// </summary>
-    void Update()
-    {
-        signalingSocket?.DispatchMessageQueue();
-    }
-
-    /// <summary>
-    /// Safely closes the connection components once this object is destroyed
-    /// </summary>
-    void OnDestroy()
-    {
-        videoTrack?.Dispose();
-        peerConnection?.Close();
-        peerConnection?.Dispose();
-        signalingSocket?.Close();
-    }
     #endregion
 }
