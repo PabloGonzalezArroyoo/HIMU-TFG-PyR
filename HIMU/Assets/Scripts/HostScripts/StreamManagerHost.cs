@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using Unity.WebRTC;
+using UnityEditor.PackageManager;
 using UnityEngine;
 
 public class StreamManagerHost : MonoBehaviour
@@ -23,9 +24,7 @@ public class StreamManagerHost : MonoBehaviour
     /// <summary>
     /// All currently connected clients, keyed by their IP.
     /// ConcurrentDictionary is used instead of Dictionary + lock because multiple background
-    /// threads (one per client) may add or remove entries simultaneously. All individual
-    /// operations (TryAdd, TryRemove, TryGetValue) are atomic, and its enumerator works on
-    /// a snapshot so Broadcast iteration is safe without an external lock.
+    /// threads (one per client) may add or remove entries simultaneously
     /// </summary>
     readonly ConcurrentDictionary<string, ClientData> clients = new ConcurrentDictionary<string, ClientData>();
 
@@ -263,7 +262,7 @@ public class StreamManagerHost : MonoBehaviour
     }
     #endregion
 
-    #region Getters
+    #region Getters & Setters
 
     private void GetIpAddress()
     {
@@ -316,6 +315,24 @@ public class StreamManagerHost : MonoBehaviour
         return ipAddress;
     }
 
+    public void SetStreamCamera(Camera newCamera)
+    {
+        newCamera.targetTexture = streamTexture;
+    }
+
+    public void SetActiveCamera(Camera newCamera, int width, int height)
+    {
+        RenderTexture newRT = new RenderTexture(width, height, 0);
+        newRT.Create();
+        newCamera.targetTexture = newRT;
+        newCamera.targetTexture = streamTexture;
+
+        VideoStreamTrack newTrack = new VideoStreamTrack(newRT);
+        webSocketServer.ChangeVideoTrack(newTrack);
+        streamTexture.Release();
+        streamTexture = newRT;
+    }
+
     #endregion
 
     #region Monobehaviour
@@ -328,6 +345,7 @@ public class StreamManagerHost : MonoBehaviour
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void Start()

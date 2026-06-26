@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Unity.WebRTC;
+using UnityEditor.PackageManager;
 using UnityEngine;
 using UnityEngine.LightTransport;
 
@@ -201,20 +202,31 @@ public class WebSocketServerRTC : MonoBehaviour
     }
 
     /// <summary>
-    /// Inicia la conexion al servidor de Node
+    /// Inicia la conexion al servidor de Node (con reintentos por si se llega a ejecutar antes que el LaunchServer acabe)
     /// </summary>
     public async void ConnectToNode()
     {
-        try
+        int maxRetries = 10;
+        int delayMs = 1500;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            await ws.ConnectAsync(nodeUri, CancellationToken.None);
-            UnityEngine.Debug.Log($"[StreamManager] Conectado a Node: {nodeUri}");
-            _ = ReceiveLoop(_cts);
+            try
+            {
+                ws = new ClientWebSocket(); // recrear, un ClientWebSocket fallido no se puede reusar
+                await ws.ConnectAsync(nodeUri, CancellationToken.None);
+                UnityEngine.Debug.Log($"[StreamManager] Conectado a Node: {nodeUri}");
+                _ = ReceiveLoop(_cts);
+                return; // éxito, salir
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"[StreamManager] Intento {attempt}/{maxRetries} fallido: {ex.Message}");
+                await Task.Delay(delayMs);
+            }
         }
-        catch (Exception ex)
-        {
-            UnityEngine.Debug.LogError($"[StreamManager] Error conectando a Node: {ex.Message}");
-        }
+
+        UnityEngine.Debug.LogError("[StreamManager] No se pudo conectar a Node tras varios intentos.");
     }
 
     /// <summary>
@@ -240,6 +252,7 @@ public class WebSocketServerRTC : MonoBehaviour
             await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnected", CancellationToken.None);
 
         connectedBrowsers.Clear();
+        HostUIManager.Instance?.ResetStreamClientsText();
         _cts.Dispose();
         ws.Dispose();
         _cts = new CancellationTokenSource();
@@ -306,12 +319,14 @@ public class WebSocketServerRTC : MonoBehaviour
             string clientKey = newClient.clientId.ToString();
 
             ConnectionData connData = new ConnectionData(clientKey, nodePort, ConnectionEvent.HANDSHAKE, ClientType.STREAM);
-            ClientData client = new ClientData(connData, null, clientKey); // <- ahora con 3 args
+            ClientData client = new ClientData(connData, null, clientKey);
 
             connectedBrowsers[clientKey] = client;
             UnityEngine.Debug.Log($"[StreamManager] Browser registrado: {clientKey} (total: {connectedBrowsers.Count})");
 
             StreamManagerHost.Instance?.CreatePeerForBrowser(client);
+            HostUIManager.Instance?.UpdateStreamClientsText(true);
+
         }
         else if (baseMsg.type == (int)ConnectionEvent.DISCONNECT) // un navegador se desconectó del lado de Node
         {
@@ -322,6 +337,7 @@ public class WebSocketServerRTC : MonoBehaviour
                 UnityEngine.Debug.Log($"[StreamManager] Browser eliminado del registro: {clientKey}");
 
             StreamManagerHost.Instance?.RemovePeerForBrowser(clientKey);
+            HostUIManager.Instance?.UpdateStreamClientsText(false);
         }
         else // SDP o ICE de un browser existente
         {
@@ -371,6 +387,15 @@ public class WebSocketServerRTC : MonoBehaviour
         WSTaggedMessage tagged = new WSTaggedMessage { type = (int)msg.type, clientId = idInt, body = msg.body };
         byte[] data = Encoding.UTF8.GetBytes(JsonUtility.ToJson(tagged));
         await ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Text, true, CancellationToken.None);
+    }
+
+    public void ChangeVideoTrack(VideoStreamTrack newTrack)
+    {
+        foreach (var client in connectedBrowsers.Values) // o la colección donde tengas tus WebRTCPeer
+        {
+            RTCRtpSender sender = client.webRtcPeer.GetVideoSender(); // necesitas exponer esto en tu clase WebRTCPeer si no lo tienes
+            sender?.ReplaceTrack(newTrack);
+        }
     }
     #endregion
 

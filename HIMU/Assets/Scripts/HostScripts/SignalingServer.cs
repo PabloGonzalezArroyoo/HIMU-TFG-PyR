@@ -85,6 +85,7 @@ public class SignalingServer : MonoBehaviour
 
         listenThread?.Join(500); // cierra el hilo en un plazo de 500ms
         UnityEngine.Debug.Log("[SignalingServer] Servidor TCP detenido");
+        HostUIManager.Instance?.ResetTCPClientsText();
     }
 
     /// <summary>
@@ -205,6 +206,7 @@ public class SignalingServer : MonoBehaviour
             clients.TryAdd(clientID, tcp);
 
             Debug.Log($"[SignalingServer] Client connected: {decodedData.ipAddress}");
+            HostUIManager.Instance?.UpdateTCPClientsText(true);
 
             // Data process loop ---
             while (running)
@@ -236,6 +238,7 @@ public class SignalingServer : MonoBehaviour
             tcp.Close();
             UnityMainThreadDispatcher.Instance().Enqueue(() =>
                 StreamManagerHost.Instance?.RemovePeerForClient(clientID));
+            HostUIManager.Instance?.UpdateTCPClientsText(false);
         }
     }
 

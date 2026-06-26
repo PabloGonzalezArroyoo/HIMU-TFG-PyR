@@ -19,6 +19,11 @@ public class WebRTCPeer : MonoBehaviour
     private string remoteIp;
 
     /// <summary>
+    /// Referencia al sender del video track
+    /// </summary>
+    RTCRtpSender videoSender;
+
+    /// <summary>
     /// Object incharged of tracking the RenderTexture encodiing and transmision
     /// </summary>
     VideoStreamTrack videoTrack;
@@ -79,7 +84,7 @@ public class WebRTCPeer : MonoBehaviour
 
         // A�adir el track de v�deo
         videoTrack = new VideoStreamTrack(renderTexture);
-        peer.AddTrack(videoTrack);
+        videoSender = peer.AddTrack(videoTrack);
 
         // Data channel
         var dataChannelConfig = new RTCDataChannelInit { ordered = true };
@@ -133,6 +138,11 @@ public class WebRTCPeer : MonoBehaviour
         peer?.Close();
         peer?.Dispose();
         return gameObject;
+    }
+
+    public RTCRtpSender GetVideoSender()
+    {
+        return videoSender;
     }
     #endregion
 
