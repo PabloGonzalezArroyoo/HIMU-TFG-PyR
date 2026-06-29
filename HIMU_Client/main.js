@@ -12,12 +12,34 @@ function setStatus(msg) {
     console.log(msg);
 }
 
-async function connect() {
-    btn.disabled = true;
-    let pendingCandidates = [];
-    setStatus('Conectando a señalización...');
+function cleanup(reason) {
+    // Cerrar WebRTC y limpiar el frame congelado
+    if (pc) {
+        pc.close();
+        pc = null;
+    }
+    video.srcObject = null;
 
-    ws = new WebSocket('ws://192.168.1.18:8080?type=browser');
+    // Cerrar WebSocket anulando callbacks primero para evitar re-entrada
+    if (ws) {
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.close();
+        ws = null;
+    }
+
+    btn.disabled = false;
+    setStatus(reason);
+}
+
+async function connect() {
+    cleanup('Conectando a señalización...');
+    btn.disabled = true;
+
+    let pendingCandidates = [];
+
+    ws = new WebSocket('ws://192.168.1.45:8080?type=browser');
 
     ws.onopen = () => {
         ws.binaryType = "arraybuffer"; // forzar arraybuffer en vez de Blob
@@ -39,7 +61,8 @@ async function connect() {
     console.log("RAW recibido:", json); // ahora debería mostrar el JSON real
         const msg = JSON.parse(json);
         
-        if (msg.type === 4) { pc?.close(); setStatus('Unity desconectado'); }
+        if (msg.type === 4)
+            cleanup('Unity desconectado');
         
         // Unity manda la offer dentro de msg.body como JSON string
         else if (msg.type === 5) { // ConnectionEvent.SDP
@@ -58,7 +81,7 @@ async function connect() {
 
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
-                    ws.send(JSON.stringify({
+                    ws?.send(JSON.stringify({
                         type: 6, // ConnectionEvent.ICE
                         body: JSON.stringify({
                             candidate: event.candidate.candidate,
@@ -71,7 +94,7 @@ async function connect() {
 
             pc.onconnectionstatechange = () => {
                 setStatus(`WebRTC: ${pc.connectionState}`);
-                if (pc.connectionState === 'failed') btn.disabled = false;
+                if (pc.connectionState === 'failed') cleanup('Conexión WebRTC fallida');
             };
 
             // Aplicar la offer de Unity
@@ -87,7 +110,7 @@ async function connect() {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
-            ws.send(JSON.stringify({
+            ws?.send(JSON.stringify({
                 type: 5, // ConnectionEvent.SDP
                 body: JSON.stringify({ type: 'answer', sdp: answer.sdp })
             }));
@@ -111,13 +134,6 @@ async function connect() {
         }
     };
 
-    ws.onerror = () => {
-        setStatus('Error de señalización');
-        btn.disabled = false;
-    };
-
-    ws.onclose = () => {
-        setStatus('Señalización cerrada');
-        btn.disabled = false;
-    };
+    ws.onerror = () => cleanup('Error de señalización');
+    ws.onclose = () => cleanup('Señalización cerrada');
 }
