@@ -3,12 +3,10 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Unity.WebRTC;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
 public class SignalingServer : MonoBehaviour
@@ -38,7 +36,7 @@ public class SignalingServer : MonoBehaviour
     /// <summary>
     /// Direccion IP de la maquina host
     /// </summary>
-    string ipAddress;
+    public static string ipAddress { get; private set; }
 
     /// <summary>
     /// Listener para escuchar mensajes de los clientes
@@ -49,11 +47,6 @@ public class SignalingServer : MonoBehaviour
     /// Hilo de escucha de mensajes
     /// </summary>
     Thread listenThread;
-
-    /// <summary>
-    /// Tamaño del buffer de mensajeria
-    /// </summary>
-    int bufferSize;
     
     /// <summary>
     /// Estructura de clientes 
@@ -270,12 +263,9 @@ public class SignalingServer : MonoBehaviour
     }
     #endregion
 
-
-
     #region Monobehaviour
     public void Start()
     {
-        bufferSize = 1024;
         ipAddress = StreamManager.Instance.GetIP();
         StartCoroutine(WebRTC.Update());
         StartServer();

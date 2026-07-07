@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Net.Sockets;
-using System.Net.WebSockets;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -11,33 +9,15 @@ public enum ConnectionEvent
     HANDSHAKE,
     SEND,
     DISCONNECT,
-    SDP,        // SDP: Session Description Protocol (offer/answer)
-    ICE         // ICE: Interactive Connectivity Establishment (ICE candidates)
+    SDP,
+    ICE
 }
 
 public enum ClientType
 {
     NONE,
     STREAM,
-    PLAYER,
-    GAMEPAD
-}
-
-[Serializable]
-public class SignalingMessage
-{
-    public string sourceIp;
-    public string destinationIp;       // IP destino, vac�o = broadcast
-    public ConnectionEvent type;
-    public string body;    // SDP serializado o JSON del ICE candidate
-
-    public SignalingMessage(string sIP, string dIP, ConnectionEvent e, string b)
-    {
-        sourceIp = sIP;
-        destinationIp = dIP;
-        type = e;
-        body = b;
-    }
+    PLAYER
 }
 
 [Serializable]
@@ -55,10 +35,11 @@ public class IceCandidateData
     }
 }
 
+// Wrapper que guarda los valores de RTCSessionDescription
 [Serializable]
 public class SessionDescriptionData
 {
-    public string type;  // "offer" or "answer"
+    public string type;  // "offer" o "answer"
     public string sdp;
 
     public SessionDescriptionData(RTCSessionDescription desc)
@@ -71,9 +52,26 @@ public class SessionDescriptionData
     {
         return new RTCSessionDescription
         {
-            type = type == "offer" ? RTCSdpType.Offer : RTCSdpType.Answer,
+            type = this.type == "offer" ? RTCSdpType.Offer : RTCSdpType.Answer,
             sdp = this.sdp
         };
+    }
+}
+
+[Serializable]
+public class SignalingMessage
+{
+    public string sourceIp;
+    public string destinationIp;       // IP destino, vac�o = broadcast
+    public ConnectionEvent type;
+    public string body;    // SDP serializado o JSON del ICE candidate
+
+    public SignalingMessage(string sIP, string dIP, ConnectionEvent e, string b)
+    {
+        sourceIp = sIP;
+        destinationIp = dIP;
+        type = e;
+        body = b;
     }
 }
 
@@ -96,25 +94,6 @@ public class ConnectionData
     }
 }
 
-public class ClientData
-{
-    public string ipAddress;
-    public int port;
-    public ClientType type;
-    public NetworkStream stream;
-    public WebRTCPeer webRtcPeer;
-    public string clientID;
-
-    public ClientData(ConnectionData connData, NetworkStream stream, string clientID)
-    {
-        this.ipAddress = connData.ipAddress;
-        this.port = connData.port;
-        this.stream = stream;
-        this.type = connData.clientType;
-        this.clientID = clientID;
-    }
-}
-
 [Serializable]
 public class InputData
 {
@@ -132,17 +111,4 @@ public class InputData
         this.moveUp = moveUp;
         this.moveDown = moveDown;
     }
-}
-
-// Estructuras para la comunicacion con WebSocket
-[Serializable] public class WSBaseMessage { public int type; }
-
-[Serializable] public class WSNewClientMessage { public int type; public int clientId; }
-
-[Serializable]
-public class WSTaggedMessage
-{
-    public int type;
-    public int clientId;
-    public string body;
 }

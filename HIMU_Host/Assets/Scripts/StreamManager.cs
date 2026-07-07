@@ -290,7 +290,7 @@ public class StreamManager : MonoBehaviour
                 {
                     if (addr.Address.AddressFamily != AddressFamily.InterNetwork) continue;
                     ipAddress = addr.Address.ToString();
-                    Debug.Log($"[Network] Adaptador: {ni.Name} � IP: {ipAddress}");
+                    Debug.Log($"[Network] Adaptador: {ni.Name} - IP: {ipAddress}");
                     return;
                 }
             }

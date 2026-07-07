@@ -74,8 +74,8 @@ public class WebRTCPeer : MonoBehaviour
         // Recibir la informaci�n de un candidato y llamar a un callback
         peer.OnIceCandidate = candidate =>
         {
-            //SignalingMessage msg = new SignalingMessage(ComunicationManager.ipAddress, remoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
-            //OnSignalingMessage?.Invoke(msg);
+            SignalingMessage msg = new SignalingMessage(SignalingServer.ipAddress, remoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
+            OnSignalingMessage?.Invoke(msg);
         };
 
         // Debug para cuando la conexi�n cambia con el candidato
@@ -128,7 +128,7 @@ public class WebRTCPeer : MonoBehaviour
         yield return setOp;
 
         // Env�a el mensaje
-        //SignalingMessage msg = new SignalingMessage(ComunicationManager.ipAddress, remoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(offer)));
+        SignalingMessage msg = new SignalingMessage(SignalingServer.ipAddress, remoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(offer)));
         OnSignalingMessage?.Invoke(msg);
     }
 
