@@ -1,25 +1,17 @@
 using System;
 using System.Collections.Concurrent;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using Unity.WebRTC;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
 public class StreamManager : MonoBehaviour
 {
 
     #region Variables
+
     /// <summary>
     /// Instance of StreamManager (Singleton)
     /// </summary>
     public static StreamManager Instance { get; private set; }
-
-    /// <summary>
-    /// The IP address of this device
-    /// </summary>
-    public static string ipAddress { get; private set; }
 
     /// <summary>
     /// All currently connected clients, keyed by their IP.
@@ -35,55 +27,59 @@ public class StreamManager : MonoBehaviour
     private GameObject mainCamera;
 
     /// <summary>
-    /// Textura de la camara creada para los browsers
+    /// Texture streamed to other devices (physical or browser)
     /// </summary>
-    private RenderTexture streamTexture;
+    private RenderTexture streamingTexture;
 
     /// <summary>
     /// Server that works through a WebSocket. It connects to an external siganling server.
     /// </summary>
-    WebSocketServerRTC webSocketServer;
+    private WebSocketServerRTC webSocketServer;
 
     /// <summary>
     /// An embeded Signaling Server in the game.
     /// </summary>
-    SignalingServer signalingServer;
-
-    //UIConnectionComponent connectionUI;
+    private SignalingServer signalingServer;
 
     /// <summary>
-    /// Flag para permitir conexiones del tipo Navegador (WebSocket)
+    /// Flag that allows WebSocket connections (browser)
     /// </summary>
-    [SerializeField] public bool acceptWebSocketConnection = true;
+    [SerializeField]
+    private bool acceptWebSocketConnection = true;
 
     /// <summary>
-    /// Flag para permitir conexiones del tipo Navegador (TCP)
+    /// Flag that allows TCP connections (devices)
     /// </summary>
-    [SerializeField] public bool acceptTCPConnection = true;
+    [SerializeField]
+    private bool acceptTCPConnection = true;
 
     /// <summary>
-    /// Flag para permitir conexiones del tipo Navegador (WebSocket) - TO DO
+    /// Flag that allows USB connections (cabled devices)
     /// </summary>
-    [SerializeField] public bool acceptUSBConnection = true;
+    [SerializeField]
+    private bool acceptUSBConnection = true;
+
+    /// <summary>
+    /// Frame's width
+    /// </summary>
+    [SerializeField]
+    private uint streamFrameWidth = 1280;
+
+    /// <summary>
+    /// Frame's heigth
+    /// </summary>
+    [SerializeField]
+    private uint streamFrameHeight = 720;
+
+    /// <summary>
+    /// Frame's depth
+    /// </summary>
+    [SerializeField]
+    private uint streamFrameDepth = 24;
+
     #endregion
 
     #region SharedMethods
-
-    private void CreateStreamCamera()
-    {
-        streamTexture = new RenderTexture(1280, 720, 24, RenderTextureFormat.BGRA32);
-        streamTexture.enableRandomWrite = true;
-        streamTexture.useMipMap = false;
-        streamTexture.antiAliasing = 1;
-        streamTexture.Create();
-
-        GameObject streamGo = new GameObject($"StreamCamera");
-        streamGo.transform.position = mainCamera.transform.position;
-        streamGo.transform.rotation = mainCamera.transform.rotation;
-        streamGo.transform.SetParent(mainCamera.transform);
-        Camera cam = streamGo.AddComponent<Camera>();
-        cam.targetTexture = streamTexture;
-    }
 
     /// <summary>
     /// Adds a client to the dictionary
@@ -107,53 +103,70 @@ public class StreamManager : MonoBehaviour
     #endregion
 
     #region Flagged_Methods
+
+    /// <summary>
+    /// Starts or stops the TCP signaling server wether its checkbox is checked
+    /// </summary>
     public void FlagSignalingServer()
     {
         if (acceptTCPConnection)
         {
-            UnityEngine.Debug.Log("[StreamManager] Deteniendo el servidor TCP");
+            UnityEngine.Debug.Log("[StreamManager] Stopping TCP signaling server.");
             signalingServer.StopServer();
             acceptTCPConnection = false;
         }
-
         else
         {
-            UnityEngine.Debug.Log("[StreamManager] Relanzando el servidor TCP");
+            UnityEngine.Debug.Log("[StreamManager] Launching TCP signaling server.");
             signalingServer.StartServer();
             acceptTCPConnection = true;
         }
     }
 
+    /// <summary>
+    /// Starts or stops the WebSocket server wether its checkbox is checked
+    /// </summary>
     public async void FlagWebSocketServer()
     {
-        if (acceptWebSocketConnection) {
-            UnityEngine.Debug.Log("[StreamManager] Deteniendo el servidor de node");
+        if (acceptWebSocketConnection)
+        {
+            UnityEngine.Debug.Log("[StreamManager] Stopping WebSocket server (Node).");
             await webSocketServer.DisconnectToNode();
             webSocketServer.StopServer();
             acceptWebSocketConnection = false;
         }
-
-        else {
-            UnityEngine.Debug.Log("[StreamManager] Relanzando el servidor Node");
+        else 
+        {
+            UnityEngine.Debug.Log("[StreamManager] Launching WebSocket server (Node).");
             webSocketServer.LaunchServer();
             webSocketServer.ConnectToNode();
             acceptWebSocketConnection = true;
         }
     }
 
-    private void StopADBServer()
+    /// <summary>
+    /// Starts or stops the WebSocket server wether its checkbox is checked
+    /// </summary>
+    public void FlagADBConnection()
     {
-        UnityEngine.Debug.Log("[StreamManager] Deteniendo el servidor ADB");
+        if (acceptUSBConnection)
+        {
+            UnityEngine.Debug.Log("[StreamManager] Stopping ADB connection.");
+            // TO-DO
+            acceptUSBConnection = false;
+        }
+        else
+        {
+            UnityEngine.Debug.Log("[StreamManager] Launching ADB connection.");
+            // TO-DO
+            acceptUSBConnection = true;
+        }
     }
 
-    private void ResumeADBServer()
-    {
-        UnityEngine.Debug.Log("[StreamManager] Relanzando el servidor ADB");
-
-    }
     #endregion
 
     #region WebSocket
+
     /// <summary>
     /// Creacion de objeto en escena que representa un cliente Navegador
     /// </summary>
@@ -161,15 +174,15 @@ public class StreamManager : MonoBehaviour
     public void CreatePeerForBrowser(ClientData client)
     {
         // Si ese navegador ya esta conectado, se ignora
-        string id = client.clientID;
-        if (!addClient(id, client)) return;
+        string clientID = client.clientID;
+        if (!addClient(clientID, client)) return;
 
-        GameObject go = new GameObject($"{client.type.ToString()}-Peer_{id}");
+        GameObject go = new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.ipAddress}");
         WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
-        peer.Initialize(id, streamTexture, msg => webSocketServer.SendToNode(msg, id));
+        peer.Initialize(clientID, streamingTexture, msg => webSocketServer.SendToNode(msg, clientID));
         StartCoroutine(peer.CreateOffer());
-        clients[id].webRtcPeer = peer;
-        Debug.Log($"[StreamManager] Created browser peer: {id}");
+        clients[clientID].webRtcPeer = peer;
+        Debug.Log($"[StreamManager] Created browser peer: {client.ipAddress} (id: {clientID})");
     }
 
     /// <summary>
@@ -182,6 +195,7 @@ public class StreamManager : MonoBehaviour
         clients.TryRemove(clientID, out var data);
         Debug.Log($"[StreamManager] Destroyed browser peer: {clientID}");
     }
+
     #endregion
 
     #region TCP
@@ -193,41 +207,40 @@ public class StreamManager : MonoBehaviour
     public void CreatePeerForClient(ClientData client)
     {
         // Add client to the dictionary
-        string ip = client.ipAddress;
-        if (!addClient(ip, client)) return;
+        string clientID = client.clientID;
+        if (!addClient(clientID, client)) return;
 
         // Create GameObject
-        GameObject go = new GameObject($"{client.type.ToString()}-Peer_{ip}");
+        GameObject go = new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.ipAddress}");
+        DontDestroyOnLoad(go);
         go.GetComponent<Transform>().position = Vector3.zero;
-
-        RenderTexture rt = null;
-        // creamos todo lo del nuevo player: prefab?
         Camera cam = go.AddComponent<Camera>();
+
+        RenderTexture rt;
+        rt = new RenderTexture((int)streamFrameWidth, (int)streamFrameHeight, (int)streamFrameDepth, RenderTextureFormat.BGRA32);
+        rt.enableRandomWrite = true;
+        rt.useMipMap = false;
+        rt.antiAliasing = 1;
+        rt.Create();
         cam.targetTexture = rt;
 
         // Create RTC connection Peer
         WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
-        peer.Initialize(ip, rt, msg => SendSignalingMessage(ip, msg));
-        clients[ip].webRtcPeer = peer;
+        peer.Initialize(clientID, rt, msg => signalingServer.SendMessage(clientID, msg));
+        clients[clientID].webRtcPeer = peer;
         StartCoroutine(peer.CreateOffer());
-        Debug.Log($"[StreamManager] Created device peer: {ip}");
 
+        Debug.Log($"[StreamManager] Created device peer: {client.ipAddress} (id: {clientID})");
     }
 
-    void SendSignalingMessage(string ip, SignalingMessage msg)
+    /// <summary>
+    /// Porcesses the signaling message from the server
+    /// </summary>
+    /// <param name="clientID"></param>
+    /// <param name="msg"></param>
+    public void HandleIncomingSignaling(string clientID, SignalingMessage msg)
     {
-        if (!clients.TryGetValue(ip, out var client)) return;
-        string json = JsonUtility.ToJson(msg);
-        byte[] data = System.Text.Encoding.UTF8.GetBytes(json);
-        byte[] header = System.BitConverter.GetBytes(data.Length);
-        client.stream.Write(header, 0, 4);
-        client.stream.Write(data, 0, data.Length);
-        client.stream.Flush();
-    }
-
-    public void HandleIncomingSignaling(string fromIp, SignalingMessage msg)
-    {
-        if (!clients.TryGetValue(fromIp, out var peer)) return;
+        if (!clients.TryGetValue(clientID, out var peer)) return;
 
         if (msg.type == ConnectionEvent.ICE)
         {
@@ -249,8 +262,8 @@ public class StreamManager : MonoBehaviour
         else if (msg.type == ConnectionEvent.DISCONNECT)
         {
             Destroy(peer.webRtcPeer.gameObject);
-            removeClient(peer.ipAddress);
-            Debug.Log($"[StreamManager] Removed peer: {peer.ipAddress}");
+            removeClient(clientID);
+            Debug.Log($"[StreamManager] Removed peer: {peer.ipAddress} (id: {clientID})");
         }
     }
 
@@ -264,73 +277,13 @@ public class StreamManager : MonoBehaviour
 
     #region Getters & Setters
 
-    private void GetIpAddress()
-    {
-        ipAddress = "No disponible";
-        try
-        {
-#if UNITY_EDITOR || UNITY_STANDALONE_WIN
-            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
-
-                // Excluir adaptadores virtuales (VirtualBox, VMware, Hyper-V, etc.)
-                string name = ni.Name.ToLower();
-                string desc = ni.Description.ToLower();
-                if (name.Contains("virtual") || desc.Contains("virtual") ||
-                    name.Contains("vmware") || desc.Contains("vmware") ||
-                    name.Contains("vbox") || desc.Contains("vbox")) continue;
-
-                IPInterfaceProperties props = ni.GetIPProperties();
-                if (props.GatewayAddresses.Count == 0) continue;
-
-                foreach (UnicastIPAddressInformation addr in props.UnicastAddresses)
-                {
-                    if (addr.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    ipAddress = addr.Address.ToString();
-                    Debug.Log($"[Network] Adaptador: {ni.Name} - IP: {ipAddress}");
-                    return;
-                }
-            }
-#elif UNITY_ANDROID
-            using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
-            {
-                socket.Connect(MulticastGroup, 65530);
-                IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
-                ipAddress = endPoint.Address.ToString();
-            }
-            Debug.Log($"[Network] IP seleccionada: {ipAddress}");
-#endif
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[Network] Error obteniendo IP: {e}");
-        }
-    }
-
-    public string GetIP()
-    {
-        return ipAddress;
-    }
-
+    /// <summary>
+    /// Sets the new streamed camera by pointing its rendered texture to the streaming texture.
+    /// </summary>
+    /// <param name="newCamera">New stream camera.</param>
     public void SetStreamCamera(Camera newCamera)
     {
-        newCamera.targetTexture = streamTexture;
-    }
-
-    public void SetActiveCamera(Camera newCamera, int width, int height)
-    {
-        RenderTexture newRT = new RenderTexture(width, height, 0);
-        newRT.Create();
-        newCamera.targetTexture = newRT;
-        newCamera.targetTexture = streamTexture;
-
-        VideoStreamTrack newTrack = new VideoStreamTrack(newRT);
-        webSocketServer.ChangeVideoTrack(newTrack);
-        streamTexture.Release();
-        streamTexture = newRT;
+        newCamera.targetTexture = streamingTexture;
     }
 
     #endregion
@@ -338,20 +291,16 @@ public class StreamManager : MonoBehaviour
     #region Monobehaviour
     void Awake()
     {
-        if (Instance)
-        {
-            DestroyImmediate(gameObject);
-            return;
-        }
-
+        if (Instance) { DestroyImmediate(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        StartCoroutine(WebRTC.Update());
+        NetworkUtils.GetIP();
     }
 
     private void Start()
     {
-        GetIpAddress();
-        CreateStreamCamera();
         webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
         signalingServer = gameObject.AddComponent<SignalingServer>();
     }

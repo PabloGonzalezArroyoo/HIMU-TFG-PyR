@@ -1,41 +1,80 @@
 using System;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 public class ConnectionManager : MonoBehaviour
 {
-    public static ConnectionManager Instance { get; private set; }
+    #region Variables
 
+    /// <summary>
+    /// Listener used for broadcast search of devices.
+    /// </summary>
     private UdpClient listener;
+
+    /// <summary>
+    /// Thread where the broadcast will be done.
+    /// </summary>
     private Thread listenThread;
 
+    /// <summary>
+    /// Wether the server is running or not.
+    /// </summary>
     private bool running;
+
+    /// <summary>
+    /// Wether this machine is connected to a host or not.
+    /// </summary>
     private bool connected;
 
+    /// <summary>
+    /// Port where this device will listen to upcoming network data.
+    /// </summary>
     private int listenPort = 8053;
+
+    /// <summary>
+    /// Port where the host is located.
+    /// </summary>
     private int hostPort;
 
+    /// <summary>
+    /// Host's IP.
+    /// </summary>
     private string hostIP;
-    public static string ipAddress { get; private set; }
 
+    /// <summary>
+    /// This machine's IP.
+    /// </summary>
+    private string ipAddress;
+
+    /// <summary>
+    /// Multicast IP group for specific broadcasting.
+    /// </summary>
     private const string MulticastGroup = "239.0.0.1";
 
+    /// <summary>
+    /// What type of client this device is (STREAM or PLAYER, NONE = non existent device).
+    /// </summary>
     [SerializeField]
     private ClientType clientType;
 
+    #endregion
+
+    #region Connection
+
+    /// <summary>
+    /// Starts the broadcast loop to search for hosts to connect, via an UDP Client.
+    /// </summary>
+    /// <param name="c">Type of this client (setted ingame by the player's choice).</param>
     public void StartBroadcast(ClientType c)
     {
         if (!connected)
         { 
             clientType = c;
-            Debug.Log("[Cliente] Lanzando listen loop");
+            Debug.Log("[ConnManager] Launching listen loop.");
             running = true;
-            GetIpAddress();
 
             listener = new UdpClient();
             listener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
@@ -52,23 +91,27 @@ public class ConnectionManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Uses and UDP listener to found the broadcast messages from the host machine. Once one is found,
+    /// decodes the received data and starts the connection.
+    /// </summary>
     private void BroadcastListenLoop()
     {
         UnityMainThreadDispatcher.Instance().Enqueue(() =>
-            Debug.Log($"[Client] Loop arrancado - {running} / {connected}"));
+            Debug.Log($"[ConnManager] Launched loop - {running} / {connected}"));
         while (running && !connected)
         {
             try
             {
-                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[Client] Escuchando"));
+                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[ConnManager] Listening."));
                 var remoteEP = new IPEndPoint(IPAddress.Any, 0);
                 byte[] data = listener.Receive(ref remoteEP);
                 string message = Encoding.UTF8.GetString(data);
-                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[Client] Recibiendo"));
+                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[ConnManager] Receiving."));
 
                 if (string.IsNullOrEmpty(message))
                 {
-                    Debug.LogWarning("[UDP] Paquete vacío recibido, ignorando.");
+                    Debug.LogWarning("[ConnManager] Empty UDP package, ignoring.");
                     continue;
                 }
 
@@ -78,115 +121,74 @@ public class ConnectionManager : MonoBehaviour
                 if (decodedData.connType != ConnectionEvent.BROADCAST)
                     continue;
 
-                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[Client] Conexión iniciada"));
+                UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[ConnManager] Initialized connection."));
                 OnConnectionStarted(decodedData);
             }
             catch (SocketException)
             {
-                break; // Socket cerrado
+                break; // Socket closed
             }
             catch (Exception e)
             {
                 if (running)
                 {
-                    Debug.LogWarning($"[Client] Error en hilo de broadcast: {e.Message}");
+                    Debug.LogWarning($"[ConnManager] Broadcast thread error: {e.Message}");
                     //HandleDisconnection();
                 }
             }
         }
     }
 
-    private void GetIpAddress()
-    {
-        ipAddress = "No disponible";
-        try
-        {            
-#if UNITY_EDITOR || UNITY_STANDALONE_WIN
-            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
-
-                // Excluir adaptadores virtuales (VirtualBox, VMware, Hyper-V, etc.)
-                string name = ni.Name.ToLower();
-                string desc = ni.Description.ToLower();
-                if (name.Contains("virtual") || desc.Contains("virtual") ||
-                    name.Contains("vmware") || desc.Contains("vmware") ||
-                    name.Contains("vbox") || desc.Contains("vbox")) continue;
-
-                IPInterfaceProperties props = ni.GetIPProperties();
-                if (props.GatewayAddresses.Count == 0) continue;
-
-                foreach (UnicastIPAddressInformation addr in props.UnicastAddresses)
-                {
-                    if (addr.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    ipAddress = addr.Address.ToString();
-                    Debug.Log($"[Network] Adaptador: {ni.Name} — IP: {ipAddress}");
-                    return;
-                }
-            }
-#elif UNITY_ANDROID
-            using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
-            {
-                socket.Connect(MulticastGroup, 65530);
-                IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
-                ipAddress = endPoint.Address.ToString();
-            }
-            Debug.Log($"[Network] IP seleccionada: {ipAddress}");
-#endif
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[Network] Error obteniendo IP: {e}");
-        }
-    }
-
+    /// <summary>
+    /// Called once a valid broadcast message has been received. Reads and stores the message's information
+    /// and creates a TCP connection, sending the handshake back to the host and delegates the work to the
+    /// ClienSignalingHandler class.
+    /// </summary>
+    /// <param name="data"></param>
     public void OnConnectionStarted(ConnectionData data)
     {
         hostIP = data.ipAddress;
         hostPort = data.port;
         connected = true;
 
-        UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log($"[Client] Host encontrado: {hostIP} — enviando respuesta…"));
+        UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log($"[ConnManager] Host found: {hostIP} — answering…"));
 
         try
         {
             string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE, clientType));
             byte[] responseData = Encoding.UTF8.GetBytes(json);
+            byte[] header = BitConverter.GetBytes(responseData.Length);
+
             TcpClient tcp = new TcpClient();
             tcp.Connect(hostIP, hostPort);
             NetworkStream stream = tcp.GetStream();
-            stream.Write(responseData, 0, responseData.Length);
-            // Mantener el stream vivo para señalización
+            NetworkUtils.WriteFramedMessage(stream, json);
+
+            // Keep stream alive for signaling and communication in the connection handler class
             UnityMainThreadDispatcher.Instance().Enqueue(() => {
-                Debug.Log($"[Client] Handshake enviado a {hostIP}:{hostPort}");
-                ClientSignalingHandler.Instance?.StartSession(stream, hostIP);
+                Debug.Log($"[ConnManager] Handshake sent to {hostIP}:{hostPort}");
+                ClientSignalingHandler.Instance?.StartSession(tcp, stream, hostIP);
                 UIManager.Instance.OnConnectionStarted(hostIP);
             });
         }
         catch (Exception e)
         {
             UnityMainThreadDispatcher.Instance().Enqueue(() =>
-                Debug.LogError($"[Client] Error en TCP connect: {e.Message}"));
+                Debug.LogError($"[ConnManager] TCP connection error: {e.Message}"));
         }
     }
 
-    void Awake()
-    {
-        if (Instance)
-        {
-            DestroyImmediate(gameObject);
-            return;
-        }
+    #endregion
 
-        Instance = this;
-    }
+    #region Monobehaviour
 
     private void Start()
     {
         running = false;
         connected = false;
+        ipAddress = NetworkUtils.GetIP();
         clientType = ClientType.NONE;
     }
+
+    #endregion
 }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net.Sockets;
-using System.Net.WebSockets;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -26,14 +25,12 @@ public enum ClientType
 [Serializable]
 public class SignalingMessage
 {
-    public string sourceIp;
-    public string destinationIp;       // IP destino, vac�o = broadcast
+    public string destinationIp;    // Destination IP, empty = broadcast
     public ConnectionEvent type;
-    public string body;    // SDP serializado o JSON del ICE candidate
+    public string body;             // Serialized SDP or ICE's candidate JSON
 
-    public SignalingMessage(string sIP, string dIP, ConnectionEvent e, string b)
+    public SignalingMessage(string dIP, ConnectionEvent e, string b)
     {
-        sourceIp = sIP;
         destinationIp = dIP;
         type = e;
         body = b;
@@ -55,6 +52,7 @@ public class IceCandidateData
     }
 }
 
+// Wrapper that saves the values of RTCSessionDescription
 [Serializable]
 public class SessionDescriptionData
 {
@@ -118,8 +116,8 @@ public class ClientData
 [Serializable]
 public class InputData
 {
-    public Vector2 move;      // Direcci�n de movimiento
-    public Vector2 rotation;      // Delta de rotaci�n
+    public Vector2 move;        // Movement dir
+    public Vector2 rotation;    // Rot delta
     public bool sprint;
     public bool moveUp;
     public bool moveDown;

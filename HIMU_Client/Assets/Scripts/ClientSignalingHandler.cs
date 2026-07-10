@@ -1,6 +1,5 @@
 using System;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using Unity.WebRTC;
 using UnityEngine;
@@ -8,20 +7,58 @@ using UnityEngine.UI;
 
 public class ClientSignalingHandler : MonoBehaviour
 {
+    #region Variables
+
+    /// <summary>
+    /// Instance of ClientSignalingHandler (Singleton)
+    /// </summary>
     public static ClientSignalingHandler Instance { get; private set; }
 
+    /// <summary>
+    /// Host's TCP connection
+    /// </summary>
+    private TcpClient hostConnection;
+
+    /// <summary>
+    /// TCP stream from where the communication (mainly on handshake, ICE and SDP offers) will happen.
+    /// </summary>
     private NetworkStream stream;
+
+    /// <summary>
+    /// Thread where the communication will happen.
+    /// </summary>
     private Thread readThread;
-    private bool running = false;
 
-    [SerializeField] private RawImage videoPanel;
+    /// <summary>
+    /// Wether the server is running or not.
+    /// </summary>
+    private bool running;
 
+    /// <summary>
+    /// Component that allows the WebRTC communication.
+    /// </summary>
     private WebRTCReceiver receiver;
 
-    // Llamado desde ClientConnectionManager.OnConnectionStarted()
-    // en lugar de cerrar el TCP tras el handshake
-    public void StartSession(NetworkStream tcpStream, string hostIp)
+    /// <summary>
+    /// Object in the scene where the video received will be shown.
+    /// </summary>
+    [SerializeField]
+    private RawImage videoPanel;
+
+    #endregion
+
+    #region Connection
+
+    /// <summary>
+    /// Saves all the connection data, creates and configures the WebRTC receiver and launches
+    /// the read loop.
+    /// </summary>
+    /// <param name="hostTcp">Object used by the client to talk with the host</param>
+    /// <param name="tcpStream">TCP Stream to read/write from.</param>
+    /// <param name="hostIp">Host's IP</param>
+    public void StartSession(TcpClient hostTcp, NetworkStream tcpStream, string hostIp)
     {
+        hostConnection = hostTcp;
         stream = tcpStream;
         running = true;
 
@@ -30,7 +67,7 @@ public class ClientSignalingHandler : MonoBehaviour
         receiver = go.AddComponent<WebRTCReceiver>();
         receiver.displayTarget = videoPanel;
         receiver.RemoteIp = hostIp;
-        receiver.OnSignalingMessage = SendSignalingMessage;
+        receiver.OnSignalingMessage = SendMessage;
         receiver.Initialize();
         MovementControls mc = FindFirstObjectByType<MovementControls>();
         if (mc != null) mc.SetReceiver(receiver);
@@ -39,24 +76,17 @@ public class ClientSignalingHandler : MonoBehaviour
         readThread.Start();
     }
 
+    /// <summary>
+    /// Loop incharged of reading the streamed network data.
+    /// </summary>
     private void ReadLoop()
     {
-        byte[] header = new byte[4];
         while (running)
         {
             try
             {
-                // Leer tamaño del mensaje
-                int read = stream.Read(header, 0, 4);
-                if (read == 0) break;
+                if (!NetworkUtils.TryReadFramedMessage(stream, out string json)) break;
 
-                int size = BitConverter.ToInt32(header, 0);
-                byte[] body = new byte[size];
-                int total = 0;
-                while (total < size)
-                    total += stream.Read(body, total, size - total);
-
-                string json = Encoding.UTF8.GetString(body);
                 var msg = JsonUtility.FromJson<SignalingMessage>(json);
 
                 // Despachar al main thread
@@ -70,6 +100,11 @@ public class ClientSignalingHandler : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// For when a SignalingMessage is received. Handles SDP Offers and ICE candidates delegating the
+    /// information to the WebRTCReceiver.
+    /// </summary>
+    /// <param name="msg">Signaling message.</param>
     private void HandleMessage(SignalingMessage msg)
     {
         if (msg.type == ConnectionEvent.SDP)
@@ -91,15 +126,18 @@ public class ClientSignalingHandler : MonoBehaviour
         }
     }
 
-    private void SendSignalingMessage(SignalingMessage msg)
+    /// <summary>
+    /// Sends a SignalingMessage.
+    /// </summary>
+    /// <param name="msg">Signaling message.</param>
+    private void SendMessage(SignalingMessage msg)
     {
-        string json = JsonUtility.ToJson(msg);
-        byte[] data = Encoding.UTF8.GetBytes(json);
-        byte[] header = BitConverter.GetBytes(data.Length);
-        stream.Write(header, 0, 4);
-        stream.Write(data, 0, data.Length);
-        stream.Flush();
+        NetworkUtils.WriteFramedMessage(stream, JsonUtility.ToJson(msg));
     }
+
+    #endregion
+
+    #region Monobehaviour
 
     void Awake()
     {
@@ -110,12 +148,16 @@ public class ClientSignalingHandler : MonoBehaviour
 
     private void Start()
     {
-        //StartSession(ComunicationManager.Instance.GetTCPStream(), ComunicationManager.Instance.GetHostIP());
+        running = false;
     }
 
     void OnDestroy()
     {
         running = false;
         stream?.Close();
+        hostConnection?.Close();
+        readThread?.Join(500);
     }
+
+    #endregion
 }

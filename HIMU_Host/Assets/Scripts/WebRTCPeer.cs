@@ -6,8 +6,9 @@ using UnityEngine.tvOS;
 
 public class WebRTCPeer : MonoBehaviour
 {
-
+    // TO-DO -> COMENTARIOS EN INGLÉS
     #region Variables
+
     /// <summary>
     /// Object that represents the P2P connection
     /// </summary>
@@ -74,7 +75,7 @@ public class WebRTCPeer : MonoBehaviour
         // Recibir la informaci�n de un candidato y llamar a un callback
         peer.OnIceCandidate = candidate =>
         {
-            SignalingMessage msg = new SignalingMessage(SignalingServer.ipAddress, remoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
+            SignalingMessage msg = new SignalingMessage(remoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
             OnSignalingMessage?.Invoke(msg);
         };
 
@@ -128,7 +129,7 @@ public class WebRTCPeer : MonoBehaviour
         yield return setOp;
 
         // Env�a el mensaje
-        SignalingMessage msg = new SignalingMessage(SignalingServer.ipAddress, remoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(offer)));
+        SignalingMessage msg = new SignalingMessage(remoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(offer)));
         OnSignalingMessage?.Invoke(msg);
     }
 

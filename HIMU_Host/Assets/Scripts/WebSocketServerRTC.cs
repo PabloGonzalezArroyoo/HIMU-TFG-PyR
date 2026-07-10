@@ -1,39 +1,41 @@
-using NUnit.Framework.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Unity.WebRTC;
-using UnityEditor.PackageManager;
 using UnityEngine;
-using UnityEngine.LightTransport;
 
 public class WebSocketServerRTC : MonoBehaviour
 {
-
-    // Lanzaremos tambien el bat desde aqui
-
+    // TO-DO -> COMENTARIOS EN INGLÉS
     #region Variables
     /// <summary>
     /// Debe ser la IP del dispositivo que corre el servidor de Node (asumimos que es esta maquina misma)
     /// </summary>
     public string nodeHost = "192.168.1.45";
-    [SerializeField] int nodePort = 8080;
+    [SerializeField]
+    private int nodePort = 8080;
 
     /// <summary>
     /// Socket de conexion al servidor de Node
     /// </summary>
-    ClientWebSocket ws;
+    private ClientWebSocket ws;
+
+    /// <summary>
+    /// PID del proceso del bat lanzado, para poder cerrarlo directamente
+    /// sin depender de buscar por titulo de ventana (poco fiable).
+    /// </summary>
+    private Process launchedBatProcess;
 
     /// <summary>
     /// Ruta del bat desde la carpeta raiz de la build o desde la carpeta raiz del proyecto
     /// </summary>
-    [SerializeField] string batRelativePath = "start-server.bat";
-    string batPath;
+    [SerializeField]
+    private string batRelativePath = "start-server.bat";
+    private string batPath;
 
     /// <summary>
     /// Se usa para cancelar la task asincrona del ReceiveLoop
@@ -43,12 +45,13 @@ public class WebSocketServerRTC : MonoBehaviour
     /// <summary>
     /// Direccion del servidor de Node
     /// </summary>
-    Uri nodeUri;
+    private Uri nodeUri;
 
     /// <summary>
     /// Clientes (navegadores) conectados a traves del servidor de Node
     /// </summary>
     private readonly Dictionary<string, ClientData> connectedBrowsers = new Dictionary<string, ClientData>();
+    
     #endregion
 
     #region Methods
@@ -72,12 +75,6 @@ public class WebSocketServerRTC : MonoBehaviour
             UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo desbloquear el archivo: {ex.Message}");
         }
     }
-
-    /// <summary>
-    /// PID del proceso del bat lanzado, para poder cerrarlo directamente
-    /// sin depender de buscar por titulo de ventana (poco fiable).
-    /// </summary>
-    Process launchedBatProcess;
 
     /// <summary>
     /// Lanza el servidor de Node ejecutando el archivo .bat
@@ -236,7 +233,7 @@ public class WebSocketServerRTC : MonoBehaviour
     {
         if (ws?.State == WebSocketState.Open && connectedBrowsers.Count > 0)
         {
-            SignalingMessage byeMsg = new SignalingMessage(nodeHost, null, ConnectionEvent.DISCONNECT, null);
+            SignalingMessage byeMsg = new SignalingMessage(null, ConnectionEvent.DISCONNECT, null);
 
             // copia las claves para no modificar la colección mientras iteras
             foreach (string clientId in new List<string>(connectedBrowsers.Keys))
@@ -343,7 +340,7 @@ public class WebSocketServerRTC : MonoBehaviour
         {
             WSTaggedMessage tagged = JsonUtility.FromJson<WSTaggedMessage>(rawJson);
             string clientKey = tagged.clientId.ToString();
-            SignalingMessage sigMsg = new SignalingMessage(clientKey, nodeHost, (ConnectionEvent)tagged.type, tagged.body);
+            SignalingMessage sigMsg = new SignalingMessage(nodeHost, (ConnectionEvent)tagged.type, tagged.body);
             StreamManager.Instance?.HandleIncomingSignaling(clientKey, sigMsg);
         }
     }
@@ -402,13 +399,12 @@ public class WebSocketServerRTC : MonoBehaviour
     #region Monobehaviour
     public void Start()
     {
-        nodeHost = StreamManager.Instance.GetIP();
+        nodeHost = NetworkUtils.GetIP();
         batPath = System.IO.Path.Combine(Application.dataPath, "..", batRelativePath);
         ws = new ClientWebSocket();
         nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity");
         _cts = new CancellationTokenSource();
 
-        StartCoroutine(WebRTC.Update());
         LaunchServer();
         ConnectToNode();
     }

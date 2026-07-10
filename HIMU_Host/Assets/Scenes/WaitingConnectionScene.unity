@@ -1960,6 +1960,9 @@ MonoBehaviour:
   acceptWebSocketConnection: 1
   acceptTCPConnection: 1
   acceptUSBConnection: 0
+  streamFrameWidth: 1280
+  streamFrameHeight: 720
+  streamFrameDepth: 24
 --- !u!1 &1679441380
 GameObject:
   m_ObjectHideFlags: 0

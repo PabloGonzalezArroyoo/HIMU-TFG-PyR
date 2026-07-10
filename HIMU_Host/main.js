@@ -1,6 +1,9 @@
 ﻿const video = document.getElementById('video');
 const btn = document.getElementById('button');
 const status = document.getElementById('status');
+const sessionInput = document.getElementById('session-id');
+
+const SESSION_ID_REGEX = /^\d{4}$/;
 
 let pc = null;
 let ws = null;
@@ -34,12 +37,20 @@ function cleanup(reason) {
 }
 
 async function connect() {
+    const sessionId = sessionInput.value.trim();
+
+    if (!SESSION_ID_REGEX.test(sessionId)) {
+        setStatus('Introduce un ID de sesión válido (4 dígitos)');
+        sessionInput.focus();
+        return;
+    }
+
     cleanup('Conectando a señalización...');
     btn.disabled = true;
 
     let pendingCandidates = [];
 
-    ws = new WebSocket('ws://192.168.1.45:8080?type=browser');
+    ws = new WebSocket(`ws://192.168.1.45:8080?type=browser&id=${sessionId}`);
 
     ws.onopen = () => {
         ws.binaryType = "arraybuffer"; // forzar arraybuffer en vez de Blob

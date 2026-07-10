@@ -1,57 +1,51 @@
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Unity.WebRTC;
 using UnityEngine;
 
 public class SignalingServer : MonoBehaviour
 {
 
     #region Variables
+
     /// <summary>
-    /// Wether if the server is running or not
+    /// Wether the server is running or not
     /// </summary>
-    bool running;
+    private bool running;
 
     /// <summary>
     /// Wether if the server is searching for new devieces or not
     /// </summary>
-    bool searchingDevices;
+    private bool searchingDevices;
 
     /// <summary>
     /// Port where the server will listen to upcoming network data
     /// </summary>
-    int listenPort = 7777;
+    private int listenPort = 7777;
 
     /// <summary>
     /// Port from where the broadcast is going to be made
     /// </summary>
-    int broadcastPort = 8053;
-
-    /// <summary>
-    /// Direccion IP de la maquina host
-    /// </summary>
-    public static string ipAddress { get; private set; }
+    private int broadcastPort = 8053;
 
     /// <summary>
     /// Listener para escuchar mensajes de los clientes
     /// </summary>
-    TcpListener listener;
+    private TcpListener listener;
 
     /// <summary>
     /// Hilo de escucha de mensajes
     /// </summary>
-    Thread listenThread;
+    private Thread listenThread;
     
     /// <summary>
-    /// Estructura de clientes 
+    /// Clients structure.
     /// </summary>
-    private readonly ConcurrentDictionary<string, TcpClient> clients = new();
+    private readonly ConcurrentDictionary<string, TcpClient> clients = new ConcurrentDictionary<string, TcpClient>();
 
     /// <summary>
     /// Multicast IP group for specific broadcasting
@@ -63,7 +57,7 @@ public class SignalingServer : MonoBehaviour
     #region Conection
 
     /// <summary>
-    /// Metodo para detener el servidor TCP
+    /// Stops the TCP server.
     /// </summary>
     public void StopServer()
     {
@@ -77,26 +71,25 @@ public class SignalingServer : MonoBehaviour
         try { listener?.Stop(); } catch { }
 
         listenThread?.Join(500); // cierra el hilo en un plazo de 500ms
-        UnityEngine.Debug.Log("[SignalingServer] Servidor TCP detenido");
+        Debug.Log("[SignalingServer] TCP server stopped.");
         UIManager.Instance?.ResetTCPClientsText();
     }
 
     /// <summary>
-    /// Metodo que inicia el servidor TCP
+    /// Initializes the TCP server.
     /// </summary>
     public void StartServer()
     {
         running = true;
-        ipAddress = StreamManager.Instance.GetIP();
 
-        listener = new TcpListener(IPAddress.Parse(ipAddress), listenPort);
+        listener = new TcpListener(IPAddress.Parse(NetworkUtils.GetIP()), listenPort);
         listener.Start();
         listenThread = new Thread(ListenLoop) { IsBackground = true, Name = "TCP Listen" };
         listenThread.Start(); 
 
         searchingDevices = true;
         StartCoroutine(SendBroadcast()); 
-        UnityEngine.Debug.Log("[SignalingServer] Servidor TCP lanzado");
+        Debug.Log("[SignalingServer] TCP server launched.");
     }
 
     /// <summary>
@@ -107,12 +100,13 @@ public class SignalingServer : MonoBehaviour
     {
         try
         {
-            string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.BROADCAST));
+            string ip = NetworkUtils.GetIP();
+            string json = JsonUtility.ToJson(new ConnectionData(ip, listenPort, ConnectionEvent.BROADCAST));
             byte[] data = Encoding.UTF8.GetBytes(json);
 
             using (UdpClient sender = new UdpClient())
             {
-                sender.Client.Bind(new IPEndPoint(IPAddress.Parse(ipAddress), 0));
+                sender.Client.Bind(new IPEndPoint(IPAddress.Parse(ip), 0));
                 sender.Ttl = 4;
                 IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(MulticastGroup), broadcastPort);
                 sender.Send(data, data.Length, endpoint);
@@ -120,7 +114,7 @@ public class SignalingServer : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[Host] Error al enviar multicast: {e.Message}");
+            Debug.LogWarning($"[SignalingServer] Error sending multicast: {e.Message}");
         }
 
         yield return new WaitForSeconds(2f);
@@ -139,7 +133,7 @@ public class SignalingServer : MonoBehaviour
             try
             {
                 TcpClient tcp = listener.AcceptTcpClient();
-                Debug.Log($"[Server] TCP connection from: {((IPEndPoint)tcp.Client.RemoteEndPoint).Address}");
+                Debug.Log($"[SignalingServer] TCP connection from: {((IPEndPoint)tcp.Client.RemoteEndPoint).Address}");
 
                 // Each client gets its own thread for reading
                 Thread clientThread = new Thread(() => HandleClient(tcp))
@@ -162,6 +156,30 @@ public class SignalingServer : MonoBehaviour
     }
 
     /// <summary>
+    /// Sends the signaling message of this project to the TCP server.
+    /// </summary>
+    /// <param name="clientID">ID of the client from where the message is going to be sent.</param>
+    /// <param name="msg">Signaling message content.</param>
+    public bool SendMessage(string clientID, SignalingMessage msg)
+    {
+        if (!clients.TryGetValue(clientID, out TcpClient tcp)) return false;
+
+        try
+        {
+            NetworkStream stream = tcp.GetStream();
+            // Se usa el propio stream como objeto de lock: varios hilos de cliente pueden
+            // llamar a SendMessage sobre el mismo stream concurrentemente.
+            NetworkUtils.WriteFramedMessage(stream, JsonUtility.ToJson(msg), syncRoot: stream);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[SignalingServer] Error sending message to {clientID}: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Gestion de los clientes (handshake y bucle de recepcion)
     /// </summary>
     /// <param name="tcp"></param>
@@ -173,23 +191,18 @@ public class SignalingServer : MonoBehaviour
         try
         {
             // Handshake ---
-            byte[] header = new byte[4];
-            if (!TryReadExact(stream, header, 4))
+            if (!NetworkUtils.TryReadFramedMessage(stream, out string message))
             {
-                Debug.LogError("[Signaling Server] Cliente cerró conexión antes del handshake.");
+                Debug.LogError("[SignalingServer] Client clossed connection before handsake.");
                 return;
             }
-            int size = BitConverter.ToInt32(header, 0);
-            byte[] data = new byte[size];
-            ReadExact(stream, data, size);
-            string message = Encoding.UTF8.GetString(data);
 
             ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
 
             // Check if the data recieved is truly a ConnectionData class
             if (decodedData.connType != ConnectionEvent.HANDSHAKE)
             {
-                Debug.LogError("[Signaling Server] Not a Connection Data recieved during Handshake.");
+                Debug.LogError("[SignalingServer] Not a Connection Data recieved during handshake.");
                 return;
             }
 
@@ -204,61 +217,27 @@ public class SignalingServer : MonoBehaviour
             // Data process loop ---
             while (running)
             {
-                // Leer header de 4 bytes con el tama�o del mensaje
-                header = new byte[4];
-                if (!TryReadExact(stream, header, 4)) break;
+                if (!NetworkUtils.TryReadFramedMessage(stream, out string incoming)) break;
 
-                size = BitConverter.ToInt32(header, 0);
-                byte[] body = new byte[size];
-                ReadExact(stream, body, size);
-
-                string incoming = Encoding.UTF8.GetString(body);
                 var sigMsg = JsonUtility.FromJson<SignalingMessage>(incoming);
 
                 // Ejecutar en el hilo principal de Unity (los peers WebRTC lo necesitan)
                 UnityMainThreadDispatcher.Instance().Enqueue(() =>
-                    StreamManager.Instance?.HandleIncomingSignaling(decodedData.ipAddress, sigMsg));
+                    StreamManager.Instance?.HandleIncomingSignaling(clientID, sigMsg));
             }
         }
         catch (Exception ex)
         {
-            Debug.LogError("[Signaling Server] Exception thrown: " + ex.ToString());
+            Debug.LogError("[SignalingServer] Exception thrown: " + ex.ToString());
             return;
         }
         finally
         {
             clients.TryRemove(clientID, out _);
             tcp.Close();
-            UnityMainThreadDispatcher.Instance().Enqueue(() =>
+            UnityMainThreadDispatcher.Instance().Enqueue(() => 
                 StreamManager.Instance?.RemovePeerForClient(clientID));
             UIManager.Instance?.UpdateTCPClientsText(false);
-        }
-    }
-
-    private bool TryReadExact(NetworkStream stream, byte[] buffer, int count)
-    {
-        int total = 0;
-        while (total < count)
-        {
-            int read = stream.Read(buffer, total, count - total);
-            if (read == 0)
-            {
-                if (total == 0) return false; // cierre limpio, no hay más mensajes
-                throw new IOException("Conexión cerrada a mitad de un mensaje.");
-            }
-            total += read;
-        }
-        return true;
-    }
-
-    private void ReadExact(NetworkStream stream, byte[] buffer, int count)
-    {
-        int total = 0;
-        while (total < count)
-        {
-            int read = stream.Read(buffer, total, count - total);
-            if (read == 0) throw new IOException("Conexión cerrada durante la lectura.");
-            total += read;
         }
     }
     #endregion
@@ -266,8 +245,6 @@ public class SignalingServer : MonoBehaviour
     #region Monobehaviour
     public void Start()
     {
-        ipAddress = StreamManager.Instance.GetIP();
-        StartCoroutine(WebRTC.Update());
         StartServer();
     }
 

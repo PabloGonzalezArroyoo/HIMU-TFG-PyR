@@ -4,11 +4,12 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Componente asociado al objeto creado que representa a un cliente
+/// This component represents the client's connection with the host via WebRTC.
 /// </summary>
 public class WebRTCReceiver : MonoBehaviour
 {
     #region Variables
+
     /// <summary>
     /// Object that represents the P2P connection
     /// </summary>
@@ -33,12 +34,17 @@ public class WebRTCReceiver : MonoBehaviour
     /// Host IP
     /// </summary>
     public string RemoteIp;
+
     #endregion
 
     #region Methods
+
+    /// <summary>
+    /// Initializes the WebRTC connection and overrides callbacks for when data is sent through it.
+    /// </summary>
     public void Initialize()
     {
-        Debug.Log("[WebRTC] Inicializando cliente");
+        Debug.Log("[WebRTCReceiver] Initializing client.");
 
         RTCConfiguration config = new RTCConfiguration
         {
@@ -49,7 +55,7 @@ public class WebRTCReceiver : MonoBehaviour
 
         peer.OnIceCandidate = candidate =>
         {
-            SignalingMessage msg = new SignalingMessage(ConnectionManager.ipAddress, RemoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
+            SignalingMessage msg = new SignalingMessage(RemoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
             OnSignalingMessage?.Invoke(msg);
         };
 
@@ -67,16 +73,20 @@ public class WebRTCReceiver : MonoBehaviour
         peer.OnDataChannel = channel =>
         {
             dataChannel = channel;
-            Debug.Log($"[WebRTCReceiver] DataChannel recibido: {channel.Label}");
+            Debug.Log($"[WebRTCReceiver] DataChannel recieved: {channel.Label}");
 
-            channel.OnOpen = () => Debug.Log("[DataChannel] Abierto en cliente");
-            channel.OnClose = () => Debug.Log("[DataChannel] Cerrado en cliente");
+            channel.OnOpen = () => Debug.Log("[DataChannel] Opened in client.");
+            channel.OnClose = () => Debug.Log("[DataChannel] Closed in client.");
             channel.OnMessage = bytes =>
                 UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessData(bytes));
         };
     }
 
-    // Llamado cuando llega la SDP Offer del servidor por TCP
+    /// <summary>
+    /// Decodes the SDP offer from the host and sends an SDP offer back with what has been recieved.
+    /// </summary>
+    /// <param name="offer">SDP offer.</param>
+    /// <returns></returns>
     public IEnumerator HandleOffer(RTCSessionDescription offer)
     {
         RTCSetSessionDescriptionAsyncOperation setRemote = peer.SetRemoteDescription(ref offer);
@@ -92,15 +102,23 @@ public class WebRTCReceiver : MonoBehaviour
 
         // Enviamos la answer de vuelta al servidor por TCP
         SignalingMessage msg = 
-            new SignalingMessage(ConnectionManager.ipAddress, RemoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(answer)));
+            new SignalingMessage(RemoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(answer)));
         OnSignalingMessage?.Invoke(msg);
     }
 
+    /// <summary>
+    /// Adds the ICE candidate to this peer.
+    /// </summary>
+    /// <param name="init">Initial ICE candidate.</param>
     public void AddIceCandidate(RTCIceCandidateInit init)
     {
         peer.AddIceCandidate(new RTCIceCandidate(init));
     }
 
+    /// <summary>
+    /// Processes data recieved form a DataChannel.
+    /// </summary>
+    /// <param name="b">Block of data.</param>
     private void ProcessData(byte[] b)
     {
         string msg = System.Text.Encoding.UTF8.GetString(b);
@@ -108,16 +126,24 @@ public class WebRTCReceiver : MonoBehaviour
         // TO-DO: process data from server
     }
 
+    /// <summary>
+    /// Processes the video texture that has been received from the VideoTrack object.
+    /// </summary>
+    /// <param name="tex">Texture received.</param>
     private void ProcessVideo(Texture tex)
     {
-        Debug.Log("[WebRTC] Recibiendo video");
+        Debug.Log("[WebRTCReceiver] Receiving video...");
         if (displayTarget != null)
         {
-            Debug.Log("[WebRTC] Aplicando stream");
+            Debug.Log("[WebRTCReceiver] Applying stream.");
             displayTarget.texture = tex;
         }
     }
 
+    /// <summary>
+    /// Sends a JSON through the opened DataChannel
+    /// </summary>
+    /// <param name="json"></param>
     public void SendInput(string json)
     {
         Debug.Log(dataChannel);
@@ -128,13 +154,16 @@ public class WebRTCReceiver : MonoBehaviour
             dataChannel.Send(json);
         }
     }
+
     #endregion
 
     #region MonoBehaviour
+
     void OnDestroy()
     {
         peer?.Close();
         peer?.Dispose();
     }
+
     #endregion
 }
