@@ -199,7 +199,6 @@ public class StreamManager : MonoBehaviour
     #endregion
 
     #region TCP
-
     /// <summary>
     /// Creates the client object and completes the WebRTC connection exchange
     /// </summary>
