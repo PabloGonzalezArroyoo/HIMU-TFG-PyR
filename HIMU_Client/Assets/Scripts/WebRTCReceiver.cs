@@ -11,29 +11,24 @@ public class WebRTCReceiver : MonoBehaviour
     #region Variables
 
     /// <summary>
-    /// Object that represents the P2P connection
+    /// Object that represents the P2P connection.
     /// </summary>
     RTCPeerConnection peer;
 
     /// <summary>
-    /// RTC Channel where data will be sent or recieved from the peer
+    /// RTC Channel where data will be sent or received from the peer.
     /// </summary>
     RTCDataChannel dataChannel;
 
     /// <summary>
-    /// UI where the streamed image is displayed
+    /// UI where the streamed image is displayed.
     /// </summary>
-    [HideInInspector] public RawImage displayTarget;
+    private RawImage displayTarget;
 
     /// <summary>
-    /// Callback for when a signaling message is recieved
+    /// Callback for when a signaling message is received.
     /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
-
-    /// <summary>
-    /// Host IP
-    /// </summary>
-    public string RemoteIp;
 
     #endregion
 
@@ -42,7 +37,7 @@ public class WebRTCReceiver : MonoBehaviour
     /// <summary>
     /// Initializes the WebRTC connection and overrides callbacks for when data is sent through it.
     /// </summary>
-    public void Initialize()
+    private void Initialize()
     {
         Debug.Log("[WebRTCReceiver] Initializing client.");
 
@@ -55,7 +50,7 @@ public class WebRTCReceiver : MonoBehaviour
 
         peer.OnIceCandidate = candidate =>
         {
-            SignalingMessage msg = new SignalingMessage(RemoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
+            SignalingMessage msg = new SignalingMessage(ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
             OnSignalingMessage?.Invoke(msg);
         };
 
@@ -73,7 +68,7 @@ public class WebRTCReceiver : MonoBehaviour
         peer.OnDataChannel = channel =>
         {
             dataChannel = channel;
-            Debug.Log($"[WebRTCReceiver] DataChannel recieved: {channel.Label}");
+            Debug.Log($"[WebRTCReceiver] DataChannel received: {channel.Label}");
 
             channel.OnOpen = () => Debug.Log("[DataChannel] Opened in client.");
             channel.OnClose = () => Debug.Log("[DataChannel] Closed in client.");
@@ -82,8 +77,15 @@ public class WebRTCReceiver : MonoBehaviour
         };
     }
 
+    public void SetUpAndInitialize(RawImage vPanel, System.Action<SignalingMessage> action)
+    {
+        displayTarget = vPanel;
+        OnSignalingMessage = action;
+        Initialize();
+    }
+
     /// <summary>
-    /// Decodes the SDP offer from the host and sends an SDP offer back with what has been recieved.
+    /// Decodes the SDP offer from the host and sends an SDP offer back with what has been received.
     /// </summary>
     /// <param name="offer">SDP offer.</param>
     /// <returns></returns>
@@ -102,7 +104,7 @@ public class WebRTCReceiver : MonoBehaviour
 
         // Enviamos la answer de vuelta al servidor por TCP
         SignalingMessage msg = 
-            new SignalingMessage(RemoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(answer)));
+            new SignalingMessage(ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(answer)));
         OnSignalingMessage?.Invoke(msg);
     }
 
@@ -116,14 +118,13 @@ public class WebRTCReceiver : MonoBehaviour
     }
 
     /// <summary>
-    /// Processes data recieved form a DataChannel.
+    /// Processes data received form a DataChannel.
     /// </summary>
     /// <param name="b">Block of data.</param>
     private void ProcessData(byte[] b)
     {
         string msg = System.Text.Encoding.UTF8.GetString(b);
         Debug.Log($"[DataChannel] Mensaje recibido: {msg}");
-        // TO-DO: process data from server
     }
 
     /// <summary>
@@ -144,7 +145,7 @@ public class WebRTCReceiver : MonoBehaviour
     /// Sends a JSON through the opened DataChannel
     /// </summary>
     /// <param name="json"></param>
-    public void SendInput(string json)
+    public void SendThroughDataChannel(string json)
     {
         Debug.Log(dataChannel);
         Debug.Log(dataChannel.ReadyState);

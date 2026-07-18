@@ -25,13 +25,11 @@ public enum ClientType
 [Serializable]
 public class SignalingMessage
 {
-    public string destinationIp;    // Destination IP, empty = broadcast
     public ConnectionEvent type;
     public string body;             // Serialized SDP or ICE's candidate JSON
 
-    public SignalingMessage(string dIP, ConnectionEvent e, string b)
+    public SignalingMessage(ConnectionEvent e, string b)
     {
-        destinationIp = dIP;
         type = e;
         body = b;
     }
@@ -113,26 +111,28 @@ public class ClientData
     }
 }
 
-[Serializable]
-public class InputData
-{
-    public Vector2 move;        // Movement dir
-    public Vector2 rotation;    // Rot delta
-    public bool sprint;
-    public bool moveUp;
-    public bool moveDown;
+// Input structures
 
-    public InputData(Vector2 move, Vector2 rotation, bool sprint, bool moveUp, bool moveDown)
+[Serializable]
+public class TouchesData
+{
+    public int id;
+    public Vector2 pos;
+
+    public TouchesData(int _id, Vector2 _pos)
     {
-        this.move = move;
-        this.rotation = rotation;
-        this.sprint = sprint;
-        this.moveUp = moveUp;
-        this.moveDown = moveDown;
+        id = _id;
+        pos = _pos;
     }
 }
 
-// Estructuras para la comunicacion con WebSocket
+[Serializable]
+public class InputFrame
+{
+    public TouchesData[] touches;
+}
+
+// WebSocket communication structures
 [Serializable] public class WSBaseMessage { public int type; }
 
 [Serializable] public class WSNewClientMessage { public int type; public int clientId; }

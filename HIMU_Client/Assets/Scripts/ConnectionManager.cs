@@ -167,7 +167,7 @@ public class ConnectionManager : MonoBehaviour
             // Keep stream alive for signaling and communication in the connection handler class
             UnityMainThreadDispatcher.Instance().Enqueue(() => {
                 Debug.Log($"[ConnManager] Handshake sent to {hostIP}:{hostPort}");
-                ClientSignalingHandler.Instance?.StartSession(tcp, stream, hostIP);
+                ClientSignalingHandler.Instance?.StartSession(tcp, stream);
                 UIManager.Instance.OnConnectionStarted(hostIP);
             });
         }

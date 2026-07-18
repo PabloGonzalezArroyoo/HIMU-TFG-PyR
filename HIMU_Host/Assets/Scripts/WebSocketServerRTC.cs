@@ -12,6 +12,8 @@ public class WebSocketServerRTC : MonoBehaviour
 {
     // TO-DO -> COMENTARIOS EN INGLÉS
     #region Variables
+
+    // TO-DO -> BORRAR ESTO?
     /// <summary>
     /// Debe ser la IP del dispositivo que corre el servidor de Node (asumimos que es esta maquina misma)
     /// </summary>
@@ -212,18 +214,18 @@ public class WebSocketServerRTC : MonoBehaviour
             {
                 ws = new ClientWebSocket(); // recrear, un ClientWebSocket fallido no se puede reusar
                 await ws.ConnectAsync(nodeUri, CancellationToken.None);
-                UnityEngine.Debug.Log($"[StreamManager] Conectado a Node: {nodeUri}");
+                UnityEngine.Debug.Log($"[WebSocketServerRTC] Connected to Node: {nodeUri}");
                 _ = ReceiveLoop(_cts);
                 return; // éxito, salir
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogWarning($"[StreamManager] Intento {attempt}/{maxRetries} fallido: {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[WebSocketServerRTC] Failed attemp {attempt}/{maxRetries}: {ex.Message}");
                 await Task.Delay(delayMs);
             }
         }
 
-        UnityEngine.Debug.LogError("[StreamManager] No se pudo conectar a Node tras varios intentos.");
+        UnityEngine.Debug.LogError("[WebSocketServerRTC] Couldn't connect to Node after the maximum attemps.");
     }
 
     /// <summary>
@@ -233,12 +235,12 @@ public class WebSocketServerRTC : MonoBehaviour
     {
         if (ws?.State == WebSocketState.Open && connectedBrowsers.Count > 0)
         {
-            SignalingMessage byeMsg = new SignalingMessage(null, ConnectionEvent.DISCONNECT, null);
+            SignalingMessage byeMsg = new SignalingMessage(ConnectionEvent.DISCONNECT, null);
 
             // copia las claves para no modificar la colección mientras iteras
             foreach (string clientId in new List<string>(connectedBrowsers.Keys))
             {
-                await SendToNodeAsync(byeMsg, clientId);
+                await SendToNode(byeMsg, clientId);
                 StreamManager.Instance.RemovePeerForBrowser(clientId);
             }
 
@@ -255,7 +257,7 @@ public class WebSocketServerRTC : MonoBehaviour
         _cts = new CancellationTokenSource();
         ws = new ClientWebSocket();
 
-        UnityEngine.Debug.Log("[WebSocketServerRTC] Clientes del servidor NODE borrados");
+        UnityEngine.Debug.Log("[WebSocketServerRTC] Node clients deleted.");
     }
 
     /// <summary>
@@ -291,14 +293,14 @@ public class WebSocketServerRTC : MonoBehaviour
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError($"[StreamManager] ReceiveLoop: {ex.Message}");
+                    UnityEngine.Debug.LogError($"[WebSocketServerRTC] ReceiveLoop: {ex.Message}");
                     break;
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            UnityEngine.Debug.LogError($"[StreamManager] ReceiveLoop: Se detuvo el proceso de recepcion de informacion del servidor de Node");
+            UnityEngine.Debug.LogError($"[WebSocketServerRTC] ReceiveLoop: Se detuvo el proceso de recepcion de informacion del servidor de Node");
         }
     }
 
@@ -319,7 +321,7 @@ public class WebSocketServerRTC : MonoBehaviour
             ClientData client = new ClientData(connData, null, clientKey);
 
             connectedBrowsers[clientKey] = client;
-            UnityEngine.Debug.Log($"[StreamManager] Browser registrado: {clientKey} (total: {connectedBrowsers.Count})");
+            UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey} (total: {connectedBrowsers.Count})");
 
             StreamManager.Instance?.CreatePeerForBrowser(client);
             UIManager.Instance?.UpdateStreamClientsText(true);
@@ -331,7 +333,7 @@ public class WebSocketServerRTC : MonoBehaviour
             string clientKey = tagged.clientId.ToString();
 
             if (connectedBrowsers.Remove(clientKey))
-                UnityEngine.Debug.Log($"[StreamManager] Browser eliminado del registro: {clientKey}");
+                UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser Deleted from register: {clientKey}");
 
             StreamManager.Instance?.RemovePeerForBrowser(clientKey);
             UIManager.Instance?.UpdateStreamClientsText(false);
@@ -339,61 +341,49 @@ public class WebSocketServerRTC : MonoBehaviour
         else // SDP o ICE de un browser existente
         {
             WSTaggedMessage tagged = JsonUtility.FromJson<WSTaggedMessage>(rawJson);
+            SignalingMessage sigMsg = new SignalingMessage((ConnectionEvent)tagged.type, tagged.body);
             string clientKey = tagged.clientId.ToString();
-            SignalingMessage sigMsg = new SignalingMessage(nodeHost, (ConnectionEvent)tagged.type, tagged.body);
             StreamManager.Instance?.HandleIncomingSignaling(clientKey, sigMsg);
         }
     }
 
     /// <summary>
-    /// Envia informacion al servidor de node
+    /// Sends date to node's server.
     /// </summary>
-    /// <param name="msg"></param>
-    /// <param name="clientId"></param>
-    public async void SendToNode(SignalingMessage msg, string clientId)
-    {
-        if (ws?.State != WebSocketState.Open) return;
-
-        if (!int.TryParse(clientId, out int idInt))
-        {
-            UnityEngine.Debug.LogError($"[WebSocketServerRTC] clientId invalido: {clientId}");
-            return;
-        }
-
-        WSTaggedMessage tagged = new WSTaggedMessage { type = (int)msg.type, clientId = idInt, body = msg.body };
-        byte[] data = Encoding.UTF8.GetBytes(JsonUtility.ToJson(tagged));
-        await ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Text, true, CancellationToken.None);
-    }
-
-    /// <summary>
-    /// Para el envio del mensaje de desconexion
-    /// </summary>
-    /// <param name="msg"></param>
-    /// <param name="clientId"></param>
+    /// <param name="msg">Signaling message.</param>
+    /// <param name="clientId">Which client seends the date.</param>
     /// <returns></returns>
-    public async Task SendToNodeAsync(SignalingMessage msg, string clientId)
+    public async Task SendToNode(SignalingMessage msg, string clientId)
     {
         if (ws?.State != WebSocketState.Open) return;
 
         if (!int.TryParse(clientId, out int idInt))
         {
-            UnityEngine.Debug.LogError($"[WebSocketServerRTC] clientId invalido: {clientId}");
+            UnityEngine.Debug.LogError($"[WebSocketServerRTC] Invalid clientId: {clientId}");
             return;
         }
 
-        WSTaggedMessage tagged = new WSTaggedMessage { type = (int)msg.type, clientId = idInt, body = msg.body };
-        byte[] data = Encoding.UTF8.GetBytes(JsonUtility.ToJson(tagged));
-        await ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Text, true, CancellationToken.None);
+        try
+        {
+            WSTaggedMessage tagged = new WSTaggedMessage { type = (int)msg.type, clientId = idInt, body = msg.body };
+            byte[] data = Encoding.UTF8.GetBytes(JsonUtility.ToJson(tagged));
+            await ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogError($"[WebSocketServerRTC] Error sending message to Node (clientId={clientId}): {ex.Message}");
+        }
     }
 
     public void ChangeVideoTrack(VideoStreamTrack newTrack)
     {
-        foreach (var client in connectedBrowsers.Values) // o la colección donde tengas tus WebRTCPeer
+        foreach (var client in connectedBrowsers.Values)
         {
-            RTCRtpSender sender = client.webRtcPeer.GetVideoSender(); // necesitas exponer esto en tu clase WebRTCPeer si no lo tienes
+            RTCRtpSender sender = client.webRtcPeer.GetVideoSender();
             sender?.ReplaceTrack(newTrack);
         }
     }
+
     #endregion
 
     #region Monobehaviour
@@ -413,7 +403,7 @@ public class WebSocketServerRTC : MonoBehaviour
     {
         try
         {
-            DisconnectToNode();
+            _ = DisconnectToNode();
             StopServer();
         } catch { }
     }

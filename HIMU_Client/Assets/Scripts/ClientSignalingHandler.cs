@@ -55,22 +55,20 @@ public class ClientSignalingHandler : MonoBehaviour
     /// </summary>
     /// <param name="hostTcp">Object used by the client to talk with the host</param>
     /// <param name="tcpStream">TCP Stream to read/write from.</param>
-    /// <param name="hostIp">Host's IP</param>
-    public void StartSession(TcpClient hostTcp, NetworkStream tcpStream, string hostIp)
+    public void StartSession(TcpClient hostTcp, NetworkStream tcpStream)
     {
         hostConnection = hostTcp;
         stream = tcpStream;
         running = true;
 
-        // Crear y configurar el receiver
+        // Create and configure the receiver
         var go = new GameObject("WebRTCReceiver");
         receiver = go.AddComponent<WebRTCReceiver>();
-        receiver.displayTarget = videoPanel;
-        receiver.RemoteIp = hostIp;
-        receiver.OnSignalingMessage = SendMessage;
-        receiver.Initialize();
-        MovementControls mc = FindFirstObjectByType<MovementControls>();
-        if (mc != null) mc.SetReceiver(receiver);
+        receiver.SetUpAndInitialize(videoPanel, SendMessage);
+
+        // NOTE: maybe this has to be changed or documented, because it assumes that the same go
+        // has at least both ClienSignalingHandler and InputManager attached to it.
+        GetComponent<InputManager>().SetReceiver(receiver);
 
         readThread = new Thread(ReadLoop) { IsBackground = true };
         readThread.Start();
@@ -127,7 +125,7 @@ public class ClientSignalingHandler : MonoBehaviour
     }
 
     /// <summary>
-    /// Sends a SignalingMessage.
+    /// Sends a SignalingMessage throught the TCP stream.
     /// </summary>
     /// <param name="msg">Signaling message.</param>
     private void SendMessage(SignalingMessage msg)

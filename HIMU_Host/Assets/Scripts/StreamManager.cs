@@ -179,7 +179,7 @@ public class StreamManager : MonoBehaviour
 
         GameObject go = new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.ipAddress}");
         WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
-        peer.Initialize(clientID, streamingTexture, msg => webSocketServer.SendToNode(msg, clientID));
+        peer.Initialize(clientID, streamingTexture, msg => _ = webSocketServer.SendToNode(msg, clientID));
         StartCoroutine(peer.CreateOffer());
         clients[clientID].webRtcPeer = peer;
         Debug.Log($"[StreamManager] Created browser peer: {client.ipAddress} (id: {clientID})");
@@ -191,7 +191,7 @@ public class StreamManager : MonoBehaviour
     /// <param name="clientID"></param>
     public void RemovePeerForBrowser(string clientID)
     {
-        Destroy(clients[clientID].webRtcPeer.DestroyPeer());
+        Destroy(clients[clientID].webRtcPeer.gameObject);
         clients.TryRemove(clientID, out var data);
         Debug.Log($"[StreamManager] Destroyed browser peer: {clientID}");
     }
@@ -268,7 +268,7 @@ public class StreamManager : MonoBehaviour
 
     public void RemovePeerForClient(string clientID)
     {
-        Destroy(clients[clientID].webRtcPeer.DestroyPeer());
+        Destroy(clients[clientID].webRtcPeer.gameObject);
         clients.TryRemove(clientID, out var data);
         Debug.Log($"[StreamManager] Destroyed client peer: {clientID}");
     }

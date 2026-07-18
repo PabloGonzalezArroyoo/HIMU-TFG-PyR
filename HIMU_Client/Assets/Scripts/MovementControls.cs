@@ -7,26 +7,26 @@ public class MovementControls : MonoBehaviour
 
     public void UpMovement()
     {
-        InputData inputData = new InputData(Vector2.up, Vector2.zero, false, false, false);
-        reciever.SendInput(JsonUtility.ToJson(inputData));
+        //InputData inputData = new InputData(Vector2.up, Vector2.zero, false, false, false);
+        //reciever.SendInput(JsonUtility.ToJson(inputData));
     }
 
     public void DownMovement()
     {
-        InputData inputData = new InputData(Vector2.down, Vector2.zero, false, false, false);
-        reciever.SendInput(JsonUtility.ToJson(inputData));
+        //InputData inputData = new InputData(Vector2.down, Vector2.zero, false, false, false);
+        //reciever.SendInput(JsonUtility.ToJson(inputData));
     }
 
     public void LeftMovement()
     {
-        InputData inputData = new InputData(Vector2.left, Vector2.zero, false, false, false);
-        reciever.SendInput(JsonUtility.ToJson(inputData));
+        //InputData inputData = new InputData(Vector2.left, Vector2.zero, false, false, false);
+        //reciever.SendInput(JsonUtility.ToJson(inputData));
     }
 
     public void RightMovement()
     {
-        InputData inputData = new InputData(Vector2.right, Vector2.zero, false, false, false);
-        reciever.SendInput(JsonUtility.ToJson(inputData));
+        //InputData inputData = new InputData(Vector2.right, Vector2.zero, false, false, false);
+        //reciever.SendInput(JsonUtility.ToJson(inputData));
     }
 
     public void SetReceiver(WebRTCReceiver r)

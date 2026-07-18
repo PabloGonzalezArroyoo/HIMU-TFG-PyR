@@ -1,94 +1,108 @@
+using System;
 using System.Collections;
-using System.Text;
+using System.Collections.Generic;
 using Unity.WebRTC;
 using UnityEngine;
-using UnityEngine.tvOS;
 
 public class WebRTCPeer : MonoBehaviour
 {
-    // TO-DO -> COMENTARIOS EN INGLÉS
+
     #region Variables
 
     /// <summary>
-    /// Object that represents the P2P connection
+    /// Object that represents the P2P connection.
     /// </summary>
     RTCPeerConnection peer;
 
     /// <summary>
-    /// IP from the client
+    /// This client ID in the overall connected network.
     /// </summary>
-    private string remoteIp;
+    private string clientID;
 
     /// <summary>
-    /// Referencia al sender del video track
+    /// Referencia al sender del video track.
     /// </summary>
     RTCRtpSender videoSender;
 
     /// <summary>
-    /// Object incharged of tracking the RenderTexture encodiing and transmision
+    /// Object incharged of tracking the RenderTexture encodiing and transmision.
     /// </summary>
     VideoStreamTrack videoTrack;
 
     /// <summary>
-    /// Texture where the camera's view will be stored
+    /// Texture where the camera's view will be stored.
     /// </summary>
     public RenderTexture renderTexture;
 
     /// <summary>
-    /// Object incharged of tracking JSON packages
+    /// Object incharged of tracking JSON packages.
     /// </summary>
     RTCDataChannel dataChannel;
 
     /// <summary>
-    /// Callback to send SDP/ICE to the remote client via TCP
+    /// Callback to send SDP/ICE to the remote client via TCP.
     /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
 
     /// <summary>
-    /// 
+    /// Array of inputs recieved in the latest message reception from the peer.
+    /// Volatile so it can be accesible and updated for all threads that could access it
+    /// at the same time.
     /// </summary>
-    //PeerMovementComponent peerMovementComponent;
+    private volatile TouchesData[] latestTouches = Array.Empty<TouchesData>();
+
+    /// <summary>
+    /// Intermediate object between the input registered in this component and the other
+    /// scripts that could use it. It uses the ReadOnly interface so that there is no way for
+    /// external scripts to overwrite or add any data to the input cached.
+    /// </summary>
+    public IReadOnlyList<TouchesData> currentTouches
+    {
+        get { return latestTouches; }
+    }
 
     #endregion
 
     #region Methods
-    public void Initialize(string ip, RenderTexture rt, System.Action<SignalingMessage> onSignalingMsg)
+
+    /// <summary>
+    /// Initializes all WebRTC components for this peer: WebRTC configuration and streaming and data
+    /// reception callbacks.
+    /// </summary>
+    /// <param name="id">Id of this client.</param>
+    /// <param name="rt">RenderTexture of the attached camera for streaming.</param>
+    /// <param name="onSignalingMsg">Callback for when a SignalingMessage is received.</param>
+    public void Initialize(string id, RenderTexture rt, System.Action<SignalingMessage> onSignalingMsg)
     {
-        remoteIp = ip;
+        clientID = id;
         renderTexture = rt;
         OnSignalingMessage = onSignalingMsg;
 
-        // Configuraci�n de la conexi�n. Se usa STUN para descubrir la IP p�blica del dispositivo
-        var config = new RTCConfiguration
+        // Connection configuration. Uses STUN to discover the public IP of this device.
+        RTCConfiguration config = new RTCConfiguration
         {
-            iceServers = new[]
-                {
-                    new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } },
-                    // Candidato host directo como fallback
-                    new RTCIceServer { urls = new[] { "stun:stun1.l.google.com:19302" } }
-                }
+            iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } }
         };
 
-        // Crear la conexi�n a partir de la configuraci�n anterior
+        // Creates the connection with the previous configuration.
         peer = new RTCPeerConnection(ref config);
 
-        // Recibir la informaci�n de un candidato y llamar a un callback
+        // Callback for when receiving a candidate.
         peer.OnIceCandidate = candidate =>
         {
-            SignalingMessage msg = new SignalingMessage(remoteIp, ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
+            SignalingMessage msg = new SignalingMessage(ConnectionEvent.ICE, JsonUtility.ToJson(new IceCandidateData(candidate)));
             OnSignalingMessage?.Invoke(msg);
         };
 
-        // Debug para cuando la conexi�n cambia con el candidato
         peer.OnIceConnectionChange = state =>
             Debug.Log($"[WebRTCPeer] ICE state -> {state}");
 
-        // A�adir el track de v�deo
+        // Add videotrack to the connection.
         videoTrack = new VideoStreamTrack(renderTexture);
         videoSender = peer.AddTrack(videoTrack);
 
-        // Data channel
-        var dataChannelConfig = new RTCDataChannelInit { ordered = true };
+        // Data channel configuration.
+        var dataChannelConfig = new RTCDataChannelInit { ordered = false, maxRetransmits = 0 };
         dataChannel = peer.CreateDataChannel("input", dataChannelConfig);
 
         dataChannel.OnOpen = () => Debug.Log("[DataChannel] Open");
@@ -97,12 +111,16 @@ public class WebRTCPeer : MonoBehaviour
         {
             string msg = System.Text.Encoding.UTF8.GetString(bytes);
             Debug.Log($"[DataChannel] Recieved Message: {msg}");
-            var inputMsg = JsonUtility.FromJson<InputData>(msg);
-            //peerMovementComponent.ApplyNetworkInput(inputMsg);
+            InputFrame frame = JsonUtility.FromJson<InputFrame>(msg);
+            latestTouches = frame.touches;
         };
     }
 
-    // Llamado cuando el cliente remoto nos env�a su SDP Answer
+    /// <summary>
+    /// Called when the remote client sends their SDP Answer.
+    /// </summary>
+    /// <param name="answer">Client's SDP Answer.</param>
+    /// <returns></returns>
     public IEnumerator SetRemoteAnswer(RTCSessionDescription answer)
     {
         RTCSetSessionDescriptionAsyncOperation op = peer.SetRemoteDescription(ref answer);
@@ -110,37 +128,40 @@ public class WebRTCPeer : MonoBehaviour
         if (op.IsError) Debug.LogError($"[WebRTCPeer] SetRemoteDescription: {op.Error.message}");
     }
 
-    // Llamado cuando llega un ICE candidate del cliente remoto
+    /// <summary>
+    /// Called when an ICE candidate is received from the remote client. Adds it to the connection.
+    /// </summary>
+    /// <param name="init">Initialization options for creating an ICE candidate.</param>
     public void AddIceCandidate(RTCIceCandidateInit init)
     {
         peer.AddIceCandidate(new RTCIceCandidate(init));
     }
 
-    // Genera la SDP Offer y la devuelve por callback
+    /// <summary>
+    /// Generates an SDP offer and sends it.
+    /// </summary>
+    /// <returns></returns>
     public IEnumerator CreateOffer()
     {
-        // Crea la oferta
+        // Create offer
         RTCSessionDescriptionAsyncOperation offerOp = peer.CreateOffer();
         yield return offerOp;
 
-        // Asigna las cualidades de este dispositivo
+        // Assign the qualities of this device.
         RTCSessionDescription offer = offerOp.Desc;
         RTCSetSessionDescriptionAsyncOperation setOp = peer.SetLocalDescription(ref offer);
         yield return setOp;
 
-        // Env�a el mensaje
-        SignalingMessage msg = new SignalingMessage(remoteIp, ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(offer)));
+        // Sends the SignalingMessage with this information.
+        string json = JsonUtility.ToJson(new SessionDescriptionData(offer));
+        SignalingMessage msg = new SignalingMessage(ConnectionEvent.SDP, json);
         OnSignalingMessage?.Invoke(msg);
     }
 
-    public GameObject DestroyPeer()
-    {
-        videoTrack?.Dispose();
-        peer?.Close();
-        peer?.Dispose();
-        return gameObject;
-    }
-
+    /// <summary>
+    /// Returns the video track object.
+    /// </summary>
+    /// <returns>Video track object.</returns>
     public RTCRtpSender GetVideoSender()
     {
         return videoSender;
@@ -148,14 +169,15 @@ public class WebRTCPeer : MonoBehaviour
     #endregion
 
     #region Monobehaviour
-    private void Start()
-    {
-        //peerMovementComponent = GetComponent<PeerMovementComponent>();
-    }
 
+    /// <summary>
+    /// Closes the connection and cleans its objects.
+    /// </summary>
     void OnDestroy()
     {
-        DestroyPeer();
+        videoTrack?.Dispose();
+        peer?.Close();
+        peer?.Dispose();
     }
     #endregion
 }
