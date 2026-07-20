@@ -45,7 +45,7 @@ public class SignalingServer : MonoBehaviour
     /// <summary>
     /// Clients structure.
     /// </summary>
-    private readonly ConcurrentDictionary<string, TcpClient> clients = new ConcurrentDictionary<string, TcpClient>();
+    private readonly ConcurrentDictionary<string, TcpClient> tcpSockets = new ConcurrentDictionary<string, TcpClient>();
 
     /// <summary>
     /// Multicast IP group for specific broadcasting
@@ -64,9 +64,9 @@ public class SignalingServer : MonoBehaviour
         running = false;
         searchingDevices = false;
 
-        foreach (var c in clients.Values)
-            try { c.Close(); } catch { }
-        clients.Clear();
+        foreach (var s in tcpSockets.Values)
+            try { s.Close(); } catch { }
+        tcpSockets.Clear();
 
         try { listener?.Stop(); } catch { }
 
@@ -101,7 +101,7 @@ public class SignalingServer : MonoBehaviour
         try
         {
             string ip = NetworkUtils.GetIP();
-            string json = JsonUtility.ToJson(new ConnectionData(ip, listenPort, ConnectionEvent.BROADCAST));
+            string json = JsonUtility.ToJson(ConnectionData.ForBroadcast(ip, listenPort));
             byte[] data = Encoding.UTF8.GetBytes(json);
 
             using (UdpClient sender = new UdpClient())
@@ -162,7 +162,7 @@ public class SignalingServer : MonoBehaviour
     /// <param name="msg">Signaling message content.</param>
     public bool SendMessage(string clientID, SignalingMessage msg)
     {
-        if (!clients.TryGetValue(clientID, out TcpClient tcp)) return false;
+        if (!tcpSockets.TryGetValue(clientID, out TcpClient tcp)) return false;
 
         try
         {
@@ -207,9 +207,9 @@ public class SignalingServer : MonoBehaviour
             }
 
             clientID = Guid.NewGuid().ToString();
-            ClientData newClient = new ClientData(decodedData, stream, clientID);
+            ClientData newClient = ClientData.ForDevice(decodedData, clientID);
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeerForClient(newClient));
-            clients.TryAdd(clientID, tcp);
+            tcpSockets.TryAdd(clientID, tcp);
 
             Debug.Log($"[SignalingServer] Client connected: {decodedData.ipAddress}");
             UIManager.Instance?.UpdateTCPClientsText(true);
@@ -233,16 +233,18 @@ public class SignalingServer : MonoBehaviour
         }
         finally
         {
-            clients.TryRemove(clientID, out _);
+            tcpSockets.TryRemove(clientID, out _);
             tcp.Close();
             UnityMainThreadDispatcher.Instance().Enqueue(() => 
-                StreamManager.Instance?.RemovePeerForClient(clientID));
+                StreamManager.Instance?.RemovePeer(clientID));
             UIManager.Instance?.UpdateTCPClientsText(false);
         }
     }
+
     #endregion
 
     #region Monobehaviour
+
     public void Start()
     {
         StartServer();

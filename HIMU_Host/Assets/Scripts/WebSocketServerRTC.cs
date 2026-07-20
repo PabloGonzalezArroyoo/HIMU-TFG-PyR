@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -48,15 +49,11 @@ public class WebSocketServerRTC : MonoBehaviour
     /// Direccion del servidor de Node
     /// </summary>
     private Uri nodeUri;
-
-    /// <summary>
-    /// Clientes (navegadores) conectados a traves del servidor de Node
-    /// </summary>
-    private readonly Dictionary<string, ClientData> connectedBrowsers = new Dictionary<string, ClientData>();
     
     #endregion
 
-    #region Methods
+    #region Bat
+
     /// <summary>
     /// Metodo que desbloquea el bat para poder ejecutarlo
     /// </summary>
@@ -77,6 +74,63 @@ public class WebSocketServerRTC : MonoBehaviour
             UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo desbloquear el archivo: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Busca que proceso esta escuchando en un puerto TCP dado usando netstat, y lo mata por PID con taskkill
+    /// </summary>
+    void KillProcessOnPort(int port)
+    {
+        try
+        {
+            ProcessStartInfo netstatPsi = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c netstat -ano | findstr :{port}",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
+            };
+
+            using (Process netstat = Process.Start(netstatPsi))
+            {
+                string output = netstat.StandardOutput.ReadToEnd();
+                netstat.WaitForExit();
+
+                var seenPids = new HashSet<string>();
+                foreach (string line in output.Split('\n'))
+                {
+                    string trimmed = line.Trim();
+                    if (string.IsNullOrEmpty(trimmed)) continue;
+
+                    // Ultima columna de netstat -ano es el PID
+                    string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 1) continue;
+
+                    string pid = parts[parts.Length - 1];
+                    if (!int.TryParse(pid, out _)) continue;
+                    if (!seenPids.Add(pid)) continue; // evitar matar el mismo PID varias veces
+
+                    ProcessStartInfo killPsi = new ProcessStartInfo
+                    {
+                        FileName = "taskkill",
+                        Arguments = $"/PID {pid} /F /T",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    Process.Start(killPsi)?.WaitForExit();
+                    UnityEngine.Debug.Log($"[ServerLauncher] Proceso en puerto {port} (PID {pid}) cerrado.");
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar el puerto {port}: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region Connection
 
     /// <summary>
     /// Lanza el servidor de Node ejecutando el archivo .bat
@@ -148,59 +202,6 @@ public class WebSocketServerRTC : MonoBehaviour
     }
 
     /// <summary>
-    /// Busca que proceso esta escuchando en un puerto TCP dado usando netstat, y lo mata por PID con taskkill
-    /// </summary>
-    void KillProcessOnPort(int port)
-    {
-        try
-        {
-            ProcessStartInfo netstatPsi = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c netstat -ano | findstr :{port}",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            };
-
-            using (Process netstat = Process.Start(netstatPsi))
-            {
-                string output = netstat.StandardOutput.ReadToEnd();
-                netstat.WaitForExit();
-
-                var seenPids = new HashSet<string>();
-                foreach (string line in output.Split('\n'))
-                {
-                    string trimmed = line.Trim();
-                    if (string.IsNullOrEmpty(trimmed)) continue;
-
-                    // Ultima columna de netstat -ano es el PID
-                    string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length < 1) continue;
-
-                    string pid = parts[parts.Length - 1];
-                    if (!int.TryParse(pid, out _)) continue;
-                    if (!seenPids.Add(pid)) continue; // evitar matar el mismo PID varias veces
-
-                    ProcessStartInfo killPsi = new ProcessStartInfo
-                    {
-                        FileName = "taskkill",
-                        Arguments = $"/PID {pid} /F /T",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    Process.Start(killPsi)?.WaitForExit();
-                    UnityEngine.Debug.Log($"[ServerLauncher] Proceso en puerto {port} (PID {pid}) cerrado.");
-                }
-            }
-        }
-        catch (System.Exception ex)
-        {
-            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar el puerto {port}: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// Inicia la conexion al servidor de Node (con reintentos por si se llega a ejecutar antes que el LaunchServer acabe)
     /// </summary>
     public async void ConnectToNode()
@@ -233,24 +234,25 @@ public class WebSocketServerRTC : MonoBehaviour
     /// </summary>
     public async Task DisconnectToNode()
     {
-        if (ws?.State == WebSocketState.Open && connectedBrowsers.Count > 0)
+        var browserClients = StreamManager.Instance.GetClients()
+            .Where(c => c.transport == ConnectionTransport.WebSocket).ToList();
+
+        if (ws?.State == WebSocketState.Open && browserClients.Count > 0)
         {
             SignalingMessage byeMsg = new SignalingMessage(ConnectionEvent.DISCONNECT, null);
 
             // copia las claves para no modificar la colección mientras iteras
-            foreach (string clientId in new List<string>(connectedBrowsers.Keys))
+            foreach (var client in browserClients)
             {
-                await SendToNode(byeMsg, clientId);
-                StreamManager.Instance.RemovePeerForBrowser(clientId);
+                await SendToNode(byeMsg, client.identifier);
+                StreamManager.Instance.RemovePeer(client.identifier);
             }
-
         }
 
         _cts?.Cancel();
         if (ws?.State == WebSocketState.Open)
             await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnected", CancellationToken.None);
 
-        connectedBrowsers.Clear();
         UIManager.Instance?.ResetStreamClientsText();
         _cts.Dispose();
         ws.Dispose();
@@ -316,14 +318,11 @@ public class WebSocketServerRTC : MonoBehaviour
         {
             WSNewClientMessage newClient = JsonUtility.FromJson<WSNewClientMessage>(rawJson);
             string clientKey = newClient.clientId.ToString();
-
-            ConnectionData connData = new ConnectionData(clientKey, nodePort, ConnectionEvent.HANDSHAKE, ClientType.STREAM);
-            ClientData client = new ClientData(connData, null, clientKey);
-
-            connectedBrowsers[clientKey] = client;
-            UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey} (total: {connectedBrowsers.Count})");
+            ClientData client = ClientData.ForBrowser(clientKey, clientKey);
 
             StreamManager.Instance?.CreatePeerForBrowser(client);
+            UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
+
             UIManager.Instance?.UpdateStreamClientsText(true);
 
         }
@@ -332,10 +331,9 @@ public class WebSocketServerRTC : MonoBehaviour
             WSTaggedMessage tagged = JsonUtility.FromJson<WSTaggedMessage>(rawJson);
             string clientKey = tagged.clientId.ToString();
 
-            if (connectedBrowsers.Remove(clientKey))
-                UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser Deleted from register: {clientKey}");
+            StreamManager.Instance?.RemovePeer(clientKey);
+            UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser deleted from register: {clientKey}");
 
-            StreamManager.Instance?.RemovePeerForBrowser(clientKey);
             UIManager.Instance?.UpdateStreamClientsText(false);
         }
         else // SDP o ICE de un browser existente
@@ -377,9 +375,10 @@ public class WebSocketServerRTC : MonoBehaviour
 
     public void ChangeVideoTrack(VideoStreamTrack newTrack)
     {
-        foreach (var client in connectedBrowsers.Values)
+        foreach (var client in StreamManager.Instance.GetClients()
+            .Where(c => c.transport == ConnectionTransport.WebSocket))
         {
-            RTCRtpSender sender = client.webRtcPeer.GetVideoSender();
+            RTCRtpSender sender = client.webRtcPeer?.GetVideoSender();
             sender?.ReplaceTrack(newTrack);
         }
     }

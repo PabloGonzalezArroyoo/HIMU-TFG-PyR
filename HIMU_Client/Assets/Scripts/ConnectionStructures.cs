@@ -2,6 +2,8 @@
 using Unity.WebRTC;
 using UnityEngine;
 
+// CLIENT CONNECTION STRUCTURES
+
 public enum ConnectionEvent
 {
     DEFAULT,
@@ -74,19 +76,27 @@ public class SignalingMessage
 [Serializable]
 public class ConnectionData
 {
-    public int port;
-    public string name;
-    public string info;
     public string ipAddress;
+    public int port;
     public ConnectionEvent connType;
     public ClientType clientType;
 
-    public ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
+    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
     {
         this.ipAddress = ipAddress;
         this.port = port;
         this.connType = connEvent;
         this.clientType = clientType;
+    }
+
+    /// <summary>
+    /// Payload a client sends back over TCP to complete the handshake and register itself.
+    /// </summary>
+    /// <param name="clientIP">Client's own IP, used as its identifier until replaced by a GUID.</param>
+    /// <param name="clientType">Declares what kind of client this device is.</param>
+    public static ConnectionData ForHandshake(string clientIP, ClientType clientType)
+    {
+        return new ConnectionData(clientIP, 0, ConnectionEvent.HANDSHAKE, clientType);
     }
 }
 

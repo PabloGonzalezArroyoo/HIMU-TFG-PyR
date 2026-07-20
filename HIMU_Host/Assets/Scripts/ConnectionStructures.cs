@@ -3,6 +3,8 @@ using System.Net.Sockets;
 using Unity.WebRTC;
 using UnityEngine;
 
+// HOST CONNECTION STRUCTURES
+
 public enum ConnectionEvent
 {
     DEFAULT,
@@ -12,6 +14,13 @@ public enum ConnectionEvent
     DISCONNECT,
     SDP,        // SDP: Session Description Protocol (offer/answer)
     ICE         // ICE: Interactive Connectivity Establishment (ICE candidates)
+}
+
+public enum ConnectionTransport
+{
+    NONE,
+    TCP,
+    WebSocket
 }
 
 public enum ClientType
@@ -76,38 +85,77 @@ public class SessionDescriptionData
 [Serializable]
 public class ConnectionData
 {
-    public int port;
-    public string name;
-    public string info;
     public string ipAddress;
+    public int port;
     public ConnectionEvent connType;
     public ClientType clientType;
 
-    public ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
+    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
     {
         this.ipAddress = ipAddress;
         this.port = port;
         this.connType = connEvent;
         this.clientType = clientType;
     }
+
+    /// <summary>
+    /// Payload that the host broadcasts over UDP multicast so nearby devices can discover it.
+    /// </summary>
+    /// <param name="hostIP">Host's IP, so the client knows where to connect.</param>
+    /// <param name="listenPort">TCP port SignalingServer is listening on.</param>
+    public static ConnectionData ForBroadcast(string hostIP, int listenPort)
+    {
+        return new ConnectionData(hostIP, listenPort, ConnectionEvent.BROADCAST, ClientType.NONE);
+    }
+
+    /// <summary>
+    /// Payload a client sends back over TCP to complete the handshake and register itself.
+    /// </summary>
+    /// <param name="clientIP">Client's own IP, used as its identifier until replaced by a GUID.</param>
+    /// <param name="clientType">Declares what kind of client this device is.</param>
+    public static ConnectionData ForHandshake(string clientIP, ClientType clientType)
+    {
+        return new ConnectionData(clientIP, 0, ConnectionEvent.HANDSHAKE, clientType);
+    }
 }
 
 public class ClientData
 {
-    public string ipAddress;
-    public int port;
+    public string identifier;   // IP for TCP / ID for WebSocket
     public ClientType type;
-    public NetworkStream stream;
+    public ConnectionTransport transport;
     public WebRTCPeer webRtcPeer;
     public string clientID;
 
-    public ClientData(ConnectionData connData, NetworkStream stream, string clientID)
+    private ClientData(string identifier, ClientType type, string clientID, ConnectionTransport transport)
     {
-        this.ipAddress = connData.ipAddress;
-        this.port = connData.port;
-        this.stream = stream;
-        this.type = connData.clientType;
+        this.identifier = identifier;
+        this.type = type;
         this.clientID = clientID;
+        this.transport = transport;
+    }
+
+    /// <summary>
+    /// Builds a ClientData for a TCP device that just completed the handshake.
+    /// </summary>
+    /// <param name="connData">Handshake payload received from the device.</param>
+    /// <param name="clientID">GUID assigned by SignalingServer to key this client.</param>
+    public static ClientData ForDevice(ConnectionData connData, string clientID)
+    {
+        return new ClientData(connData.ipAddress, connData.clientType, clientID, ConnectionTransport.TCP);
+    }
+
+    /// <summary>
+    /// Builds a ClientData for a browser client registered via the Node WebSocket.
+    /// Browsers have no IP/port visible to Unity, so the relay's session id is used directly
+    /// as the identifier instead of faking network fields through ConnectionData.
+    /// </summary>
+    /// <param name="sessionId">Session id assigned by Node for this browser tab.</param>
+    /// <param name="clientID">GUID key for this client (currently the same value as sessionId,
+    /// kept as a separate parameter for symmetry with ForDevice, in case that changes later).</param>
+    public static ClientData ForBrowser(string sessionId, string clientID)
+    {
+        return new ClientData(sessionId, ClientType.STREAM, clientID, ConnectionTransport.WebSocket);
     }
 }
 

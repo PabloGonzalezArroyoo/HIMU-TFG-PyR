@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -14,7 +14,8 @@ public class StreamManager : MonoBehaviour
     public static StreamManager Instance { get; private set; }
 
     /// <summary>
-    /// All currently connected clients, keyed by their IP.
+    /// All currently connected clients, keyed by their clientID (GUID for TCP clients,
+    /// session key for browser clients).
     /// ConcurrentDictionary is used instead of Dictionary + lock because multiple background
     /// threads (one per client) may add or remove entries simultaneously
     /// </summary>
@@ -81,28 +82,23 @@ public class StreamManager : MonoBehaviour
 
     #region SharedMethods
 
-    /// <summary>
-    /// Adds a client to the dictionary
-    /// </summary>
-    /// <param name="str">IP of the client</param>
-    /// <param name="client">Client data</param>
-    public bool addClient(string ip, ClientData client)
+    public void RemovePeer(string clientID)
     {
-        return clients.TryAdd(ip, client);
-    }
+        if (!clients.TryRemove(clientID, out var data))
+        {
+            Debug.LogWarning($"[StreamManager] Tried to remove unknown peer: {clientID}");
+            return;
+        }
 
-    /// <summary>
-    /// Removes a client form the dictionary
-    /// </summary>
-    /// <param name="str">IP of the client</param>
-    public bool removeClient(string ip)
-    {
-        return clients.TryRemove(ip, out var client);
+        if (data.webRtcPeer != null)
+            Destroy(data.webRtcPeer.gameObject);
+
+        Debug.Log($"[StreamManager] Destroyed {data.transport} peer: {clientID}");
     }
 
     #endregion
 
-    #region Flagged_Methods
+    #region FlaggedMethods
 
     /// <summary>
     /// Starts or stops the TCP signaling server wether its checkbox is checked
@@ -175,30 +171,20 @@ public class StreamManager : MonoBehaviour
     {
         // Si ese navegador ya esta conectado, se ignora
         string clientID = client.clientID;
-        if (!addClient(clientID, client)) return;
+        if (!clients.TryAdd(clientID, client)) return;
 
-        GameObject go = new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.ipAddress}");
+        GameObject go = new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.identifier}");
         WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
         peer.Initialize(clientID, streamingTexture, msg => _ = webSocketServer.SendToNode(msg, clientID));
         StartCoroutine(peer.CreateOffer());
         clients[clientID].webRtcPeer = peer;
-        Debug.Log($"[StreamManager] Created browser peer: {client.ipAddress} (id: {clientID})");
-    }
-
-    /// <summary>
-    /// Elimina lo creado para representar al cliente navegador
-    /// </summary>
-    /// <param name="clientID"></param>
-    public void RemovePeerForBrowser(string clientID)
-    {
-        Destroy(clients[clientID].webRtcPeer.gameObject);
-        clients.TryRemove(clientID, out var data);
-        Debug.Log($"[StreamManager] Destroyed browser peer: {clientID}");
+        Debug.Log($"[StreamManager] Created browser peer: {client.identifier} (id: {clientID})");
     }
 
     #endregion
 
     #region TCP
+
     /// <summary>
     /// Creates the client object and completes the WebRTC connection exchange
     /// </summary>
@@ -207,10 +193,10 @@ public class StreamManager : MonoBehaviour
     {
         // Add client to the dictionary
         string clientID = client.clientID;
-        if (!addClient(clientID, client)) return;
+        if (!clients.TryAdd(clientID, client)) return;
 
         // Create GameObject
-        GameObject go = new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.ipAddress}");
+        GameObject go = new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.identifier}");
         DontDestroyOnLoad(go);
         go.GetComponent<Transform>().position = Vector3.zero;
         Camera cam = go.AddComponent<Camera>();
@@ -229,7 +215,7 @@ public class StreamManager : MonoBehaviour
         clients[clientID].webRtcPeer = peer;
         StartCoroutine(peer.CreateOffer());
 
-        Debug.Log($"[StreamManager] Created device peer: {client.ipAddress} (id: {clientID})");
+        Debug.Log($"[StreamManager] Created device peer: {client.identifier} (id: {clientID})");
     }
 
     /// <summary>
@@ -260,18 +246,10 @@ public class StreamManager : MonoBehaviour
         }
         else if (msg.type == ConnectionEvent.DISCONNECT)
         {
-            Destroy(peer.webRtcPeer.gameObject);
-            removeClient(clientID);
-            Debug.Log($"[StreamManager] Removed peer: {peer.ipAddress} (id: {clientID})");
+            RemovePeer(clientID);
         }
     }
 
-    public void RemovePeerForClient(string clientID)
-    {
-        Destroy(clients[clientID].webRtcPeer.gameObject);
-        clients.TryRemove(clientID, out var data);
-        Debug.Log($"[StreamManager] Destroyed client peer: {clientID}");
-    }
     #endregion
 
     #region Getters & Setters
@@ -283,6 +261,19 @@ public class StreamManager : MonoBehaviour
     public void SetStreamCamera(Camera newCamera)
     {
         newCamera.targetTexture = streamingTexture;
+    }
+
+    /// <summary>
+    /// Copies the current clients to the returned list.
+    /// </summary>
+    /// <returns>Copy of the clients list.</returns>
+    public List<ClientData> GetClients()
+    {
+        List<ClientData> copy = new List<ClientData>();
+        foreach (var client in clients)
+            copy.Add(client.Value);
+        
+        return copy;
     }
 
     #endregion

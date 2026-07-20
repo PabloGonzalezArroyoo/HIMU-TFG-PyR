@@ -155,7 +155,7 @@ public class ConnectionManager : MonoBehaviour
 
         try
         {
-            string json = JsonUtility.ToJson(new ConnectionData(ipAddress, listenPort, ConnectionEvent.HANDSHAKE, clientType));
+            string json = JsonUtility.ToJson(ConnectionData.ForHandshake(ipAddress, clientType));
             byte[] responseData = Encoding.UTF8.GetBytes(json);
             byte[] header = BitConverter.GetBytes(responseData.Length);
 

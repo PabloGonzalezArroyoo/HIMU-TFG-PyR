@@ -46,7 +46,7 @@ public class HostUIManager : MonoBehaviour
 
     public void GoToPlayScene()
     {
-        SceneManager.LoadScene("MainGameScene");
+        SceneManager.LoadScene("ShooterScene");
     }
 
     private void Awake()
