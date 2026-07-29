@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Unity.WebRTC;
@@ -41,6 +42,11 @@ public class StreamManager : MonoBehaviour
     /// An embeded Signaling Server in the game.
     /// </summary>
     private SignalingServer signalingServer;
+
+    /// <summary>
+    /// Handles phones connected by USB cable through ADB.
+    /// </summary>
+    private ADBConnectionServer adbServer;
 
     /// <summary>
     /// Flag that allows WebSocket connections (browser)
@@ -131,7 +137,7 @@ public class StreamManager : MonoBehaviour
             webSocketServer.StopServer();
             acceptWebSocketConnection = false;
         }
-        else 
+        else
         {
             UnityEngine.Debug.Log("[StreamManager] Launching WebSocket server (Node).");
             webSocketServer.LaunchServer();
@@ -148,13 +154,13 @@ public class StreamManager : MonoBehaviour
         if (acceptUSBConnection)
         {
             UnityEngine.Debug.Log("[StreamManager] Stopping ADB connection.");
-            // TO-DO
+            adbServer.StopServer();
             acceptUSBConnection = false;
         }
         else
         {
             UnityEngine.Debug.Log("[StreamManager] Launching ADB connection.");
-            // TO-DO
+            adbServer.StartServer();
             acceptUSBConnection = true;
         }
     }
@@ -252,6 +258,40 @@ public class StreamManager : MonoBehaviour
 
     #endregion
 
+    #region ADB
+
+    /// <summary>
+    /// Creates the client object and completes the WebRTC connection exchange for a phone
+    /// connected by USB. Identical to CreatePeerForClient except messages are routed through
+    /// the adbServer (TCP tunnel via "adb reverse") instead of the signalingServer.
+    /// </summary>
+    public void CreatePeerForADBClient(ClientData client)
+    {
+        string clientID = client.clientID;
+        if (!clients.TryAdd(clientID, client)) return;
+
+        GameObject go = new GameObject($"{client.type.ToString()}-Adb-Peer_{client.identifier}");
+        DontDestroyOnLoad(go);
+        go.GetComponent<Transform>().position = Vector3.zero;
+        Camera cam = go.AddComponent<Camera>();
+
+        RenderTexture rt = new RenderTexture((int)streamFrameWidth, (int)streamFrameHeight, (int)streamFrameDepth, RenderTextureFormat.BGRA32);
+        rt.enableRandomWrite = true;
+        rt.useMipMap = false;
+        rt.antiAliasing = 1;
+        rt.Create();
+        cam.targetTexture = rt;
+
+        WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
+        peer.Initialize(clientID, rt, msg => adbServer.SendMessage(clientID, msg));
+        clients[clientID].webRtcPeer = peer;
+        StartCoroutine(peer.CreateOffer());
+
+        Debug.Log($"[StreamManager] Created ADB peer: {client.identifier} (id: {clientID})");
+    }
+
+    #endregion
+
     #region Getters & Setters
 
     /// <summary>
@@ -272,10 +312,14 @@ public class StreamManager : MonoBehaviour
         List<ClientData> copy = new List<ClientData>();
         foreach (var client in clients)
             copy.Add(client.Value);
-        
+
         return copy;
     }
 
+    public string GetServerData()
+    {
+        return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
+    }
     #endregion
 
     #region Monobehaviour
@@ -293,6 +337,7 @@ public class StreamManager : MonoBehaviour
     {
         webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
         signalingServer = gameObject.AddComponent<SignalingServer>();
+        adbServer = gameObject.AddComponent<ADBConnectionServer>();
     }
     #endregion
 }

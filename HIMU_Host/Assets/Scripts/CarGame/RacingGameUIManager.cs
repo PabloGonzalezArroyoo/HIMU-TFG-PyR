@@ -1,12 +1,13 @@
+using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class CarGameUIManager : MonoBehaviour
+public class RacingGameUIManager : MonoBehaviour
 {
-    public static CarGameUIManager Instance { get; private set; }
+    public static RacingGameUIManager Instance { get; private set; }
 
     [SerializeField]
     private GameObject initialStateUI;
@@ -17,16 +18,12 @@ public class CarGameUIManager : MonoBehaviour
     [SerializeField]
     private GameObject pauseMenu;
     [SerializeField]
-    private Image fadeOutImage;
+    private FadeOutComponent fadeOutImage;
 
     private float startGameCounter = 6.0f;
     private float raceCounter = 0f;
-    [SerializeField]
-    private float endGameTime = 2.0f;
-    private float endGameCounter = 0f;
 
     private bool isChangingScene = false;
-
 
     private void Awake()
     {
@@ -49,21 +46,25 @@ public class CarGameUIManager : MonoBehaviour
         pauseMenu.SetActive(false);
     }
 
-    public void EndGame()
+    public void EndGame(Action<string> callback)
     {
-        isChangingScene = true;
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("RacingGame_EndScene");
+        if (!isChangingScene)
+        {
+            isChangingScene = true;
+            fadeOutImage.StartFading();
+            fadeOutImage.SetCallback(callback);
+        }
     }
 
     
     void Update()
     {
-        if (!CarGameManager.Instance.gameStarted)
+        if (!RacingGameManager.Instance.gameStarted)
         {
             startGameCounter -= Time.deltaTime;
             if (startGameCounter <= 1)
             {
-                CarGameManager.Instance.gameStarted = true;
+                RacingGameManager.Instance.gameStarted = true;
                 startGameCounter = 6.0f;
                 counterText.text = "5";
                 initialStateUI.SetActive(false);
@@ -74,21 +75,7 @@ public class CarGameUIManager : MonoBehaviour
             }
         }
 
-        
-
-        if (isChangingScene)
-        {
-            endGameCounter += Time.deltaTime;
-            Color aux = fadeOutImage.color;
-            aux.a = endGameCounter / endGameTime;
-            fadeOutImage.color = aux;
-            if (aux.a >= 1)
-            {
-                SceneManager.SetActiveScene(SceneManager.GetSceneByName("RacingGame_EndScene"));
-            }
-        }
-
-        if (CarGameManager.Instance.gameStarted && !isChangingScene) {
+        if (RacingGameManager.Instance.gameStarted && !isChangingScene) {
             raceCounter += Time.deltaTime;
             int raceCounterInt = (int) raceCounter;
             timerText.text = raceCounterInt > 999 ? 999.ToString() : raceCounterInt.ToString();

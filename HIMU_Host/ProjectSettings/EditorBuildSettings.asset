@@ -6,11 +6,20 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/WaitingConnectionScene.unity
-    guid: 8716e91eb85042e4b968499694e0b616
+    path: Assets/Scenes/CarGame/RacingGame_MenuScene.unity
+    guid: 681965ac218d222499e62890befe7a23
   - enabled: 1
-    path: Assets/Scenes/Shooter/ShooterScene.unity
-    guid: 26e80f4c3f93b6a4fa455bfabad587a8
+    path: Assets/Scenes/CarGame/RacingGame_ConnectionsScene.unity
+    guid: c89867d6fc0d1d74f9dd64994f2f3c66
+  - enabled: 1
+    path: Assets/Scenes/CarGame/RacingGame_MainScene.unity
+    guid: 459eda32db1b2764ba528c47e8439928
+  - enabled: 1
+    path: Assets/Scenes/CarGame/RacingGame_RemoteControlScene.unity
+    guid: 27c6c417a775e47478b448bba25bb23a
+  - enabled: 1
+    path: Assets/Scenes/CarGame/RacingGame_EndScene.unity
+    guid: 99f38657b5820a640ac1c799b76c0996
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

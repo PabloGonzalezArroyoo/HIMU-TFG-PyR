@@ -94,7 +94,7 @@ public class CarController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (CarGameManager.Instance.gameStarted && !CarGameManager.Instance.isPaused)
+        if (RacingGameManager.Instance.gameStarted && !RacingGameManager.Instance.isPaused)
         {
             ApplyLateralGrip();
             HandleAcceleration();

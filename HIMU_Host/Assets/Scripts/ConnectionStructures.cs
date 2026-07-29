@@ -20,7 +20,8 @@ public enum ConnectionTransport
 {
     NONE,
     TCP,
-    WebSocket
+    WebSocket,
+    ADB
 }
 
 public enum ClientType
@@ -121,7 +122,7 @@ public class ConnectionData
 
 public class ClientData
 {
-    public string identifier;   // IP for TCP / ID for WebSocket
+    public string identifier;   // IP for TCP / ID for WebSocket / UID for Android devices
     public ClientType type;
     public ConnectionTransport transport;
     public WebRTCPeer webRtcPeer;
@@ -156,6 +157,12 @@ public class ClientData
     public static ClientData ForBrowser(string sessionId, string clientID)
     {
         return new ClientData(sessionId, ClientType.STREAM, clientID, ConnectionTransport.WebSocket);
+    }
+
+
+    public static ClientData ForADB(string sessionId, string clientID)
+    {
+        return new ClientData(sessionId, ClientType.GAMEPAD, clientID, ConnectionTransport.ADB);
     }
 }
 

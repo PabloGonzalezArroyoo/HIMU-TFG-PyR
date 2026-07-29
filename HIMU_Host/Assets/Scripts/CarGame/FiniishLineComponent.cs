@@ -13,7 +13,7 @@ public class FiniishLineComponent : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (lapCounter + 1 > lapsLimit) CarGameManager.Instance.EndGame();
+        if (lapCounter + 1 > lapsLimit) RacingGameManager.Instance.EndGame();
         else
         {
             lapCounter++;

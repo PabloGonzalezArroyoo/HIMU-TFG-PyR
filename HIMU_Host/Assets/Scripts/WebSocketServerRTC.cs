@@ -21,6 +21,8 @@ public class WebSocketServerRTC : MonoBehaviour
     public string nodeHost = "192.168.1.45";
     [SerializeField]
     private int nodePort = 8080;
+    [SerializeField]
+    private int browserPort = 3000;
 
     /// <summary>
     /// Socket de conexion al servidor de Node
@@ -49,7 +51,7 @@ public class WebSocketServerRTC : MonoBehaviour
     /// Direccion del servidor de Node
     /// </summary>
     private Uri nodeUri;
-    
+
     #endregion
 
     #region Bat
@@ -128,6 +130,40 @@ public class WebSocketServerRTC : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Cierra por completo (proceso + todos sus hijos) cualquier ventana de consola cuyo
+    /// titulo coincida exactamente con <paramref name="windowTitle"/>.
+    /// taskkill /FI "WINDOWTITLE eq ..." /T /F localiza la ventana por titulo y mata todo su
+    /// arbol de procesos (padres e hijos), sin depender de si la ventana esta minimizada.
+    /// </summary>
+    void KillByWindowTitle(string windowTitle)
+    {
+        try
+        {
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "taskkill",
+                Arguments = $"/F /T /FI \"WINDOWTITLE eq {windowTitle}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using (Process p = Process.Start(psi))
+            {
+                string output = p.StandardOutput.ReadToEnd();
+                string error = p.StandardError.ReadToEnd();
+                p.WaitForExit();
+                UnityEngine.Debug.Log($"[ServerLauncher] taskkill por titulo '{windowTitle}': {output.Trim()}{error.Trim()}");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar la ventana '{windowTitle}': {ex.Message}");
+        }
+    }
+
     #endregion
 
     #region Connection
@@ -141,6 +177,7 @@ public class WebSocketServerRTC : MonoBehaviour
         ProcessStartInfo psi = new ProcessStartInfo
         {
             FileName = batPath,
+            Arguments = $"{nodePort} {browserPort}",
             WorkingDirectory = System.IO.Path.GetDirectoryName(batPath),
             UseShellExecute = true,
             CreateNoWindow = false
@@ -162,43 +199,15 @@ public class WebSocketServerRTC : MonoBehaviour
     /// </summary>
     public void StopServer()
     {
-        KillProcessOnPort(nodePort);  // 8080 - server.js
-        KillProcessOnPort(3000);      // 3000 - npx serve
+        KillProcessOnPort(nodePort);
+        KillProcessOnPort(browserPort);
 
-        if (launchedBatProcess != null)
-        {
-            try
-            {
-                ProcessStartInfo killPsi = new ProcessStartInfo
-                {
-                    FileName = "taskkill",
-                    Arguments = $"/PID {launchedBatProcess.Id} /T /F",
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                Process.Start(killPsi)?.WaitForExit();
-                UnityEngine.Debug.Log($"[ServerLauncher] Ventana del bat (PID {launchedBatProcess.Id}) cerrada via taskkill /T.");
-            }
-            catch (System.Exception ex)
-            {
-                UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar el PID guardado: {ex.Message}");
-            }
-        }
+        // Cerramos las 3 ventanas abiertas (por el bat) por titulo, matando el arbol completo de procesos de cada una 
+        KillByWindowTitle("Servidor de Streaming");
+        KillByWindowTitle("Server WS");
+        KillByWindowTitle("Server HTML");
 
-        // Fallback: tambien intentamos por titulo por si alguna razon el PID guardado no es el que contiene la ventana visible, .
-        foreach (var process in Process.GetProcessesByName("cmd"))
-        {
-            try
-            {
-                UnityEngine.Debug.Log($"[ServerLauncher] cmd PID {process.Id} titulo: '{process.MainWindowTitle}'");
-                if (process.MainWindowTitle == "Servidor de Streaming")
-                {
-                    process.Kill();
-                    UnityEngine.Debug.Log("[ServerLauncher] Ventana del bat cerrada (fallback por titulo).");
-                }
-            }
-            catch { }
-        }
+        launchedBatProcess = null;
     }
 
     /// <summary>
@@ -385,6 +394,18 @@ public class WebSocketServerRTC : MonoBehaviour
 
     #endregion
 
+    #region Getters&Setters
+    public string GetNodeHost()
+    {
+        return nodeHost;
+    }
+
+    public int GetBrowserPort()
+    {
+        return browserPort;
+    }
+    #endregion
+
     #region Monobehaviour
     public void Start()
     {
@@ -404,7 +425,8 @@ public class WebSocketServerRTC : MonoBehaviour
         {
             _ = DisconnectToNode();
             StopServer();
-        } catch { }
+        }
+        catch { }
     }
     #endregion
 }

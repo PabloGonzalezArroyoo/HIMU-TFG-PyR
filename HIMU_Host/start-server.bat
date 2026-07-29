@@ -3,6 +3,32 @@ setlocal enabledelayedexpansion
 title Servidor de Streaming
 
 :: ============================================================
+:: -1. Minimizar automaticamente esta misma ventana
+::    El script se relanza a si mismo con la ventana minimizada
+::    y la instancia original se cierra.
+:: ============================================================
+if /I not "%~1"=="MIN" (
+    start "" /min "%~f0" MIN %*
+    exit /b
+)
+shift
+
+:: ============================================================
+:: 0. Configurar puertos (con valores por defecto)
+::    Uso: start-server.bat [puerto_ws] [puerto_html]
+::    Ejemplo: start-server.bat 8080 3000
+:: ============================================================
+set "WS_PORT=8080"
+set "HTTP_PORT=3000"
+
+if not "%~1"=="" set "WS_PORT=%~1"
+if not "%~2"=="" set "HTTP_PORT=%~2"
+
+echo Puerto WebSocket: !WS_PORT!
+echo Puerto HTML: !HTTP_PORT!
+echo.
+
+:: ============================================================
 :: 1. Comprobar Node.js
 :: ============================================================
 echo Comprobando Node.js...
@@ -54,15 +80,18 @@ if !errorlevel! neq 0 (
 
 echo Modulos listos.
 
+title Servidor de Streaming
+
 :: ============================================================
-:: 3. Lanzar ambos servidores EN SEGUNDO PLANO en esta misma ventana
-::    /B evita abrir ventanas nuevas para cada proceso.
+:: 3. Lanzar ambos servidores, cada uno en su propia ventana
+::    minimizada (/min).
 :: ============================================================
 echo Iniciando server.js...
-start /B "" node server.js
+set "PORT=!WS_PORT!"
+start "Server WS" /min node server.js
 
 echo Iniciando servidor HTML...
-start /B "" npx serve . -l 3000
+start "Server HTML" /min npx serve . -l !HTTP_PORT!
 
 :: ============================================================
 :: 4. Informar al usuario
@@ -70,15 +99,16 @@ start /B "" npx serve . -l 3000
 echo.
 echo =============================================
 echo  Servidores iniciados correctamente
-echo  WebSocket : ws://localhost:8080
-echo  HTML      : http://localhost:3000
-echo  (Esta ventana puede minimizarse, no cerrarse)
+echo  WebSocket : ws://localhost:!WS_PORT!
+echo  HTML      : http://localhost:!HTTP_PORT!
+echo  (Esta ventana esta minimizada, no la cierres)
 echo =============================================
 echo.
 
-:: Esta ventana se queda abierta esperando. Cerrarla NO mata los
-:: procesos /B (quedan huerfanos), por eso Unity los cierra por
-:: puerto desde C# usando netstat + taskkill.
+:: Esta ventana se queda abierta esperando (minimizada). Cerrarla
+:: NO cierra las ventanas "Server WS" / "Server HTML" (quedan
+:: independientes), por eso Unity las cierra por puerto desde C#,
+:: subiendo por el arbol de procesos hasta el cmd.exe que las abrio.
 :loop
 timeout /t 3600 /nobreak >nul
 goto loop
