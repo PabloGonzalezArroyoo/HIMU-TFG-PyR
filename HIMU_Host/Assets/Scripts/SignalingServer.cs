@@ -245,11 +245,6 @@ public class SignalingServer : MonoBehaviour
 
     #region Monobehaviour
 
-    public void Start()
-    {
-        StartServer();
-    }
-
     void OnDestroy()
     {
         try { StopServer(); } catch { }

@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Unity.Mathematics;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -14,7 +15,6 @@ public class WebSocketServerRTC : MonoBehaviour
     // TO-DO -> COMENTARIOS EN INGLÉS
     #region Variables
 
-    // TO-DO -> BORRAR ESTO?
     /// <summary>
     /// Debe ser la IP del dispositivo que corre el servidor de Node (asumimos que es esta maquina misma)
     /// </summary>
@@ -23,6 +23,7 @@ public class WebSocketServerRTC : MonoBehaviour
     private int nodePort = 8080;
     [SerializeField]
     private int browserPort = 3000;
+    private int sessionID = 1234;
 
     /// <summary>
     /// Socket de conexion al servidor de Node
@@ -129,41 +130,6 @@ public class WebSocketServerRTC : MonoBehaviour
             UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar el puerto {port}: {ex.Message}");
         }
     }
-
-    /// <summary>
-    /// Cierra por completo (proceso + todos sus hijos) cualquier ventana de consola cuyo
-    /// titulo coincida exactamente con <paramref name="windowTitle"/>.
-    /// taskkill /FI "WINDOWTITLE eq ..." /T /F localiza la ventana por titulo y mata todo su
-    /// arbol de procesos (padres e hijos), sin depender de si la ventana esta minimizada.
-    /// </summary>
-    void KillByWindowTitle(string windowTitle)
-    {
-        try
-        {
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                FileName = "taskkill",
-                Arguments = $"/F /T /FI \"WINDOWTITLE eq {windowTitle}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-
-            using (Process p = Process.Start(psi))
-            {
-                string output = p.StandardOutput.ReadToEnd();
-                string error = p.StandardError.ReadToEnd();
-                p.WaitForExit();
-                UnityEngine.Debug.Log($"[ServerLauncher] taskkill por titulo '{windowTitle}': {output.Trim()}{error.Trim()}");
-            }
-        }
-        catch (System.Exception ex)
-        {
-            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar la ventana '{windowTitle}': {ex.Message}");
-        }
-    }
-
     #endregion
 
     #region Connection
@@ -202,10 +168,32 @@ public class WebSocketServerRTC : MonoBehaviour
         KillProcessOnPort(nodePort);
         KillProcessOnPort(browserPort);
 
-        // Cerramos las 3 ventanas abiertas (por el bat) por titulo, matando el arbol completo de procesos de cada una 
-        KillByWindowTitle("Servidor de Streaming");
-        KillByWindowTitle("Server WS");
-        KillByWindowTitle("Server HTML");
+        string windowTitle = "Streaming server";
+
+        try
+        {
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "taskkill",
+                Arguments = $"/F /T /FI \"WINDOWTITLE eq {windowTitle}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using (Process p = Process.Start(psi))
+            {
+                string output = p.StandardOutput.ReadToEnd();
+                string error = p.StandardError.ReadToEnd();
+                p.WaitForExit();
+                UnityEngine.Debug.Log($"[ServerLauncher] taskkill por titulo '{windowTitle}': {output.Trim()}{error.Trim()}");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar la ventana '{windowTitle}': {ex.Message}");
+        }
 
         launchedBatProcess = null;
     }
@@ -409,14 +397,13 @@ public class WebSocketServerRTC : MonoBehaviour
     #region Monobehaviour
     public void Start()
     {
+        System.Random rnd = new System.Random();
+        sessionID = rnd.Next(1000, 10000);
         nodeHost = NetworkUtils.GetIP();
         batPath = System.IO.Path.Combine(Application.dataPath, "..", batRelativePath);
         ws = new ClientWebSocket();
-        nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity");
+        nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity&id={sessionID}");
         _cts = new CancellationTokenSource();
-
-        LaunchServer();
-        ConnectToNode();
     }
 
     void OnDestroy()

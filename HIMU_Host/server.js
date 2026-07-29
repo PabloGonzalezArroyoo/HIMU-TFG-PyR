@@ -14,6 +14,7 @@ let nextClientId = 0;                 // contador global de clientes navegador
 
 const SESSION_ID_REGEX = /^\d{4}$/;
 
+// Devuelve o crea una entrada en el mapa de clientes para una sesion de Unity
 function getOrCreateBrowserMap(sessionId) {
     if (!browserClients.has(sessionId)) {
         browserClients.set(sessionId, new Map());
@@ -21,6 +22,7 @@ function getOrCreateBrowserMap(sessionId) {
     return browserClients.get(sessionId);
 }
 
+// Devuelve los mensajes pendientes de una sesion
 function getPendingQueue(sessionId) {
     if (!pendingForUnity.has(sessionId)) {
         pendingForUnity.set(sessionId, []);
@@ -32,29 +34,32 @@ wss.on('connection', (ws, req) => {
     const params = new URL(req.url, 'http://localhost').searchParams;
     const clientType = params.get('type');
     const sessionId = params.get('id');
-
+    // Cliente Unity: debe indicar que sesion es
     if (clientType === 'unity') {
-        // Validar el id de sesión
+        // Validar el id 
         if (!sessionId || !SESSION_ID_REGEX.test(sessionId)) {
             console.log(`ERR: Unity conectado con id inválido ("${sessionId}") — se esperaba un número de 4 dígitos`);
             ws.close(1008, 'ID de sesión inválido, debe ser numérico de 4 dígitos');
             return;
         }
 
+        // Usuario no valido (ya esta conectado)
         if (unityClients.has(sessionId)) {
             console.log(`ERR: Unity con id=${sessionId} ya está conectado`);
             ws.close(1008, 'ID de sesión ya en uso');
             return;
         }
 
+        // Almacenamos el nuevo cliente
         unityClients.set(sessionId, ws);
         console.log(`CONN: Unity conectado (session=${sessionId})`);
 
-        // Enviar mensajes pendientes de esta sesión
+        // Enviar mensajes pendientes que tienen destion la sesion nueva
         const pending = getPendingQueue(sessionId);
         for (const data of pending) ws.send(data);
         pendingForUnity.set(sessionId, []);
 
+        // Comportamiento del servidor cuando una sesion de Unity envia mensaje (Unity -> browser)
         ws.on('message', (data) => {
             const msg = JSON.parse(data);
             console.log(`MSSG: [unity ${sessionId}] → ${msg.type}`);
@@ -77,8 +82,9 @@ wss.on('connection', (ws, req) => {
                 }
             }
         });
-
+        // Comportamiento del servidor cuando se desconecta una sesion de unity
         ws.on('close', () => {
+            // Informar y borrar estructuras
             console.log(`CLSE: Unity desconectado (session=${sessionId})`);
             unityClients.delete(sessionId);
             pendingForUnity.delete(sessionId);
@@ -95,8 +101,8 @@ wss.on('connection', (ws, req) => {
             browserClients.delete(sessionId);
         });
 
-    } else {
-        // Cliente navegador: debe indicar a qué sesión de Unity quiere conectarse
+    } 
+    else { // Cliente navegador: debe indicar a que sesion de Unity quiere conectarse
         if (!sessionId || !SESSION_ID_REGEX.test(sessionId)) {
             console.log(`ERR: Navegador conectado sin id de sesión válido ("${sessionId}")`);
             ws.close(1008, 'Debes indicar ?id=XXXX con el id de sesión de Unity');
@@ -108,12 +114,13 @@ wss.on('connection', (ws, req) => {
         sessionBrowsers.set(clientId, ws);
         console.log(`CONN: Navegador conectado (session=${sessionId}, id=${clientId})`);
 
-        // Avisar a Unity (si esa sesión está conectada) que hay un cliente nuevo
+        // Avisar a Unity (si esa sesion esta conectada) que hay un cliente nuevo
         const unityClient = unityClients.get(sessionId);
         if (unityClient?.readyState === WebSocket.OPEN) {
             unityClient.send(JSON.stringify({ type: 99, clientId }));
         }
 
+        // Comportamiento del servidor cuando un navegador envia mensaje (browser -> Unity)
         ws.on('message', (data) => {
             const msg = JSON.parse(data);
             console.log(`MSSG: [browser ${sessionId}/${clientId}] → ${msg.type}`);
@@ -121,6 +128,7 @@ wss.on('connection', (ws, req) => {
             // Añadir clientId para que Unity sepa de qué móvil viene
             const tagged = JSON.stringify({ ...msg, clientId });
 
+            // Mandar mensaje o enviar mensajes encolados
             const unity = unityClients.get(sessionId);
             if (unity?.readyState === WebSocket.OPEN) {
                 unity.send(tagged);
@@ -129,6 +137,7 @@ wss.on('connection', (ws, req) => {
             }
         });
 
+        // Comportamiento del servidor cuando se desconecta un navegador
         ws.on('close', () => {
             console.log(`CLSE: Navegador ${clientId} desconectado (session=${sessionId})`);
             sessionBrowsers.delete(clientId);

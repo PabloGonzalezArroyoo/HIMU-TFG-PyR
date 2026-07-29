@@ -46,6 +46,7 @@ public class RacingGameManager : MonoBehaviour
     public void OnStreamButtonClicked()
     {
         streaming = (!streaming);
+        StreamManager.Instance.FlagWebSocketServer();
         RacingConnectionsUIManager.Instance.StreamSwitched(streaming);
     }
 
