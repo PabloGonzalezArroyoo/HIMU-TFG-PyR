@@ -247,6 +247,7 @@ public class SignalingServer : MonoBehaviour
 
     void OnDestroy()
     {
+        if (!running) return;
         try { StopServer(); } catch { }
     }
 

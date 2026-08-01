@@ -24,7 +24,7 @@ public class WebSocketServerRTC : MonoBehaviour
     [SerializeField]
     private int browserPort = 3000;
     private int sessionID = 1234;
-
+    private bool running = false;
     /// <summary>
     /// Socket de conexion al servidor de Node
     /// </summary>
@@ -139,6 +139,7 @@ public class WebSocketServerRTC : MonoBehaviour
     /// </summary>
     public void LaunchServer()
     {
+        running = true;
         UnblockFile(batPath);
         ProcessStartInfo psi = new ProcessStartInfo
         {
@@ -165,6 +166,7 @@ public class WebSocketServerRTC : MonoBehaviour
     /// </summary>
     public void StopServer()
     {
+        running = false;
         KillProcessOnPort(nodePort);
         KillProcessOnPort(browserPort);
 
@@ -408,6 +410,7 @@ public class WebSocketServerRTC : MonoBehaviour
 
     void OnDestroy()
     {
+        if (!running) return;
         try
         {
             _ = DisconnectToNode();

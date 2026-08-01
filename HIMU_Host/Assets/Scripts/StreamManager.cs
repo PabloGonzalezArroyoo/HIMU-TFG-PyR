@@ -294,6 +294,11 @@ public class StreamManager : MonoBehaviour
 
     #region Getters & Setters
 
+    public RenderTexture GetStreamCamera()
+    {
+        return streamingTexture;
+    }
+
     /// <summary>
     /// Sets the new streamed camera by pointing its rendered texture to the streaming texture.
     /// </summary>
@@ -331,6 +336,12 @@ public class StreamManager : MonoBehaviour
 
         StartCoroutine(WebRTC.Update());
         NetworkUtils.GetIP();
+
+        streamingTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.BGRA32);
+        streamingTexture.enableRandomWrite = true;
+        streamingTexture.useMipMap = false;
+        streamingTexture.antiAliasing = 1;
+        streamingTexture.Create();
     }
 
     private void Start()

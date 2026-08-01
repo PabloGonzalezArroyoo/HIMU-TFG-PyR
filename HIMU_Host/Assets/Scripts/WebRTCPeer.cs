@@ -111,8 +111,7 @@ public class WebRTCPeer : MonoBehaviour
         {
             string msg = System.Text.Encoding.UTF8.GetString(bytes);
             Debug.Log($"[DataChannel] Recieved Message: {msg}");
-            InputFrame frame = JsonUtility.FromJson<InputFrame>(msg);
-            latestTouches = frame.touches;
+            InputManager.Instance.ProcessInputMessage(msg);
         };
     }
 

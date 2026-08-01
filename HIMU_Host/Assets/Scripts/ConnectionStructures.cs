@@ -122,7 +122,7 @@ public class ConnectionData
 
 public class ClientData
 {
-    public string identifier;   // IP for TCP / ID for WebSocket / UID for Android devices
+    public string identifier;               // IP for TCP / ID for WebSocket / UID for Android devices
     public ClientType type;
     public ConnectionTransport transport;
     public WebRTCPeer webRtcPeer;
