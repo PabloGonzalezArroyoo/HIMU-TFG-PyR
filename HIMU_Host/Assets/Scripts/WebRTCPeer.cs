@@ -37,7 +37,7 @@ public class WebRTCPeer : MonoBehaviour
     /// <summary>
     /// Object incharged of tracking JSON packages.
     /// </summary>
-    RTCDataChannel dataChannel;
+    RTCDataChannel inputTrack;
 
     /// <summary>
     /// Callback to send SDP/ICE to the remote client via TCP.
@@ -56,7 +56,7 @@ public class WebRTCPeer : MonoBehaviour
     /// scripts that could use it. It uses the ReadOnly interface so that there is no way for
     /// external scripts to overwrite or add any data to the input cached.
     /// </summary>
-    public IReadOnlyList<TouchesData> currentTouches
+    public IReadOnlyList<TouchesData> CurrentTouches
     {
         get { return latestTouches; }
     }
@@ -103,11 +103,11 @@ public class WebRTCPeer : MonoBehaviour
 
         // Data channel configuration.
         var dataChannelConfig = new RTCDataChannelInit { ordered = false, maxRetransmits = 0 };
-        dataChannel = peer.CreateDataChannel("input", dataChannelConfig);
+        inputTrack = peer.CreateDataChannel("input", dataChannelConfig);
 
-        dataChannel.OnOpen = () => Debug.Log("[DataChannel] Open");
-        dataChannel.OnClose = () => Debug.Log("[DataChannel] Closed");
-        dataChannel.OnMessage = bytes =>
+        inputTrack.OnOpen = () => Debug.Log("[DataChannel] Open");
+        inputTrack.OnClose = () => Debug.Log("[DataChannel] Closed");
+        inputTrack.OnMessage = bytes =>
         {
             string msg = System.Text.Encoding.UTF8.GetString(bytes);
             Debug.Log($"[DataChannel] Recieved Message: {msg}");

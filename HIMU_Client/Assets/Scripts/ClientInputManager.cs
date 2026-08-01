@@ -1,6 +1,8 @@
 using UnityEngine;
+using UnityEngine.InputSystem.EnhancedTouch;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
-public class InputManager : MonoBehaviour
+public class ClientInputManager : MonoBehaviour
 {
     #region Variables
 
@@ -32,6 +34,17 @@ public class InputManager : MonoBehaviour
 
     #region Monobehaviour
 
+    private void OnEnable()
+    {
+        // EnhancedTouch is disabled by default (perf reasons), so it must be enabled explicitly.
+        EnhancedTouchSupport.Enable();
+    }
+
+    private void OnDisable()
+    {
+        EnhancedTouchSupport.Disable();
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -41,9 +54,10 @@ public class InputManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (receiver != null) return;
+        if (receiver == null) return;
 
-        int count = Input.touchCount;
+        var activeTouches = Touch.activeTouches;
+        int count = activeTouches.Count;
 
         // Nothing to send -> there weren't and there aren't any touches
         if (count == 0 && previousTouchCount == 0) return;
@@ -51,8 +65,10 @@ public class InputManager : MonoBehaviour
         TouchesData[] touches = new TouchesData[count];
         for (int i = 0; i < count; i++)
         {
-            Touch t = Input.GetTouch(i);
-            touches[i] = new TouchesData(t.fingerId, t.position);
+            Touch t = activeTouches[i];
+            Vector2 normalizedPos = new Vector2(t.screenPosition.x / Screen.width, t.screenPosition.y / Screen.height);
+            Debug.Log(normalizedPos);
+            touches[i] = new TouchesData(t.touchId, t.screenPosition);
         }
 
         InputFrame frameInput = new InputFrame(touches);

@@ -22,6 +22,13 @@ public class ShooterPlayerController : MonoBehaviour
     private float moveZ;
     private float rotationInput;
 
+    private WebRTCPeer peer = null;
+
+    public void SetPeerComponent(WebRTCPeer webRTCPeer) 
+    {
+        peer = webRTCPeer;
+    }
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -42,22 +49,18 @@ public class ShooterPlayerController : MonoBehaviour
 
     private void ReadInput()
     {
-        var keyboard = Keyboard.current;
-        if (keyboard == null) return; // no hay teclado detectado
+        if (peer == null) return; // no hay peer detecteado
 
         moveX = 0f;
         moveZ = 0f;
-
-        if (keyboard.wKey.isPressed) moveZ += 1f;
-        if (keyboard.sKey.isPressed) moveZ -= 1f;
-        if (keyboard.dKey.isPressed) moveX += 1f;
-        if (keyboard.aKey.isPressed) moveX -= 1f;
-
         rotationInput = 0f;
 
-        // Solo flechas izquierda/derecha, nada de A/D para evitar conflicto con el movimiento
-        if (keyboard.rightArrowKey.isPressed) rotationInput += 1f;
-        if (keyboard.leftArrowKey.isPressed) rotationInput -= 1f;
+        foreach (var touch in peer.CurrentTouches)
+        {
+            Vector2 p = touch.pos;
+
+            // TO-DO
+        }
     }
 
     private void HandleMovement()

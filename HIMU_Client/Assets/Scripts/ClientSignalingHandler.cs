@@ -68,7 +68,7 @@ public class ClientSignalingHandler : MonoBehaviour
 
         // NOTE: maybe this has to be changed or documented, because it assumes that the same go
         // has at least both ClienSignalingHandler and InputManager attached to it.
-        GetComponent<InputManager>().SetReceiver(receiver);
+        GetComponent<ClientInputManager>().SetReceiver(receiver);
 
         readThread = new Thread(ReadLoop) { IsBackground = true };
         readThread.Start();
