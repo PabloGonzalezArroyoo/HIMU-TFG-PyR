@@ -942,6 +942,66 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4842888263158114, guid: e6f343cc46467004f811ce2ba3a3841b, type: 3}
   m_PrefabInstance: {fileID: 129397556}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &142089877
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 142089880}
+  - component: {fileID: 142089879}
+  - component: {fileID: 142089878}
+  m_Layer: 0
+  m_Name: Input
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &142089878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 142089877}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6e586516a0a3114e84e846785341b78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RacingInputController
+  paused: 0
+--- !u!114 &142089879
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 142089877}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d2e172022342254ba84a8d016f05080, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InputManager
+  shouldPersist: 0
+  pendingInputFrames: []
+--- !u!4 &142089880
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 142089877}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4321.961, y: -0.00002, z: 10458.146}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &159675548
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1087,8 +1147,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 982683660}
-        m_TargetAssemblyTypeName: CarGameManager, Assembly-CSharp
+      - m_Target: {fileID: 142089878}
+        m_TargetAssemblyTypeName: RacingInputController, Assembly-CSharp
         m_MethodName: ResumeGame
         m_Mode: 1
         m_Arguments:
@@ -4740,7 +4800,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7865b6bfdd64d7342bd35faed81a325b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FiniishLineComponent
-  lapsLimit: 5
+  lapsLimit: 2
   lapText: {fileID: 82393793}
 --- !u!1001 &685287108
 PrefabInstance:
@@ -5134,7 +5194,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 706628386}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1607321344134336368, guid: c20023e0fdaebf54fa01fe3f9d9ca8f0, type: 3}
+        m_TargetAssemblyTypeName: RacingGameManager, Assembly-CSharp
+        m_MethodName: OnStreamButtonClicked
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &706628386
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7043,52 +7115,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4021494074433550, guid: 23f312332b5cd5542ba196450880e89b, type: 3}
   m_PrefabInstance: {fileID: 971056052}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &982683659
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 982683661}
-  - component: {fileID: 982683660}
-  m_Layer: 0
-  m_Name: GameManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &982683660
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 982683659}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af9dd3070face7f48a364bc8383df515, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CarGameManager
-  gameStarted: 0
-  isPaused: 0
---- !u!4 &982683661
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 982683659}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -807.3105, y: -607.7705, z: 221.41891}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1012894721
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7932,6 +7958,7 @@ GameObject:
   - component: {fileID: 1116964866}
   - component: {fileID: 1116964868}
   - component: {fileID: 1116964867}
+  - component: {fileID: 1116964869}
   m_Layer: 5
   m_Name: FadeOutImage
   m_TagString: Untagged
@@ -7972,7 +7999,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 0, g: 0, b: 0, a: 0}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -7996,6 +8023,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1116964865}
   m_CullTransparentMesh: 1
+--- !u!114 &1116964869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1116964865}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e3140c153e0a444381fdc465540fada, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FadeOutComponent
+  timeToFade: 2
+  nextScene: RacingGame_EndScene
 --- !u!1 &1123738080
 GameObject:
   m_ObjectHideFlags: 0
@@ -10953,7 +10994,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -500}
-  m_SizeDelta: {x: 400, y: 50}
+  m_SizeDelta: {x: 1500, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1529831436
 MonoBehaviour:
@@ -10984,8 +11025,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4278255360
+  m_fontColor: {r: 0, g: 1, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -13040,10 +13081,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CarGameUIManager
   initialStateUI: {fileID: 1699392950}
   counterText: {fileID: 643267909}
+  streamingText: {fileID: 1529831436}
   timerText: {fileID: 1187047181}
   pauseMenu: {fileID: 1166151823}
-  fadeOutImage: {fileID: 1116964867}
-  endGameTime: 2
+  fadeOutImage: {fileID: 1116964869}
 --- !u!1001 &1765022772
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13595,7 +13636,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1864810917}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1607321344134336368, guid: c20023e0fdaebf54fa01fe3f9d9ca8f0, type: 3}
+        m_TargetAssemblyTypeName: RacingGameManager, Assembly-CSharp
+        m_MethodName: ExitGame
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1864810917
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15781,4 +15834,4 @@ SceneRoots:
   - {fileID: 1045871078}
   - {fileID: 1741512786}
   - {fileID: 1162642967}
-  - {fileID: 982683661}
+  - {fileID: 142089880}

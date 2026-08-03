@@ -185,6 +185,9 @@ public class TouchesData
 public class InputFrame
 {
     public TouchesData[] touches;
+    // Acelerometro
+    // GPS?
+    // Micro
 }
 
 // WebSocket communication structures

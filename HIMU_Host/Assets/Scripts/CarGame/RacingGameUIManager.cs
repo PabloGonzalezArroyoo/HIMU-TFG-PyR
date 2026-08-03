@@ -14,6 +14,8 @@ public class RacingGameUIManager : MonoBehaviour
     [SerializeField]
     private TextMeshProUGUI counterText;
     [SerializeField]
+    private TextMeshProUGUI streamingText;
+    [SerializeField]
     private TextMeshProUGUI timerText;
     [SerializeField]
     private GameObject pauseMenu;
@@ -56,7 +58,26 @@ public class RacingGameUIManager : MonoBehaviour
         }
     }
 
-    
+    public void ExitGame(Action<string> callback)
+    {
+        if (!isChangingScene) {
+            isChangingScene = true;
+            fadeOutImage.SetScene("RacingGame_MenuScene");
+            fadeOutImage.StartFading();
+            fadeOutImage.SetCallback(callback);
+        }
+    }
+
+    public void StreamSwitched(bool active)
+    {
+        streamingText.gameObject.SetActive(active);
+        streamingText.text = "STREAMING ON " + StreamManager.Instance.GetServerData();
+    }
+    private void Start()
+    {
+        streamingText.gameObject.SetActive(RacingGameManager.Instance.streaming);
+    }
+
     void Update()
     {
         if (!RacingGameManager.Instance.gameStarted)
@@ -75,10 +96,15 @@ public class RacingGameUIManager : MonoBehaviour
             }
         }
 
-        if (RacingGameManager.Instance.gameStarted && !isChangingScene) {
+        if (RacingGameManager.Instance.gameStarted && !RacingGameManager.Instance.isPaused && !isChangingScene) {
             raceCounter += Time.deltaTime;
             int raceCounterInt = (int) raceCounter;
-            timerText.text = raceCounterInt > 999 ? 999.ToString() : raceCounterInt.ToString();
+            timerText.text = Math.Min(raceCounterInt, 999).ToString();
         }
+    }
+
+    private void OnDestroy()
+    {
+        RacingGameManager.Instance.SetScore(Math.Min((int)raceCounter, 999));
     }
 }

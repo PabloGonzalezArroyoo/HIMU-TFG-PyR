@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -20,11 +21,7 @@ public class FadeOutComponent : MonoBehaviour
 
     public void StartFading()
     {
-        if (!isFading)
-        {
-            isFading = true;
-            SceneManager.LoadSceneAsync(nextScene);
-        }
+        if (!isFading) StartCoroutine(Fade());
     }
 
     public void SetCallback(Action<string> c)
@@ -32,25 +29,29 @@ public class FadeOutComponent : MonoBehaviour
         callback = c;
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public void SetScene(string scene)
     {
-        image = GetComponent<Image>();
+        nextScene = scene;
     }
 
-    // Update is called once per frame
-    void Update()
+    private IEnumerator Fade()
     {
-        if (isFading)
+        isFading = true;
+        while (timer < timeToFade)
         {
             timer += Time.deltaTime;
             Color aux = image.color;
             aux.a = timer / timeToFade;
             image.color = aux;
-            if (aux.a >= 1)
-            {
-                callback(nextScene);
-            }
+            yield return null;
         }
+
+        callback(nextScene);
+    }
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        image = GetComponent<Image>();
     }
 }

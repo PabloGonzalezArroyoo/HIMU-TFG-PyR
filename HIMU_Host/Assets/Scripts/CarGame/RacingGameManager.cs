@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -11,14 +12,74 @@ public class RacingGameManager : MonoBehaviour
     public bool streaming = false;
     public bool controllerConnected = false;
 
-    public void StartGame()
+    private int recordTime = 0;
+
+    public int GetScore()
     {
-        RacingConnectionsUIManager.Instance.StartGame(ChangeScene);
+        return recordTime;
+    }
+
+    public void SetScore(int record)
+    {
+        recordTime = record;
+    }
+
+    public void LoadRemoteControlScene(Scene current, Scene next)
+    {
+        if (next.name != "RacingGame_MainScene") return;
+
+        SceneManager.LoadScene("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
+    }
+
+
+    public void OnGameStarted(Scene loadedScene, LoadSceneMode mode)
+    {
+        if (mode != LoadSceneMode.Additive) return;
+
+        Camera backgroundCamera = FindCameraInScene(loadedScene);
+        StreamManager.Instance.SetStreamCamera(backgroundCamera);
+    }
+
+    private Camera FindCameraInScene(UnityEngine.SceneManagement.Scene scene)
+    {
+        // Recorremos los objetos raíz de la escena buscando la cámara
+        foreach (GameObject rootObj in scene.GetRootGameObjects())
+        {
+            // Si se especificó un nombre concreto, priorizamos búsqueda exacta
+            if (!string.IsNullOrEmpty("RemoteControl_Camera"))
+            {
+                if (rootObj.name == "RemoteControl_Camera")
+                {
+                    Camera cam = rootObj.GetComponent<Camera>();
+                    if (cam != null) return cam;
+                }
+
+                Transform found = rootObj.transform.Find("RemoteControl_Camera");
+                if (found != null)
+                {
+                    Camera cam = found.GetComponent<Camera>();
+                    if (cam != null) return cam;
+                }
+            }
+
+            // Fallback: cualquier Camera dentro del árbol de este root
+            Camera anyCam = rootObj.GetComponentInChildren<Camera>(true);
+            if (anyCam != null) return anyCam;
+        }
+
+        return null;
     }
 
     public void EndGame()
     {
         RacingGameUIManager.Instance.EndGame(ChangeScene);
+        gameStarted = false;
+        isPaused = true;
+    }
+
+    public void ExitGame()
+    {
+        RacingGameUIManager.Instance.ExitGame(ChangeScene);
     }
 
     public void PauseGame()
@@ -33,21 +94,20 @@ public class RacingGameManager : MonoBehaviour
         RacingGameUIManager.Instance.Resume();
     }
 
-    public void GoToConnectionsScene()
-    {
-        RacingMenuUIManager.Instance.ChangeToConnections(ChangeScene);
-    }
-
     public void ChangeScene(string sceneName)
     {
-        SceneManager.SetActiveScene(SceneManager.GetSceneByName(sceneName));
+        SceneManager.LoadScene(sceneName);
     }
 
     public void OnStreamButtonClicked()
     {
         streaming = (!streaming);
         StreamManager.Instance.FlagWebSocketServer();
-        RacingConnectionsUIManager.Instance.StreamSwitched(streaming);
+    }
+
+    public void OnADBButtonClicked()
+    {
+
     }
 
     private void Awake()
@@ -60,14 +120,5 @@ public class RacingGameManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-    }
-
-    void Update()
-    {
-        if (Keyboard.current.escapeKey.wasReleasedThisFrame)
-        {
-            if(isPaused) ResumeGame();
-            else PauseGame();
-        }
     }
 }

@@ -367,7 +367,6 @@ public class ADBConnectionServer : MonoBehaviour
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeerForADBClient(newClient));
 
             UnityEngine.Debug.Log($"[ADBServer] Client registered: {session.deviceId} (id: {clientID})");
-            RacingConnectionsUIManager.Instance?.UpdateADBClientsText(true);
 
             while (running)
             {
@@ -393,7 +392,6 @@ public class ADBConnectionServer : MonoBehaviour
             {
                 sessionsByClientID.TryRemove(clientID, out _);
                 UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.RemovePeer(clientID));
-                RacingConnectionsUIManager.Instance?.UpdateADBClientsText(false);
             }
 
             session.clientID = null;

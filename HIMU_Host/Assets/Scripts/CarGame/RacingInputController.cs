@@ -1,9 +1,9 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class RacingInputController : MonoBehaviour
 {
     public bool paused = false;
-
 
     public void PauseGame()
     {
@@ -25,5 +25,17 @@ public class RacingInputController : MonoBehaviour
     private void ProcessInput()
     {
 
+    }
+
+    private void Update()
+    {
+        // Aqui proceso el input y meto la logica
+
+        //
+        if (RacingGameManager.Instance.gameStarted && Keyboard.current.escapeKey.wasReleasedThisFrame)
+        {
+            if (paused) ResumeGame(); 
+            else PauseGame();
+        }
     }
 }

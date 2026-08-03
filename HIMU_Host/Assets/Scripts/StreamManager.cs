@@ -4,6 +4,10 @@ using System.Collections.Generic;
 using Unity.WebRTC;
 using UnityEngine;
 
+public delegate RenderTexture TextureAssignmentCallback(ClientData client, params object[] args);
+
+public delegate void CreateClient(ClientData client);
+
 public class StreamManager : MonoBehaviour
 {
 
@@ -53,18 +57,21 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private bool acceptWebSocketConnection = true;
+    private bool webSocketConnectionOn = false;
 
     /// <summary>
     /// Flag that allows TCP connections (devices)
     /// </summary>
     [SerializeField]
     private bool acceptTCPConnection = true;
+    private bool tcpConnectionOn = false;
 
     /// <summary>
     /// Flag that allows USB connections (cabled devices)
     /// </summary>
     [SerializeField]
-    private bool acceptUSBConnection = true;
+    private bool acceptADBConnection = true;
+    private bool adbConnectionOn = false;
 
     /// <summary>
     /// Frame's width
@@ -84,6 +91,13 @@ public class StreamManager : MonoBehaviour
     [SerializeField]
     private uint streamFrameDepth = 24;
 
+    private TextureAssignmentCallback browserTextureCallback;
+    private TextureAssignmentCallback tcpTextureCallback;
+    private TextureAssignmentCallback adbTextureCallback;
+
+    private CreateClient browserClientCallback;
+    private CreateClient tcpClientCallback;
+    private CreateClient adbClientCallback;
     #endregion
 
     #region SharedMethods
@@ -111,17 +125,18 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     public void FlagSignalingServer()
     {
-        if (acceptTCPConnection)
+        if (!acceptTCPConnection) return;
+        if (tcpConnectionOn)
         {
             UnityEngine.Debug.Log("[StreamManager] Stopping TCP signaling server.");
             signalingServer.StopServer();
-            acceptTCPConnection = false;
+            tcpConnectionOn = false;
         }
         else
         {
             UnityEngine.Debug.Log("[StreamManager] Launching TCP signaling server.");
             signalingServer.StartServer();
-            acceptTCPConnection = true;
+            tcpConnectionOn = true;
         }
     }
 
@@ -130,19 +145,20 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     public async void FlagWebSocketServer()
     {
-        if (acceptWebSocketConnection)
+        if (!acceptWebSocketConnection) return;
+        if (webSocketConnectionOn)
         {
             UnityEngine.Debug.Log("[StreamManager] Stopping WebSocket server (Node).");
             await webSocketServer.DisconnectToNode();
             webSocketServer.StopServer();
-            acceptWebSocketConnection = false;
+            webSocketConnectionOn = false;
         }
         else
         {
             UnityEngine.Debug.Log("[StreamManager] Launching WebSocket server (Node).");
             webSocketServer.LaunchServer();
             webSocketServer.ConnectToNode();
-            acceptWebSocketConnection = true;
+            webSocketConnectionOn = true;
         }
     }
 
@@ -151,17 +167,18 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     public void FlagADBConnection()
     {
-        if (acceptUSBConnection)
+        if (!acceptADBConnection) return;
+        if (adbConnectionOn)
         {
             UnityEngine.Debug.Log("[StreamManager] Stopping ADB connection.");
             adbServer.StopServer();
-            acceptUSBConnection = false;
+            acceptADBConnection = false;
         }
         else
         {
             UnityEngine.Debug.Log("[StreamManager] Launching ADB connection.");
             adbServer.StartServer();
-            acceptUSBConnection = true;
+            adbConnectionOn = true;
         }
     }
 
@@ -325,6 +342,11 @@ public class StreamManager : MonoBehaviour
     {
         return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
     }
+
+    public int GetADBClients()
+    {
+        return 0;
+    }
     #endregion
 
     #region Monobehaviour
@@ -346,9 +368,9 @@ public class StreamManager : MonoBehaviour
 
     private void Start()
     {
-        webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
-        signalingServer = gameObject.AddComponent<SignalingServer>();
-        adbServer = gameObject.AddComponent<ADBConnectionServer>();
+        if (acceptWebSocketConnection) webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
+        if (acceptTCPConnection) signalingServer = gameObject.AddComponent<SignalingServer>();
+        if (acceptADBConnection) adbServer = gameObject.AddComponent<ADBConnectionServer>();
     }
     #endregion
 }

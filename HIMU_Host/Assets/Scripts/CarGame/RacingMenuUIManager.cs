@@ -9,10 +9,10 @@ public class RacingMenuUIManager : MonoBehaviour
     [SerializeField]
     private FadeOutComponent fadeOutImage;
 
-    public void ChangeToConnections(Action<string> callback)
+    public void GoToConnections()
     {
         fadeOutImage.StartFading();
-        fadeOutImage.SetCallback(callback);
+        fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
     }
 
     private void Awake()

@@ -1,6 +1,9 @@
 using System;
+using System.Collections;
+using System.Drawing.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class RacingConnectionsUIManager : MonoBehaviour
@@ -10,25 +13,86 @@ public class RacingConnectionsUIManager : MonoBehaviour
     [SerializeField]
     private FadeOutComponent fadeOutImage;
     [SerializeField]
+    private TextMeshProUGUI adbStatusText;
+    [SerializeField]
     private TextMeshProUGUI streamText;
+    [SerializeField]
+    private GameObject playButton;
 
-    public void StartGame(Action<string> callback)
+    private bool searchingADB = false;
+    public bool deviceFound = false;
+    private bool fading = false;
+    [SerializeField]
+    private float searchLimitTime = 5f;
+    private float timer = 0f;
+
+    public void SearchADBClients()
     {
+        if (searchingADB) return;
+
+        adbStatusText.text = "SEARCHING";
+        adbStatusText.color = Color.yellow;
+        searchingADB = true;
+        StartCoroutine(SearchForDevices());
+    }
+
+    public void StreamSwitched()
+    {
+        RacingGameManager.Instance.OnStreamButtonClicked();
+        streamText.gameObject.SetActive(RacingGameManager.Instance.streaming);
+        streamText.text = "STREAMING ON " + StreamManager.Instance.GetServerData();
+    }
+
+    public void StartGame()
+    {
+        fading = true;
         fadeOutImage.StartFading();
-        fadeOutImage.SetCallback(callback);
+        fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+        SceneManager.activeSceneChanged += RacingGameManager.Instance.LoadRemoteControlScene;
+        SceneManager.sceneLoaded += RacingGameManager.Instance.OnGameStarted;
     }
 
-    public void UpdateADBClientsText(bool conected)
+    private IEnumerator SearchForDevices()
     {
-
-    }
-
-    public void StreamSwitched(bool active)
-    {
-        streamText.gameObject.SetActive(active);
-        if (active)
+        StreamManager.Instance.FlagADBConnection();
+        while (!deviceFound && timer < searchLimitTime)
         {
-            streamText.text = "STREAMING ON " + StreamManager.Instance.GetServerData();
+            timer += Time.deltaTime;
+            deviceFound = StreamManager.Instance.GetADBClients() > 0;
+            yield return null;
+        }
+
+        timer = 0f;
+        searchingADB = false;
+        if (!deviceFound)
+        {
+            adbStatusText.text = "PHONE MISSING";
+            adbStatusText.color = Color.red;
+            StreamManager.Instance.FlagADBConnection();
+        }
+        else
+        {
+            playButton.SetActive(true);
+            adbStatusText.text = "PHONE FOUND";
+            adbStatusText.color = Color.green;
+            StartCoroutine(CheckADBClient());
+        }
+    }
+
+    private IEnumerator CheckADBClient()
+    {
+        while (deviceFound && !fading)
+        {
+            deviceFound = StreamManager.Instance.GetADBClients() > 0;
+            yield return null;
+        }
+
+        if (!deviceFound)
+        {
+            playButton.SetActive(false);
+            adbStatusText.text = "PHONE MISSING";
+            adbStatusText.color = Color.red;
+            StreamManager.Instance.FlagADBConnection();
         }
     }
 
@@ -41,5 +105,13 @@ public class RacingConnectionsUIManager : MonoBehaviour
         }
 
         Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 }

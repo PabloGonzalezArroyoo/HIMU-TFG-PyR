@@ -67,8 +67,6 @@ public class TestScenesBackground : MonoBehaviour
         }
     }
 
-
-
     private IEnumerator LoadBackgroundSceneAsync()
     {
         AsyncOperation op = SceneManager.LoadSceneAsync(backgroundSceneName, LoadSceneMode.Additive);
