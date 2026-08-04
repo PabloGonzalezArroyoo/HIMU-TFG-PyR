@@ -1,4 +1,5 @@
-using System.Collections;
+using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -6,6 +7,10 @@ using UnityEngine.SceneManagement;
 public class RacingGameManager : MonoBehaviour
 {
     public static RacingGameManager Instance { get; private set; }
+
+    private RenderTexture connectionsTexture;
+    private RenderTexture gameTexture;
+    private RenderTexture controlTexture;
 
     public bool gameStarted = false;
     public bool isPaused = false;
@@ -31,30 +36,79 @@ public class RacingGameManager : MonoBehaviour
         SceneManager.LoadScene("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
     }
 
-
-    public void OnGameStarted(Scene loadedScene, LoadSceneMode mode)
+    private void ChangeStreamTextures()
     {
-        if (mode != LoadSceneMode.Additive) return;
-
-        Camera backgroundCamera = FindCameraInScene(loadedScene);
-        StreamManager.Instance.SetStreamCamera(backgroundCamera);
+        List<ClientData> browserClients = StreamManager.Instance.GetBrowserClients();
+        foreach (ClientData client in browserClients) {
+            client.himuClient.ChangeTexture(gameTexture);
+        }
     }
 
-    private Camera FindCameraInScene(UnityEngine.SceneManagement.Scene scene)
+    private void AssignADBTexture()
+    {
+        List<ClientData> adbClients = StreamManager.Instance.GetADBClients();
+        foreach (ClientData client in adbClients) {
+            client.himuClient.ChangeTexture(controlTexture);
+        }
+    }
+
+    private void PrepareTextures()
+    {
+        connectionsTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.BGRA32);
+        connectionsTexture.enableRandomWrite = true;
+        connectionsTexture.useMipMap = false;
+        connectionsTexture.antiAliasing = 1;
+        connectionsTexture.Create();
+
+        gameTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.BGRA32);
+        gameTexture.enableRandomWrite = true;
+        gameTexture.useMipMap = false;
+        gameTexture.antiAliasing = 1;
+        gameTexture.Create();
+
+        controlTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.BGRA32);
+        controlTexture.enableRandomWrite = true;
+        controlTexture.useMipMap = false;
+        controlTexture.antiAliasing = 1;
+        controlTexture.Create();
+    }
+
+    public void OnSceneChanged(Scene loadedScene, LoadSceneMode mode)
+    {
+        // Cuando se carga la escena de mando -> seteamos la camara del cliente adb
+        if (mode == LoadSceneMode.Additive)
+        {
+            Camera backgroundCamera = FindCameraInScene(loadedScene, "RemoteControl_Camera");
+            backgroundCamera.targetTexture = controlTexture;
+            AssignADBTexture();
+            Debug.Log("Escena de mando cargada");
+        }
+
+        // Cuando se carga la escena de juego -> seteamos la camara de los clientes WebSocket
+        if (loadedScene.name.Contains("Main"))
+        {
+            Camera mainCamera = FindCameraInScene(loadedScene, "StreamCamera");
+            mainCamera.targetTexture = gameTexture;
+            ChangeStreamTextures();
+            Debug.Log("Escena de juego cargada");
+        }
+    }
+
+    private Camera FindCameraInScene(UnityEngine.SceneManagement.Scene scene, string cameraName)
     {
         // Recorremos los objetos raíz de la escena buscando la cámara
         foreach (GameObject rootObj in scene.GetRootGameObjects())
         {
             // Si se especificó un nombre concreto, priorizamos búsqueda exacta
-            if (!string.IsNullOrEmpty("RemoteControl_Camera"))
+            if (!string.IsNullOrEmpty(cameraName))
             {
-                if (rootObj.name == "RemoteControl_Camera")
+                if (rootObj.name == cameraName)
                 {
                     Camera cam = rootObj.GetComponent<Camera>();
                     if (cam != null) return cam;
                 }
 
-                Transform found = rootObj.transform.Find("RemoteControl_Camera");
+                Transform found = rootObj.transform.Find(cameraName);
                 if (found != null)
                 {
                     Camera cam = found.GetComponent<Camera>();
@@ -72,26 +126,18 @@ public class RacingGameManager : MonoBehaviour
 
     public void EndGame()
     {
-        RacingGameUIManager.Instance.EndGame(ChangeScene);
         gameStarted = false;
         isPaused = true;
-    }
-
-    public void ExitGame()
-    {
-        RacingGameUIManager.Instance.ExitGame(ChangeScene);
     }
 
     public void PauseGame()
     {
         isPaused = true;
-        RacingGameUIManager.Instance.Pause();
     }
 
     public void ResumeGame()
     {
         isPaused = false;
-        RacingGameUIManager.Instance.Resume();
     }
 
     public void ChangeScene(string sceneName)
@@ -105,11 +151,6 @@ public class RacingGameManager : MonoBehaviour
         StreamManager.Instance.FlagWebSocketServer();
     }
 
-    public void OnADBButtonClicked()
-    {
-
-    }
-
     private void Awake()
     {
         if (Instance)
@@ -120,5 +161,6 @@ public class RacingGameManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        PrepareTextures();
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class RacingMenuUIManager : MonoBehaviour
@@ -13,6 +14,8 @@ public class RacingMenuUIManager : MonoBehaviour
     {
         fadeOutImage.StartFading();
         fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+        SceneManager.activeSceneChanged += RacingGameManager.Instance.LoadRemoteControlScene;
+        SceneManager.sceneLoaded += RacingGameManager.Instance.OnSceneChanged;
     }
 
     private void Awake()

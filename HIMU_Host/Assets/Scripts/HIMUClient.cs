@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Unity.WebRTC;
 using UnityEngine;
 
-public class WebRTCPeer : MonoBehaviour
+public class HIMUClient : MonoBehaviour
 {
 
     #region Variables
@@ -164,6 +164,13 @@ public class WebRTCPeer : MonoBehaviour
     public RTCRtpSender GetVideoSender()
     {
         return videoSender;
+    }
+
+    public void ChangeTexture(RenderTexture texture)
+    {
+        VideoStreamTrack newVST = new VideoStreamTrack(texture);
+        videoTrack.Dispose();
+        videoSender.ReplaceTrack(newVST);
     }
     #endregion
 

@@ -22,9 +22,9 @@ public class ShooterPlayerController : MonoBehaviour
     private float moveZ;
     private float rotationInput;
 
-    private WebRTCPeer peer = null;
+    private HIMUClient peer = null;
 
-    public void SetPeerComponent(WebRTCPeer webRTCPeer) 
+    public void SetPeerComponent(HIMUClient webRTCPeer) 
     {
         peer = webRTCPeer;
     }

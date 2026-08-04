@@ -125,7 +125,7 @@ public class ClientData
     public string identifier;               // IP for TCP / ID for WebSocket / UID for Android devices
     public ClientType type;
     public ConnectionTransport transport;
-    public WebRTCPeer webRtcPeer;
+    public HIMUClient himuClient;
     public string clientID;
 
     private ClientData(string identifier, ClientType type, string clientID, ConnectionTransport transport)

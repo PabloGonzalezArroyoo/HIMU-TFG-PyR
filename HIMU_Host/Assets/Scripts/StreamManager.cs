@@ -110,8 +110,8 @@ public class StreamManager : MonoBehaviour
             return;
         }
 
-        if (data.webRtcPeer != null)
-            Destroy(data.webRtcPeer.gameObject);
+        if (data.himuClient != null)
+            Destroy(data.himuClient.gameObject);
 
         Debug.Log($"[StreamManager] Destroyed {data.transport} peer: {clientID}");
     }
@@ -197,13 +197,12 @@ public class StreamManager : MonoBehaviour
         if (!clients.TryAdd(clientID, client)) return;
 
         GameObject go = new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.identifier}");
-        WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
+        HIMUClient peer = go.AddComponent<HIMUClient>();
         peer.Initialize(clientID, streamingTexture, msg => _ = webSocketServer.SendToNode(msg, clientID));
         StartCoroutine(peer.CreateOffer());
-        clients[clientID].webRtcPeer = peer;
+        clients[clientID].himuClient = peer;
         Debug.Log($"[StreamManager] Created browser peer: {client.identifier} (id: {clientID})");
     }
-
     #endregion
 
     #region TCP
@@ -233,9 +232,9 @@ public class StreamManager : MonoBehaviour
         cam.targetTexture = rt;
 
         // Create RTC connection Peer
-        WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
+        HIMUClient peer = go.AddComponent<HIMUClient>();
         peer.Initialize(clientID, rt, msg => signalingServer.SendMessage(clientID, msg));
-        clients[clientID].webRtcPeer = peer;
+        clients[clientID].himuClient = peer;
         StartCoroutine(peer.CreateOffer());
 
         Debug.Log($"[StreamManager] Created device peer: {client.identifier} (id: {clientID})");
@@ -259,13 +258,13 @@ public class StreamManager : MonoBehaviour
                 sdpMid = data.sdpMid,
                 sdpMLineIndex = data.sdpMLineIndex
             };
-            peer.webRtcPeer.AddIceCandidate(init);
+            peer.himuClient.AddIceCandidate(init);
         }
         else if (msg.type == ConnectionEvent.SDP)
         {
             SessionDescriptionData data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
             RTCSessionDescription answer = data.ToRTCDesc();
-            StartCoroutine(peer.webRtcPeer.SetRemoteAnswer(answer));
+            StartCoroutine(peer.himuClient.SetRemoteAnswer(answer));
         }
         else if (msg.type == ConnectionEvent.DISCONNECT)
         {
@@ -299,9 +298,9 @@ public class StreamManager : MonoBehaviour
         rt.Create();
         cam.targetTexture = rt;
 
-        WebRTCPeer peer = go.AddComponent<WebRTCPeer>();
+        HIMUClient peer = go.AddComponent<HIMUClient>();
         peer.Initialize(clientID, rt, msg => adbServer.SendMessage(clientID, msg));
-        clients[clientID].webRtcPeer = peer;
+        clients[clientID].himuClient = peer;
         StartCoroutine(peer.CreateOffer());
 
         Debug.Log($"[StreamManager] Created ADB peer: {client.identifier} (id: {clientID})");
@@ -338,14 +337,45 @@ public class StreamManager : MonoBehaviour
         return copy;
     }
 
+    public List<ClientData> GetBrowserClients()
+    {
+        return webSocketServer.GetClients();
+    }
+
     public string GetServerData()
     {
         return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
     }
 
-    public int GetADBClients()
+    public List<ClientData> GetADBClients()
     {
-        return 0;
+        return adbServer.GetClients();
+    }
+
+    public CreateClient GetBrowserClientCallback()
+    {
+        return browserClientCallback;
+    }
+
+    public void SetBrowserClientCallback(CreateClient newCallback)
+    {
+        browserClientCallback = newCallback;
+    }
+    public CreateClient GetTCPClientCallback()
+    {
+        return tcpClientCallback;
+    }
+    public void SetTCPClientCallback(CreateClient newCallback)
+    {
+        tcpClientCallback = newCallback;
+    }
+    public CreateClient GetADBClientCallback()
+    {
+        return adbClientCallback;
+    }
+    public void SetADBClientCallback(CreateClient newCallback)
+    {
+        adbClientCallback = newCallback;
     }
     #endregion
 

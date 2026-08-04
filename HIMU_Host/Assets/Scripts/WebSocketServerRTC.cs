@@ -6,7 +6,6 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Unity.Mathematics;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -52,6 +51,8 @@ public class WebSocketServerRTC : MonoBehaviour
     /// Direccion del servidor de Node
     /// </summary>
     private Uri nodeUri;
+
+    private List<ClientData> clients = new List<ClientData>();
 
     #endregion
 
@@ -319,10 +320,9 @@ public class WebSocketServerRTC : MonoBehaviour
             string clientKey = newClient.clientId.ToString();
             ClientData client = ClientData.ForBrowser(clientKey, clientKey);
 
-            StreamManager.Instance?.CreatePeerForBrowser(client);
+            StreamManager.Instance?.GetBrowserClientCallback()(client);
+            clients.Add(client);
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
-
-            UIManager.Instance?.UpdateStreamClientsText(true);
 
         }
         else if (baseMsg.type == (int)ConnectionEvent.DISCONNECT) // un navegador se desconectó del lado de Node
@@ -332,8 +332,6 @@ public class WebSocketServerRTC : MonoBehaviour
 
             StreamManager.Instance?.RemovePeer(clientKey);
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser deleted from register: {clientKey}");
-
-            UIManager.Instance?.UpdateStreamClientsText(false);
         }
         else // SDP o ICE de un browser existente
         {
@@ -377,7 +375,7 @@ public class WebSocketServerRTC : MonoBehaviour
         foreach (var client in StreamManager.Instance.GetClients()
             .Where(c => c.transport == ConnectionTransport.WebSocket))
         {
-            RTCRtpSender sender = client.webRtcPeer?.GetVideoSender();
+            RTCRtpSender sender = client.himuClient?.GetVideoSender();
             sender?.ReplaceTrack(newTrack);
         }
     }
@@ -393,6 +391,11 @@ public class WebSocketServerRTC : MonoBehaviour
     public int GetBrowserPort()
     {
         return browserPort;
+    }
+
+    public List<ClientData> GetClients()
+    {
+        return clients;
     }
     #endregion
 

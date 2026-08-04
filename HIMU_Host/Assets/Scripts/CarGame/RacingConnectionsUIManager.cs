@@ -48,8 +48,6 @@ public class RacingConnectionsUIManager : MonoBehaviour
         fading = true;
         fadeOutImage.StartFading();
         fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
-        SceneManager.activeSceneChanged += RacingGameManager.Instance.LoadRemoteControlScene;
-        SceneManager.sceneLoaded += RacingGameManager.Instance.OnGameStarted;
     }
 
     private IEnumerator SearchForDevices()
@@ -58,7 +56,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
         while (!deviceFound && timer < searchLimitTime)
         {
             timer += Time.deltaTime;
-            deviceFound = StreamManager.Instance.GetADBClients() > 0;
+            deviceFound = StreamManager.Instance.GetADBClients().Count > 0;
             yield return null;
         }
 
@@ -75,7 +73,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
             playButton.SetActive(true);
             adbStatusText.text = "PHONE FOUND";
             adbStatusText.color = Color.green;
-            StartCoroutine(CheckADBClient());
+            //StartCoroutine(CheckADBClient());
         }
     }
 
@@ -83,7 +81,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
     {
         while (deviceFound && !fading)
         {
-            deviceFound = StreamManager.Instance.GetADBClients() > 0;
+            deviceFound = StreamManager.Instance.GetADBClients().Count > 0;
             yield return null;
         }
 

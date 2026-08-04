@@ -16,7 +16,7 @@ public class ShooterManager : MonoBehaviour
 
         for (int i = 0; i < peers.Count; i++)
         {
-            Transform cam = peers[i].webRtcPeer.gameObject.transform;
+            Transform cam = peers[i].himuClient.gameObject.transform;
             cam.SetParent(spawnPositions[i].transform.GetChild(0).transform, false);
 
             cam.localPosition = new Vector3(0f, 0.6f, 0f);

@@ -18,6 +18,8 @@ public class RacingGameUIManager : MonoBehaviour
     [SerializeField]
     private TextMeshProUGUI timerText;
     [SerializeField]
+    private GameObject disconnectionText;
+    [SerializeField]
     private GameObject pauseMenu;
     [SerializeField]
     private FadeOutComponent fadeOutImage;
@@ -26,6 +28,49 @@ public class RacingGameUIManager : MonoBehaviour
     private float raceCounter = 0f;
 
     private bool isChangingScene = false;
+
+    public void Pause()
+    {
+        pauseMenu.SetActive(true);
+    }
+
+    public void Resume()
+    {
+        pauseMenu.SetActive(false);
+    }
+
+    public void EndGame()
+    {
+        if (!isChangingScene)
+        {
+            isChangingScene = true;
+            fadeOutImage.StartFading();
+            fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+        }
+    }
+
+    public void ShowDisconnectionText()
+    {
+        disconnectionText.SetActive(true);
+    }
+
+    public void ExitGame()
+    {
+        if (!isChangingScene) {
+            isChangingScene = true;
+            fadeOutImage.SetScene("RacingGame_MenuScene");
+            fadeOutImage.StartFading();
+            fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+            Destroy(StreamManager.Instance.gameObject);
+        }
+    }
+
+    public void StreamSwitched()
+    {
+        RacingGameManager.Instance.OnStreamButtonClicked();
+        streamingText.gameObject.SetActive(RacingGameManager.Instance.streaming);
+        streamingText.text = "STREAMING ON " + StreamManager.Instance.GetServerData();
+    }
 
     private void Awake()
     {
@@ -38,41 +83,6 @@ public class RacingGameUIManager : MonoBehaviour
         Instance = this;
     }
 
-    public void Pause()
-    {
-        pauseMenu.SetActive(true);
-    }
-
-    public void Resume()
-    {
-        pauseMenu.SetActive(false);
-    }
-
-    public void EndGame(Action<string> callback)
-    {
-        if (!isChangingScene)
-        {
-            isChangingScene = true;
-            fadeOutImage.StartFading();
-            fadeOutImage.SetCallback(callback);
-        }
-    }
-
-    public void ExitGame(Action<string> callback)
-    {
-        if (!isChangingScene) {
-            isChangingScene = true;
-            fadeOutImage.SetScene("RacingGame_MenuScene");
-            fadeOutImage.StartFading();
-            fadeOutImage.SetCallback(callback);
-        }
-    }
-
-    public void StreamSwitched(bool active)
-    {
-        streamingText.gameObject.SetActive(active);
-        streamingText.text = "STREAMING ON " + StreamManager.Instance.GetServerData();
-    }
     private void Start()
     {
         streamingText.gameObject.SetActive(RacingGameManager.Instance.streaming);

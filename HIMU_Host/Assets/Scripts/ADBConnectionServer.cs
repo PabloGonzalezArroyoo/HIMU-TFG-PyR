@@ -67,6 +67,8 @@ public class ADBConnectionServer : MonoBehaviour
     /// </summary>
     private readonly ConcurrentDictionary<string, DeviceSession> sessionsByClientID = new ConcurrentDictionary<string, DeviceSession>();
 
+    private List<ClientData> clients = new List<ClientData>();
+
     /// <summary>
     /// Per-device state: its reverse tunnel, listener and (once the app connects) socket.
     /// </summary>
@@ -365,6 +367,7 @@ public class ADBConnectionServer : MonoBehaviour
 
             ClientData newClient = ClientData.ForADB(session.deviceId, clientID);
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeerForADBClient(newClient));
+            clients.Add(newClient);
 
             UnityEngine.Debug.Log($"[ADBServer] Client registered: {session.deviceId} (id: {clientID})");
 
@@ -455,6 +458,10 @@ public class ADBConnectionServer : MonoBehaviour
         UnityEngine.Debug.Log("[ADBServer] ADB server stopped.");
     }
 
+    public List<ClientData> GetClients()
+    {
+        return clients;
+    }
     #endregion
 
     #region Monobehaviour
