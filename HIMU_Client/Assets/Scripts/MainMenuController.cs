@@ -51,4 +51,9 @@ public class MainMenuController : MonoBehaviour
     {
         SceneManager.LoadScene("ConnectionSelectionScene");
     }
+
+    public void Exitgame()
+    {
+        Application.Quit();
+    }
 }
