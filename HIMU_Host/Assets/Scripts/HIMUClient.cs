@@ -20,6 +20,11 @@ public class HIMUClient : MonoBehaviour
     private string clientID;
 
     /// <summary>
+    /// Texture where the camera's view will be stored.
+    /// </summary>
+    public RenderTexture renderTexture;
+
+    /// <summary>
     /// Referencia al sender del video track.
     /// </summary>
     RTCRtpSender videoSender;
@@ -30,9 +35,9 @@ public class HIMUClient : MonoBehaviour
     VideoStreamTrack videoTrack;
 
     /// <summary>
-    /// Texture where the camera's view will be stored.
+    /// 
     /// </summary>
-    public RenderTexture renderTexture;
+    AudioStreamTrack audioTrack;
 
     /// <summary>
     /// Object incharged of tracking JSON packages.
@@ -61,6 +66,10 @@ public class HIMUClient : MonoBehaviour
         get { return latestTouches; }
     }
 
+    [SerializeField]
+    private bool handlesInput = false;
+    [SerializeField]
+    private bool handlesAudio = false;
     #endregion
 
     #region Methods
@@ -72,11 +81,13 @@ public class HIMUClient : MonoBehaviour
     /// <param name="id">Id of this client.</param>
     /// <param name="rt">RenderTexture of the attached camera for streaming.</param>
     /// <param name="onSignalingMsg">Callback for when a SignalingMessage is received.</param>
-    public void Initialize(string id, RenderTexture rt, System.Action<SignalingMessage> onSignalingMsg)
+    public void Initialize(string id, RenderTexture rt, System.Action<SignalingMessage> onSignalingMsg, bool input, bool audio)
     {
         clientID = id;
         renderTexture = rt;
         OnSignalingMessage = onSignalingMsg;
+        handlesInput = input;
+        handlesAudio = audio;
 
         // Connection configuration. Uses STUN to discover the public IP of this device.
         RTCConfiguration config = new RTCConfiguration
@@ -101,18 +112,27 @@ public class HIMUClient : MonoBehaviour
         videoTrack = new VideoStreamTrack(renderTexture);
         videoSender = peer.AddTrack(videoTrack);
 
-        // Data channel configuration.
-        var dataChannelConfig = new RTCDataChannelInit { ordered = false, maxRetransmits = 0 };
-        inputTrack = peer.CreateDataChannel("input", dataChannelConfig);
-
-        inputTrack.OnOpen = () => Debug.Log("[DataChannel] Open");
-        inputTrack.OnClose = () => Debug.Log("[DataChannel] Closed");
-        inputTrack.OnMessage = bytes =>
+        // Data channel configuration - Input
+        if (handlesInput)
         {
-            string msg = System.Text.Encoding.UTF8.GetString(bytes);
-            Debug.Log($"[DataChannel] Recieved Message: {msg}");
-            InputManager.Instance.ProcessInputMessage(msg);
-        };
+            var dataChannelConfig = new RTCDataChannelInit { ordered = false, maxRetransmits = 0 };
+            inputTrack = peer.CreateDataChannel("input", dataChannelConfig);
+
+            inputTrack.OnOpen = () => Debug.Log("[DataChannel] Open");
+            inputTrack.OnClose = () => Debug.Log("[DataChannel] Closed");
+            inputTrack.OnMessage = bytes =>
+            {
+                string msg = System.Text.Encoding.UTF8.GetString(bytes);
+                Debug.Log($"[DataChannel] Recieved Message: {msg}");
+                InputManager.Instance?.ProcessInputMessage(msg);
+            };
+        }
+
+        // Data channel configuration - Audio
+        if (handlesAudio)
+        {
+
+        }
     }
 
     /// <summary>

@@ -1,6 +1,8 @@
+using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -52,6 +54,7 @@ public class SignalingServer : MonoBehaviour
     /// </summary>
     private const string MulticastGroup = "239.0.0.1";
 
+    private List<ClientData> clients = new List<ClientData>();
     #endregion
 
     #region Conection
@@ -72,7 +75,6 @@ public class SignalingServer : MonoBehaviour
 
         listenThread?.Join(500); // cierra el hilo en un plazo de 500ms
         Debug.Log("[SignalingServer] TCP server stopped.");
-        UIManager.Instance?.ResetTCPClientsText();
     }
 
     /// <summary>
@@ -209,6 +211,7 @@ public class SignalingServer : MonoBehaviour
             clientID = Guid.NewGuid().ToString();
             ClientData newClient = ClientData.ForDevice(decodedData, clientID);
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeerForClient(newClient));
+            clients.Add(newClient);
             tcpSockets.TryAdd(clientID, tcp);
 
             Debug.Log($"[SignalingServer] Client connected: {decodedData.ipAddress}");
@@ -242,6 +245,11 @@ public class SignalingServer : MonoBehaviour
     }
 
     #endregion
+
+    public List<ClientData> GetClients()
+    {
+        return clients;
+    }
 
     #region Monobehaviour
 

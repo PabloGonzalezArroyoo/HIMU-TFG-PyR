@@ -26,6 +26,11 @@ public class RacingConnectionsUIManager : MonoBehaviour
     private float searchLimitTime = 5f;
     private float timer = 0f;
 
+    public void ExitGame()
+    {
+        Application.Quit();
+    }
+
     public void SearchADBClients()
     {
         if (searchingADB) return;
@@ -40,7 +45,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
     {
         RacingGameManager.Instance.OnStreamButtonClicked();
         streamText.gameObject.SetActive(RacingGameManager.Instance.streaming);
-        streamText.text = "STREAMING ON " + StreamManager.Instance.GetServerData();
+        streamText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.GetSessionId().ToString();
     }
 
     public void StartGame()

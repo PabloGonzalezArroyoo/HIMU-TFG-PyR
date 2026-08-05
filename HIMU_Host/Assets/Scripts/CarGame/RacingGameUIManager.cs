@@ -69,7 +69,7 @@ public class RacingGameUIManager : MonoBehaviour
     {
         RacingGameManager.Instance.OnStreamButtonClicked();
         streamingText.gameObject.SetActive(RacingGameManager.Instance.streaming);
-        streamingText.text = "STREAMING ON " + StreamManager.Instance.GetServerData();
+        streamingText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.GetSessionId().ToString();
     }
 
     private void Awake()

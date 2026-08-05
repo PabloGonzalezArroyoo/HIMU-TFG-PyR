@@ -19,6 +19,7 @@ public class RacingGameManager : MonoBehaviour
 
     private int recordTime = 0;
 
+    #region Getters&Setters
     public int GetScore()
     {
         return recordTime;
@@ -28,18 +29,14 @@ public class RacingGameManager : MonoBehaviour
     {
         recordTime = record;
     }
+    #endregion
 
-    public void LoadRemoteControlScene(Scene current, Scene next)
-    {
-        if (next.name != "RacingGame_MainScene") return;
-
-        SceneManager.LoadScene("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
-    }
-
+    #region Textures
     private void ChangeStreamTextures()
     {
         List<ClientData> browserClients = StreamManager.Instance.GetBrowserClients();
-        foreach (ClientData client in browserClients) {
+        foreach (ClientData client in browserClients)
+        {
             client.himuClient.ChangeTexture(gameTexture);
         }
     }
@@ -47,7 +44,8 @@ public class RacingGameManager : MonoBehaviour
     private void AssignADBTexture()
     {
         List<ClientData> adbClients = StreamManager.Instance.GetADBClients();
-        foreach (ClientData client in adbClients) {
+        foreach (ClientData client in adbClients)
+        {
             client.himuClient.ChangeTexture(controlTexture);
         }
     }
@@ -72,6 +70,16 @@ public class RacingGameManager : MonoBehaviour
         controlTexture.antiAliasing = 1;
         controlTexture.Create();
     }
+    #endregion
+
+    #region OnGameStart
+    public void LoadRemoteControlScene(Scene current, Scene next)
+    {
+        if (next.name != "RacingGame_MainScene") return;
+
+        SceneManager.LoadScene("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
+    }
+
 
     public void OnSceneChanged(Scene loadedScene, LoadSceneMode mode)
     {
@@ -91,6 +99,18 @@ public class RacingGameManager : MonoBehaviour
             mainCamera.targetTexture = gameTexture;
             ChangeStreamTextures();
             Debug.Log("Escena de juego cargada");
+        }
+
+        // Cuando se carga la escena de conexiones
+        if (loadedScene.name.Contains("Connections"))
+        {
+            StreamManager.Instance.SetADBClientCallback(CreateADBClient);
+            StreamManager.Instance.SetBrowserClientCallback(CreateBrowserClient);
+            Camera streamCamera = new GameObject().AddComponent<Camera>();
+            streamCamera.gameObject.transform.position = FindCameraInScene(loadedScene, "Main Camera").gameObject.transform.position;
+            streamCamera.targetTexture = connectionsTexture;
+            StreamManager.Instance.SetADBTextureCallback(TextureOnConnections);
+            StreamManager.Instance.SetBrowserTextureCallback(TextureOnConnections);
         }
     }
 
@@ -123,7 +143,29 @@ public class RacingGameManager : MonoBehaviour
 
         return null;
     }
+    #endregion
 
+    #region Create Clients & textures
+    public GameObject CreateBrowserClient(ClientData clientData)
+    {
+        GameObject newClient = new GameObject();
+        newClient.transform.position = Vector3.zero;
+        return newClient;
+    }
+
+    public GameObject CreateADBClient(ClientData clientData)
+    {
+        GameObject client = new GameObject();
+        return client;
+    }
+
+    public RenderTexture TextureOnConnections()
+    {
+        return connectionsTexture;
+    }
+    #endregion
+
+    #region OnClick Methods
     public void EndGame()
     {
         gameStarted = false;
@@ -150,6 +192,7 @@ public class RacingGameManager : MonoBehaviour
         streaming = (!streaming);
         StreamManager.Instance.FlagWebSocketServer();
     }
+    #endregion
 
     private void Awake()
     {

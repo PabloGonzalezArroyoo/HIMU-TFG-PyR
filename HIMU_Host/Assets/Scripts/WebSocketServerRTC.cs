@@ -313,6 +313,7 @@ public class WebSocketServerRTC : MonoBehaviour
     void HandleIncoming(string rawJson)
     {
         WSBaseMessage baseMsg = JsonUtility.FromJson<WSBaseMessage>(rawJson);
+        UnityEngine.Debug.Log("LLEGAN MENSAJES DEL BROWSER");
 
         if (baseMsg.type == 99) // newClient
         {
@@ -320,7 +321,7 @@ public class WebSocketServerRTC : MonoBehaviour
             string clientKey = newClient.clientId.ToString();
             ClientData client = ClientData.ForBrowser(clientKey, clientKey);
 
-            StreamManager.Instance?.GetBrowserClientCallback()(client);
+            StreamManager.Instance?.CreatePeerForBrowser(client);
             clients.Add(client);
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
 
@@ -391,6 +392,11 @@ public class WebSocketServerRTC : MonoBehaviour
     public int GetBrowserPort()
     {
         return browserPort;
+    }
+
+    public int GetSessionId()
+    {
+        return sessionID;
     }
 
     public List<ClientData> GetClients()

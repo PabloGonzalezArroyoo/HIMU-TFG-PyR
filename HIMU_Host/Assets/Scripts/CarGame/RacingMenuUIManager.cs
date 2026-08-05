@@ -18,6 +18,11 @@ public class RacingMenuUIManager : MonoBehaviour
         SceneManager.sceneLoaded += RacingGameManager.Instance.OnSceneChanged;
     }
 
+    public void ExitGame()
+    {
+        Application.Quit();
+    }
+
     private void Awake()
     {
         if (Instance)

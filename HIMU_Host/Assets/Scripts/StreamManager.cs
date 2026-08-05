@@ -2,16 +2,19 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Unity.WebRTC;
+using UnityEditor.PackageManager;
 using UnityEngine;
 
-public delegate RenderTexture TextureAssignmentCallback(ClientData client, params object[] args);
+public delegate RenderTexture TextureAssignmentCallback();
 
-public delegate void CreateClient(ClientData client);
+public delegate GameObject CreateClient(ClientData client);
 
 public class StreamManager : MonoBehaviour
 {
 
     #region Variables
+
+    public bool debug = false;
 
     /// <summary>
     /// Instance of StreamManager (Singleton)
@@ -101,21 +104,55 @@ public class StreamManager : MonoBehaviour
     #endregion
 
     #region SharedMethods
-
+    /// <summary>
+    /// Tries to remove a client given its clientID
+    /// </summary>
+    /// <param name="clientID"></param>
     public void RemovePeer(string clientID)
     {
         if (!clients.TryRemove(clientID, out var data))
         {
-            Debug.LogWarning($"[StreamManager] Tried to remove unknown peer: {clientID}");
+            if (debug) Debug.LogWarning($"[StreamManager] Tried to remove unknown peer: {clientID}");
             return;
         }
 
         if (data.himuClient != null)
             Destroy(data.himuClient.gameObject);
 
-        Debug.Log($"[StreamManager] Destroyed {data.transport} peer: {clientID}");
+        if (debug) Debug.Log($"[StreamManager] Destroyed {data.transport} peer: {clientID}");
     }
 
+    /// <summary>
+    /// Processes the signaling message from the server
+    /// </summary>
+    /// <param name="clientID"></param>
+    /// <param name="msg"></param>
+    public void HandleIncomingSignaling(string clientID, SignalingMessage msg)
+    {
+        if (!clients.TryGetValue(clientID, out var peer)) return;
+
+        if (msg.type == ConnectionEvent.ICE)
+        {
+            IceCandidateData data = JsonUtility.FromJson<IceCandidateData>(msg.body);
+            RTCIceCandidateInit init = new RTCIceCandidateInit
+            {
+                candidate = data.candidate,
+                sdpMid = data.sdpMid,
+                sdpMLineIndex = data.sdpMLineIndex
+            };
+            peer.himuClient.AddIceCandidate(init);
+        }
+        else if (msg.type == ConnectionEvent.SDP)
+        {
+            SessionDescriptionData data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
+            RTCSessionDescription answer = data.ToRTCDesc();
+            StartCoroutine(peer.himuClient.SetRemoteAnswer(answer));
+        }
+        else if (msg.type == ConnectionEvent.DISCONNECT)
+        {
+            RemovePeer(clientID);
+        }
+    }
     #endregion
 
     #region FlaggedMethods
@@ -184,10 +221,9 @@ public class StreamManager : MonoBehaviour
 
     #endregion
 
-    #region WebSocket
-
+    #region Create clients
     /// <summary>
-    /// Creacion de objeto en escena que representa un cliente Navegador
+    /// Creates the client object and completes the WebRTC connection exchange for a browser
     /// </summary>
     /// <param name="client"></param>
     public void CreatePeerForBrowser(ClientData client)
@@ -196,120 +232,53 @@ public class StreamManager : MonoBehaviour
         string clientID = client.clientID;
         if (!clients.TryAdd(clientID, client)) return;
 
-        GameObject go = new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.identifier}");
+        GameObject go = browserClientCallback(client);
         HIMUClient peer = go.AddComponent<HIMUClient>();
-        peer.Initialize(clientID, streamingTexture, msg => _ = webSocketServer.SendToNode(msg, clientID));
+        peer.Initialize(clientID, browserTextureCallback(), msg => _ = webSocketServer.SendToNode(msg, clientID), false, true);
         StartCoroutine(peer.CreateOffer());
         clients[clientID].himuClient = peer;
-        Debug.Log($"[StreamManager] Created browser peer: {client.identifier} (id: {clientID})");
+        if (debug) Debug.Log($"[StreamManager] Created browser peer: {client.identifier} (id: {clientID})");
     }
-    #endregion
-
-    #region TCP
 
     /// <summary>
-    /// Creates the client object and completes the WebRTC connection exchange
+    /// Creates the client object and completes the WebRTC connection exchange for a TCP client
     /// </summary>
-    /// <param name="ip">IP of the client</param>
+    /// <param name="client"></param>
     public void CreatePeerForClient(ClientData client)
     {
         // Add client to the dictionary
         string clientID = client.clientID;
         if (!clients.TryAdd(clientID, client)) return;
 
-        // Create GameObject
-        GameObject go = new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.identifier}");
-        DontDestroyOnLoad(go);
-        go.GetComponent<Transform>().position = Vector3.zero;
-        Camera cam = go.AddComponent<Camera>();
-
-        RenderTexture rt;
-        rt = new RenderTexture((int)streamFrameWidth, (int)streamFrameHeight, (int)streamFrameDepth, RenderTextureFormat.BGRA32);
-        rt.enableRandomWrite = true;
-        rt.useMipMap = false;
-        rt.antiAliasing = 1;
-        rt.Create();
-        cam.targetTexture = rt;
-
-        // Create RTC connection Peer
+        GameObject go = tcpClientCallback(client);
         HIMUClient peer = go.AddComponent<HIMUClient>();
-        peer.Initialize(clientID, rt, msg => signalingServer.SendMessage(clientID, msg));
+        peer.Initialize(clientID, tcpTextureCallback(), msg => signalingServer.SendMessage(clientID, msg), true, true);
         clients[clientID].himuClient = peer;
         StartCoroutine(peer.CreateOffer());
 
-        Debug.Log($"[StreamManager] Created device peer: {client.identifier} (id: {clientID})");
+        if (debug) Debug.Log($"[StreamManager] Created device peer: {client.identifier} (id: {clientID})");
     }
 
     /// <summary>
-    /// Porcesses the signaling message from the server
+    /// Creates the client object and completes the WebRTC connection exchange for a phone connected by USB
     /// </summary>
-    /// <param name="clientID"></param>
-    /// <param name="msg"></param>
-    public void HandleIncomingSignaling(string clientID, SignalingMessage msg)
-    {
-        if (!clients.TryGetValue(clientID, out var peer)) return;
-
-        if (msg.type == ConnectionEvent.ICE)
-        {
-            IceCandidateData data = JsonUtility.FromJson<IceCandidateData>(msg.body);
-            RTCIceCandidateInit init = new RTCIceCandidateInit
-            {
-                candidate = data.candidate,
-                sdpMid = data.sdpMid,
-                sdpMLineIndex = data.sdpMLineIndex
-            };
-            peer.himuClient.AddIceCandidate(init);
-        }
-        else if (msg.type == ConnectionEvent.SDP)
-        {
-            SessionDescriptionData data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
-            RTCSessionDescription answer = data.ToRTCDesc();
-            StartCoroutine(peer.himuClient.SetRemoteAnswer(answer));
-        }
-        else if (msg.type == ConnectionEvent.DISCONNECT)
-        {
-            RemovePeer(clientID);
-        }
-    }
-
-    #endregion
-
-    #region ADB
-
-    /// <summary>
-    /// Creates the client object and completes the WebRTC connection exchange for a phone
-    /// connected by USB. Identical to CreatePeerForClient except messages are routed through
-    /// the adbServer (TCP tunnel via "adb reverse") instead of the signalingServer.
-    /// </summary>
+    /// <param name="client"></param>
     public void CreatePeerForADBClient(ClientData client)
     {
         string clientID = client.clientID;
         if (!clients.TryAdd(clientID, client)) return;
 
-        GameObject go = new GameObject($"{client.type.ToString()}-Adb-Peer_{client.identifier}");
-        DontDestroyOnLoad(go);
-        go.GetComponent<Transform>().position = Vector3.zero;
-        Camera cam = go.AddComponent<Camera>();
-
-        RenderTexture rt = new RenderTexture((int)streamFrameWidth, (int)streamFrameHeight, (int)streamFrameDepth, RenderTextureFormat.BGRA32);
-        rt.enableRandomWrite = true;
-        rt.useMipMap = false;
-        rt.antiAliasing = 1;
-        rt.Create();
-        cam.targetTexture = rt;
-
+        GameObject go = adbClientCallback(client);
         HIMUClient peer = go.AddComponent<HIMUClient>();
-        peer.Initialize(clientID, rt, msg => adbServer.SendMessage(clientID, msg));
+        peer.Initialize(clientID, adbTextureCallback(), msg => adbServer.SendMessage(clientID, msg), true, false);
         clients[clientID].himuClient = peer;
         StartCoroutine(peer.CreateOffer());
 
-        Debug.Log($"[StreamManager] Created ADB peer: {client.identifier} (id: {clientID})");
+        if (debug) Debug.Log($"[StreamManager] Created ADB peer: {client.identifier} (id: {clientID})");
     }
-
     #endregion
 
     #region Getters & Setters
-
     public RenderTexture GetStreamCamera()
     {
         return streamingTexture;
@@ -322,6 +291,16 @@ public class StreamManager : MonoBehaviour
     public void SetStreamCamera(Camera newCamera)
     {
         newCamera.targetTexture = streamingTexture;
+    }
+
+    public string GetNodeServerData()
+    {
+        return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
+    }
+
+    public int GetSessionId()
+    {
+        return webSocketServer.GetSessionId();
     }
 
     /// <summary>
@@ -339,17 +318,17 @@ public class StreamManager : MonoBehaviour
 
     public List<ClientData> GetBrowserClients()
     {
-        return webSocketServer.GetClients();
+        return webSocketServer?.GetClients();
     }
 
-    public string GetServerData()
+    public List<ClientData> GetTCPClients()
     {
-        return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
+        return signalingServer?.GetClients();
     }
 
     public List<ClientData> GetADBClients()
     {
-        return adbServer.GetClients();
+        return adbServer?.GetClients();
     }
 
     public CreateClient GetBrowserClientCallback()
@@ -361,6 +340,17 @@ public class StreamManager : MonoBehaviour
     {
         browserClientCallback = newCallback;
     }
+
+    public TextureAssignmentCallback GetBrowserTextureCallback()
+    {
+        return browserTextureCallback;
+    }
+
+    public void SetBrowserTextureCallback(TextureAssignmentCallback newCallback)
+    {
+        browserTextureCallback = newCallback;
+    }
+
     public CreateClient GetTCPClientCallback()
     {
         return tcpClientCallback;
@@ -369,6 +359,17 @@ public class StreamManager : MonoBehaviour
     {
         tcpClientCallback = newCallback;
     }
+
+    public TextureAssignmentCallback GetTCPTextureCallback()
+    {
+        return tcpTextureCallback;
+    }
+
+    public void SetTCPTextureCallback(TextureAssignmentCallback newCallback)
+    {
+        tcpTextureCallback = newCallback;
+    }
+
     public CreateClient GetADBClientCallback()
     {
         return adbClientCallback;
@@ -376,6 +377,39 @@ public class StreamManager : MonoBehaviour
     public void SetADBClientCallback(CreateClient newCallback)
     {
         adbClientCallback = newCallback;
+    }
+
+    public TextureAssignmentCallback GetADBTextureCallback()
+    {
+        return adbTextureCallback;
+    }
+
+    public void SetADBTextureCallback(TextureAssignmentCallback newCallback)
+    {
+        adbTextureCallback = newCallback;
+    }
+    #endregion
+
+    #region BaseMethods
+    private GameObject BaseCreateClient(ClientData client)
+    {
+        switch(client.type)
+        {
+            case ClientType.STREAM: return new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.identifier}");
+            case ClientType.PLAYER: return new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.identifier}");
+            default: return new GameObject($"{client.type.ToString()}-Adb-Peer_{client.identifier}");
+        }
+    }
+
+    private RenderTexture BaseCreateTexture()
+    {
+        RenderTexture rt;
+        rt = new RenderTexture((int)streamFrameWidth, (int)streamFrameHeight, (int)streamFrameDepth, RenderTextureFormat.BGRA32);
+        rt.enableRandomWrite = true;
+        rt.useMipMap = false;
+        rt.antiAliasing = 1;
+        rt.Create();
+        return rt;
     }
     #endregion
 
@@ -389,18 +423,30 @@ public class StreamManager : MonoBehaviour
         StartCoroutine(WebRTC.Update());
         NetworkUtils.GetIP();
 
+        if (acceptWebSocketConnection)
+        {
+            browserClientCallback = BaseCreateClient;
+            browserTextureCallback = BaseCreateTexture;
+            webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
+        }
+        if (acceptTCPConnection)
+        {
+            tcpClientCallback = BaseCreateClient;
+            tcpTextureCallback = BaseCreateTexture;
+            signalingServer = gameObject.AddComponent<SignalingServer>();
+        }
+        if (acceptADBConnection)
+        {
+            adbClientCallback = BaseCreateClient;
+            adbTextureCallback = BaseCreateTexture;
+            adbServer = gameObject.AddComponent<ADBConnectionServer>();
+        }
+
         streamingTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.BGRA32);
         streamingTexture.enableRandomWrite = true;
         streamingTexture.useMipMap = false;
         streamingTexture.antiAliasing = 1;
         streamingTexture.Create();
-    }
-
-    private void Start()
-    {
-        if (acceptWebSocketConnection) webSocketServer = gameObject.AddComponent<WebSocketServerRTC>();
-        if (acceptTCPConnection) signalingServer = gameObject.AddComponent<SignalingServer>();
-        if (acceptADBConnection) adbServer = gameObject.AddComponent<ADBConnectionServer>();
     }
     #endregion
 }
