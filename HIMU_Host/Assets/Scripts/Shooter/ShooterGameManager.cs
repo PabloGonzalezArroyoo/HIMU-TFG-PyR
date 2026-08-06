@@ -1,18 +1,23 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ShooterManager : MonoBehaviour
+public class ShooterGameManager : MonoBehaviour
 {
     #region Variables
 
     [SerializeField]
     List<Transform> spawnPositions;
 
+    int players;
+
+    GameObject victoryCanvas;
+
     #endregion
 
     private void OrganizePeers()
     {
         List<ClientData> peers = StreamManager.Instance.GetClients();
+        players = peers.Count;
 
         for (int i = 0; i < peers.Count; i++)
         {
@@ -24,15 +29,21 @@ public class ShooterManager : MonoBehaviour
         }
     }
 
-    private void Awake()
+    private void PlayerEliminated()
     {
-        OrganizePeers();
+        players--;
+
+        if (players == 1)
+        {
+            // TO-DO: cambiar texto de victoria y asignar numero al texto
+            victoryCanvas.SetActive(true);
+        }
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void Awake()
     {
-        
+        //OrganizePeers();
+        victoryCanvas.SetActive(false);
     }
 
     // Update is called once per frame

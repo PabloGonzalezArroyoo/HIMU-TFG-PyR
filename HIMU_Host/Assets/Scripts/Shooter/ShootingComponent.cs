@@ -2,18 +2,31 @@ using UnityEngine;
 
 public class ShootingComponent : MonoBehaviour
 {
-    [SerializeField]
-    GameObject spawnPoint;
+    [SerializeField] private BulletComponent bulletPrefab;
+    [SerializeField] private Transform bulletSpawn;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    [SerializeField] private float cooldown = 1f;
+    private float timer;
+
+    private void Start()
     {
-        
+        timer = 0f;
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        
+        timer += Time.deltaTime;
+    }
+
+    public void Shoot()
+    {
+        Debug.Log("Disparo");
+        if (bulletPrefab == null || bulletSpawn == null) return;
+
+        if (timer < cooldown) return;
+
+        BulletComponent bullet = Instantiate(bulletPrefab, bulletSpawn.position, bulletSpawn.rotation);
+        bullet.Initialize(bulletSpawn.forward);
+        timer = 0f;
     }
 }
