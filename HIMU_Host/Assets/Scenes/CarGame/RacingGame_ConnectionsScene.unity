@@ -746,6 +746,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StreamManager
   debug: 1
+  shouldPersist: 1
   mainCamera: {fileID: 1384832207}
   acceptWebSocketConnection: 1
   acceptTCPConnection: 0

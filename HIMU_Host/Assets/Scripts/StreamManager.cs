@@ -2,24 +2,43 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Unity.WebRTC;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
-public delegate RenderTexture TextureAssignmentCallback();
-
+/// <summary>
+/// Callback structure created for methods that return/create gameobjects for clients
+/// </summary>
+/// <param name="client"></param>
+/// <returns>Gameobject that represents the new client in project</returns>
 public delegate GameObject CreateClient(ClientData client);
 
+/// <summary>
+/// Callback structure created for methods that return/create textures for clients
+/// </summary>
+/// <returns>Texture to be streamed to new client</returns>
+public delegate RenderTexture TextureAssignmentCallback();
+
+/// <summary>
+/// Orquestates 'straming to other devices' feature. Each type (WebSocket, TCP, ADB) has its own component, flags, callbacks
+/// </summary>
 public class StreamManager : MonoBehaviour
 {
-
     #region Variables
-
-    public bool debug = false;
-
     /// <summary>
     /// Instance of StreamManager (Singleton)
     /// </summary>
     public static StreamManager Instance { get; private set; }
+
+    /// <summary>
+    /// Defines whether we print information or not
+    /// </summary>
+    [SerializeField]
+    private bool debug = false;
+
+    /// <summary>
+    /// Defines whether this scripts object persists between scenes or not
+    /// </summary>
+    [SerializeField]
+    private bool shouldPersist = false;
 
     /// <summary>
     /// All currently connected clients, keyed by their clientID (GUID for TCP clients,
@@ -34,11 +53,6 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private GameObject mainCamera;
-
-    /// <summary>
-    /// Texture streamed to other devices (physical or browser)
-    /// </summary>
-    private RenderTexture streamingTexture;
 
     /// <summary>
     /// Server that works through a WebSocket. It connects to an external siganling server.
@@ -60,6 +74,9 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private bool acceptWebSocketConnection = true;
+    /// <summary>
+    /// Indicates if WebSocket connections feature is activated or not
+    /// </summary>
     private bool webSocketConnectionOn = false;
 
     /// <summary>
@@ -67,6 +84,9 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private bool acceptTCPConnection = true;
+    /// <summary>
+    /// Indicates if TCP connections feature is activated or not
+    /// </summary>
     private bool tcpConnectionOn = false;
 
     /// <summary>
@@ -74,6 +94,9 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private bool acceptADBConnection = true;
+    /// <summary>
+    /// Indicates if ADB connections feature is activated or not
+    /// </summary>
     private bool adbConnectionOn = false;
 
     /// <summary>
@@ -94,16 +117,78 @@ public class StreamManager : MonoBehaviour
     [SerializeField]
     private uint streamFrameDepth = 24;
 
+    /// <summary>
+    /// Callback that is executed to retrieve/create texture for WebSocket clients
+    /// </summary>
     private TextureAssignmentCallback browserTextureCallback;
+    /// <summary>
+    /// Callback that is executed to retrieve/create texture for TCP clients
+    /// </summary>
     private TextureAssignmentCallback tcpTextureCallback;
+    /// <summary>
+    /// Callback that is executed to retrieve/create texture for ADB clients
+    /// </summary>
     private TextureAssignmentCallback adbTextureCallback;
-
+    /// <summary>
+    /// Callback that is executed to retrieve/create client gameobject for WebSocket clients
+    /// </summary>
     private CreateClient browserClientCallback;
+    /// <summary>
+    /// Callback that is executed to retrieve/create client gameobject for TCP clients
+    /// </summary>
     private CreateClient tcpClientCallback;
+    /// <summary>
+    /// Callback that is executed to retrieve/create client gameobject for ADB clients
+    /// </summary>
     private CreateClient adbClientCallback;
     #endregion
 
     #region SharedMethods
+    /// <summary>
+    /// Creates the client object and completes the WebRTC connection exchange
+    /// </summary>
+    /// <param name="client"></param>
+    public void CreatePeer(ClientData client)
+    {
+        string clientID = client.clientID;
+        if (!clients.TryAdd(clientID, client)) return;
+
+        GameObject go;
+        TextureAssignmentCallback textureCallback;
+        switch (client.type)
+        {
+            case ClientType.WEB_SOCKET:
+                {
+                    go = browserClientCallback(client);
+                    textureCallback = browserTextureCallback;
+                }
+                break;
+            case ClientType.TCP:
+                {
+                    go = tcpClientCallback(client);
+                    textureCallback = tcpTextureCallback;
+                }
+                break;
+            case ClientType.ADB:
+                {
+                    go = adbClientCallback(client);
+                    textureCallback = adbTextureCallback;
+                }
+                break;
+            default:
+                {
+                    go = new GameObject();
+                    textureCallback = BaseCreateTexture;
+                }
+                break;
+        }
+
+        HIMUClient peer = go.AddComponent<HIMUClient>();
+        peer.Initialize(clientID, textureCallback(), msg => adbServer.SendMessage(clientID, msg), true, false);
+        clients[clientID].himuClient = peer;
+        StartCoroutine(peer.CreateOffer());
+    }
+
     /// <summary>
     /// Tries to remove a client given its clientID
     /// </summary>
@@ -156,27 +241,6 @@ public class StreamManager : MonoBehaviour
     #endregion
 
     #region FlaggedMethods
-
-    /// <summary>
-    /// Starts or stops the TCP signaling server wether its checkbox is checked
-    /// </summary>
-    public void FlagSignalingServer()
-    {
-        if (!acceptTCPConnection) return;
-        if (tcpConnectionOn)
-        {
-            UnityEngine.Debug.Log("[StreamManager] Stopping TCP signaling server.");
-            signalingServer.StopServer();
-            tcpConnectionOn = false;
-        }
-        else
-        {
-            UnityEngine.Debug.Log("[StreamManager] Launching TCP signaling server.");
-            signalingServer.StartServer();
-            tcpConnectionOn = true;
-        }
-    }
-
     /// <summary>
     /// Starts or stops the WebSocket server wether its checkbox is checked
     /// </summary>
@@ -200,6 +264,26 @@ public class StreamManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Starts or stops the TCP signaling server wether its checkbox is checked
+    /// </summary>
+    public void FlagSignalingServer()
+    {
+        if (!acceptTCPConnection) return;
+        if (tcpConnectionOn)
+        {
+            if (debug) UnityEngine.Debug.Log("[StreamManager] Stopping TCP signaling server.");
+            signalingServer.StopServer();
+            tcpConnectionOn = false;
+        }
+        else
+        {
+            UnityEngine.Debug.Log("[StreamManager] Launching TCP signaling server.");
+            signalingServer.StartServer();
+            tcpConnectionOn = true;
+        }
+    }
+
+    /// <summary>
     /// Starts or stops the WebSocket server wether its checkbox is checked
     /// </summary>
     public void FlagADBConnection()
@@ -218,81 +302,9 @@ public class StreamManager : MonoBehaviour
             adbConnectionOn = true;
         }
     }
-
-    #endregion
-
-    #region Create clients
-    /// <summary>
-    /// Creates the client object and completes the WebRTC connection exchange for a browser
-    /// </summary>
-    /// <param name="client"></param>
-    public void CreatePeerForBrowser(ClientData client)
-    {
-        // Si ese navegador ya esta conectado, se ignora
-        string clientID = client.clientID;
-        if (!clients.TryAdd(clientID, client)) return;
-
-        GameObject go = browserClientCallback(client);
-        HIMUClient peer = go.AddComponent<HIMUClient>();
-        peer.Initialize(clientID, browserTextureCallback(), msg => _ = webSocketServer.SendToNode(msg, clientID), false, true);
-        StartCoroutine(peer.CreateOffer());
-        clients[clientID].himuClient = peer;
-        if (debug) Debug.Log($"[StreamManager] Created browser peer: {client.identifier} (id: {clientID})");
-    }
-
-    /// <summary>
-    /// Creates the client object and completes the WebRTC connection exchange for a TCP client
-    /// </summary>
-    /// <param name="client"></param>
-    public void CreatePeerForClient(ClientData client)
-    {
-        // Add client to the dictionary
-        string clientID = client.clientID;
-        if (!clients.TryAdd(clientID, client)) return;
-
-        GameObject go = tcpClientCallback(client);
-        HIMUClient peer = go.AddComponent<HIMUClient>();
-        peer.Initialize(clientID, tcpTextureCallback(), msg => signalingServer.SendMessage(clientID, msg), true, true);
-        clients[clientID].himuClient = peer;
-        StartCoroutine(peer.CreateOffer());
-
-        if (debug) Debug.Log($"[StreamManager] Created device peer: {client.identifier} (id: {clientID})");
-    }
-
-    /// <summary>
-    /// Creates the client object and completes the WebRTC connection exchange for a phone connected by USB
-    /// </summary>
-    /// <param name="client"></param>
-    public void CreatePeerForADBClient(ClientData client)
-    {
-        string clientID = client.clientID;
-        if (!clients.TryAdd(clientID, client)) return;
-
-        GameObject go = adbClientCallback(client);
-        HIMUClient peer = go.AddComponent<HIMUClient>();
-        peer.Initialize(clientID, adbTextureCallback(), msg => adbServer.SendMessage(clientID, msg), true, false);
-        clients[clientID].himuClient = peer;
-        StartCoroutine(peer.CreateOffer());
-
-        if (debug) Debug.Log($"[StreamManager] Created ADB peer: {client.identifier} (id: {clientID})");
-    }
     #endregion
 
     #region Getters & Setters
-    public RenderTexture GetStreamCamera()
-    {
-        return streamingTexture;
-    }
-
-    /// <summary>
-    /// Sets the new streamed camera by pointing its rendered texture to the streaming texture.
-    /// </summary>
-    /// <param name="newCamera">New stream camera.</param>
-    public void SetStreamCamera(Camera newCamera)
-    {
-        newCamera.targetTexture = streamingTexture;
-    }
-
     public string GetNodeServerData()
     {
         return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
@@ -391,16 +403,25 @@ public class StreamManager : MonoBehaviour
     #endregion
 
     #region BaseMethods
+    /// <summary>
+    /// Basic method for clients gameobject creation
+    /// </summary>
+    /// <param name="client"></param>
+    /// <returns>Gameobject that represents the new client</returns>
     private GameObject BaseCreateClient(ClientData client)
     {
         switch(client.type)
         {
-            case ClientType.STREAM: return new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.identifier}");
-            case ClientType.PLAYER: return new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.identifier}");
+            case ClientType.WEB_SOCKET: return new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.identifier}");
+            case ClientType.TCP: return new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.identifier}");
             default: return new GameObject($"{client.type.ToString()}-Adb-Peer_{client.identifier}");
         }
     }
 
+    /// <summary>
+    /// Basic method for clients texture creation
+    /// </summary>
+    /// <returns>Texturer to be streamed to new client</returns>
     private RenderTexture BaseCreateTexture()
     {
         RenderTexture rt;
@@ -413,7 +434,6 @@ public class StreamManager : MonoBehaviour
     }
     #endregion
 
-    #region Monobehaviour
     void Awake()
     {
         if (Instance) { DestroyImmediate(gameObject); return; }
@@ -441,12 +461,5 @@ public class StreamManager : MonoBehaviour
             adbTextureCallback = BaseCreateTexture;
             adbServer = gameObject.AddComponent<ADBConnectionServer>();
         }
-
-        streamingTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.BGRA32);
-        streamingTexture.enableRandomWrite = true;
-        streamingTexture.useMipMap = false;
-        streamingTexture.antiAliasing = 1;
-        streamingTexture.Create();
     }
-    #endregion
 }

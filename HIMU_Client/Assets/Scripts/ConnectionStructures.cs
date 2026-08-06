@@ -21,6 +21,12 @@ public enum ClientType
     STREAM,
     PLAYER
 }
+public enum ConnectionTransport
+{
+    NONE,
+    ADB,
+    TCP
+}
 
 [Serializable]
 public class IceCandidateData

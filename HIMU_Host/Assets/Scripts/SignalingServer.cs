@@ -210,7 +210,7 @@ public class SignalingServer : MonoBehaviour
 
             clientID = Guid.NewGuid().ToString();
             ClientData newClient = ClientData.ForDevice(decodedData, clientID);
-            UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeerForClient(newClient));
+            UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
             clients.Add(newClient);
             tcpSockets.TryAdd(clientID, tcp);
 

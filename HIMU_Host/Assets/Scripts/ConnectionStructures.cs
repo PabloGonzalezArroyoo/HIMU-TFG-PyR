@@ -3,7 +3,9 @@ using System.Net.Sockets;
 using Unity.WebRTC;
 using UnityEngine;
 
-// HOST CONNECTION STRUCTURES
+/// <summary>
+/// HOST CONNECTION STRUCTURES
+/// </summary>
 
 public enum ConnectionEvent
 {
@@ -27,9 +29,9 @@ public enum ConnectionTransport
 public enum ClientType
 {
     NONE,
-    STREAM,
-    PLAYER,
-    GAMEPAD
+    WEB_SOCKET,
+    TCP,
+    ADB
 }
 
 [Serializable]
@@ -156,18 +158,17 @@ public class ClientData
     /// kept as a separate parameter for symmetry with ForDevice, in case that changes later).</param>
     public static ClientData ForBrowser(string sessionId, string clientID)
     {
-        return new ClientData(sessionId, ClientType.STREAM, clientID, ConnectionTransport.WebSocket);
+        return new ClientData(sessionId, ClientType.WEB_SOCKET, clientID, ConnectionTransport.WebSocket);
     }
 
 
     public static ClientData ForADB(string sessionId, string clientID)
     {
-        return new ClientData(sessionId, ClientType.GAMEPAD, clientID, ConnectionTransport.ADB);
+        return new ClientData(sessionId, ClientType.ADB, clientID, ConnectionTransport.ADB);
     }
 }
 
 // Input structures
-
 [Serializable]
 public class TouchesData
 {

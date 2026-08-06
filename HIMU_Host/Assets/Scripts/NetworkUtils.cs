@@ -68,7 +68,7 @@ public static class NetworkUtils
         string ipAddress = "No disponible";
         try
         {
-#if UNITY_EDITOR || UNITY_STANDALONE_WIN
+         #if UNITY_EDITOR || UNITY_STANDALONE_WIN
             foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (ni.OperationalStatus != OperationalStatus.Up) continue;
@@ -93,7 +93,7 @@ public static class NetworkUtils
                     return ipAddress;
                 }
             }
-#elif UNITY_ANDROID
+         #elif UNITY_ANDROID
             using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
             {
                 socket.Connect("239.0.0.1", 65530);
@@ -101,7 +101,7 @@ public static class NetworkUtils
                 ipAddress = endPoint.Address.ToString();
             }
             Debug.Log($"[Network] IP seleccionada: {ipAddress}");
-#endif
+        #endif
         }
         catch (Exception e)
         {
@@ -114,7 +114,6 @@ public static class NetworkUtils
     #endregion
 
     #region ReadingMessages
-
     /// <summary>
     /// It tries to read exactly count bytes from the stream to the buffer.
     /// If the connection closes cleanly before reading any bytes, returns false. If it closes

@@ -321,7 +321,7 @@ public class WebSocketServerRTC : MonoBehaviour
             string clientKey = newClient.clientId.ToString();
             ClientData client = ClientData.ForBrowser(clientKey, clientKey);
 
-            StreamManager.Instance?.CreatePeerForBrowser(client);
+            StreamManager.Instance?.CreatePeer(client);
             clients.Add(client);
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
 

@@ -124,7 +124,7 @@ public class HIMUClient : MonoBehaviour
             {
                 string msg = System.Text.Encoding.UTF8.GetString(bytes);
                 Debug.Log($"[DataChannel] Recieved Message: {msg}");
-                InputManager.Instance?.ProcessInputMessage(msg);
+                InputManager.Instance?.ParseInputMessage(msg);
             };
         }
 

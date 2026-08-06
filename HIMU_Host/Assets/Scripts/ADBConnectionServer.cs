@@ -24,36 +24,54 @@ using UnityEngine;
 public class ADBConnectionServer : MonoBehaviour
 {
     #region Variables
+    /// <summary>
+    /// Defines whether we print information or not
+    /// </summary>
+    [SerializeField]
+    private bool debug = false;
 
     /// <summary>
-    /// Port the mobile app connects to on its own localhost. Same value for every device;
-    /// the per-device distinction happens on the "local" side of the reverse tunnel.
+    /// Port the mobile app connects to on its own localhost
     /// </summary>
     [SerializeField]
     private int remotePort = 7778;
 
     /// <summary>
-    /// First PC-side port available for reverse tunnels.
+    /// First PC-side port available for reverse tunnels
     /// </summary>
     [SerializeField]
     private int localPortRangeStart = 7780;
 
     /// <summary>
-    /// Last PC-side port available. Defines how many ADB devices can be handled at once.
+    /// Last PC-side port available. Defines how many ADB devices can be handled at once
     /// </summary>
     [SerializeField]
     private int localPortRangeEnd = 7879;
 
     /// <summary>
-    /// How often (ms) the background thread checks "adb devices" for changes.
+    /// How often (ms) n"adb devices" is executed on background thread to notice changes
     /// </summary>
     [SerializeField]
     private int devicePollIntervalMs = 2000;
 
+    /// <summary>
+    /// Indicates whether the script is running or not
+    /// </summary>
     private bool running;
+
+    /// <summary>
+    /// Path to adb.exe
+    /// </summary>
     private string adbPath = "";
+
+    /// <summary>
+    /// Thread that executes "adb devices" command to notice if the status changes
+    /// </summary>
     private Thread deviceWatcherThread;
 
+    /// <summary>
+    /// Structure that contains which ports are being actively used by clients
+    /// </summary>
     private readonly HashSet<int> usedLocalPorts = new HashSet<int>();
 
     /// <summary>
@@ -62,11 +80,13 @@ public class ADBConnectionServer : MonoBehaviour
     private readonly ConcurrentDictionary<string, DeviceSession> sessionsByDeviceId = new ConcurrentDictionary<string, DeviceSession>();
 
     /// <summary>
-    /// Same sessions, keyed by the clientID StreamManager knows them by, so SendMessage
-    /// can look them up the same way SignalingServer.SendMessage does.
+    /// Same sessions, keyed by the clientID StreamManager knows them by
     /// </summary>
     private readonly ConcurrentDictionary<string, DeviceSession> sessionsByClientID = new ConcurrentDictionary<string, DeviceSession>();
 
+    /// <summary>
+    /// Lineal structure that contains all ClientData of this type of client
+    /// </summary>
     private List<ClientData> clients = new List<ClientData>();
 
     /// <summary>
@@ -81,13 +101,11 @@ public class ADBConnectionServer : MonoBehaviour
         public TcpClient tcpClient;
         public string clientID;
     }
-
     #endregion
 
-    #region ADB helpers
-
+    #region ADB
     /// <summary>
-    /// Locates adb.exe by checking common SDK install locations.
+    /// Checks common SDK install location trying to allocate adb.exe
     /// </summary>
     private string FindAdbPath()
     {
@@ -110,7 +128,7 @@ public class ADBConnectionServer : MonoBehaviour
         {
             if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
             {
-                UnityEngine.Debug.Log($"[ADBServer] adb found at: {path}");
+                if (debug) UnityEngine.Debug.Log($"[ADBServer] adb found at: {path}");
                 return path;
             }
         }
@@ -120,13 +138,13 @@ public class ADBConnectionServer : MonoBehaviour
     }
 
     /// <summary>
-    /// Runs an adb command and returns its stdout.
+    /// Execute adb commands and returns their output
     /// </summary>
     private string RunAdbCommand(string arguments)
     {
         if (string.IsNullOrEmpty(adbPath))
         {
-            UnityEngine.Debug.LogError("[ADBServer] adb.exe path is not set, cannot run command.");
+            if (debug) UnityEngine.Debug.LogError("[ADBServer] adb.exe path is not set, cannot run command.");
             return "";
         }
 
@@ -167,8 +185,7 @@ public class ADBConnectionServer : MonoBehaviour
     }
 
     /// <summary>
-    /// Parses "adb devices" output into a list of serials that are actually ready ("device" state),
-    /// ignoring "unauthorized"/"offline" entries.
+    /// Processes "adb devices" output into a list of available devices (ignoring "unauthorized"/"offline" devices)
     /// </summary>
     private List<string> GetConnectedDeviceIds()
     {
@@ -191,8 +208,12 @@ public class ADBConnectionServer : MonoBehaviour
 
     #endregion
 
-    #region Local port pool
-
+    #region Port administration
+    /// <summary>
+    /// Assigns an available port to a new client. If there is no room for more ports, throws exception
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private int AllocateLocalPort()
     {
         lock (usedLocalPorts)
@@ -207,18 +228,20 @@ public class ADBConnectionServer : MonoBehaviour
         throw new Exception("[ADBServer] No free local ports left for adb reverse (range exhausted).");
     }
 
+    /// <summary>
+    /// Frees an used port
+    /// </summary>
+    /// <param name="port"></param>
     private void ReleaseLocalPort(int port)
     {
         lock (usedLocalPorts)
             usedLocalPorts.Remove(port);
     }
-
     #endregion
 
     #region Device watcher
-
     /// <summary>
-    /// Background loop that polls "adb devices" and reacts to devices plugging/unplugging.
+    /// Background thread that executes "adb devices" repeteadly and reacts to changes in devices status
     /// </summary>
     private void DeviceWatcherLoop()
     {
@@ -245,21 +268,25 @@ public class ADBConnectionServer : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Reacts to a new device connection
+    /// </summary>
+    /// <param name="deviceId">Device connected</param>
     private void OnDeviceConnected(string deviceId)
     {
         var session = new DeviceSession { deviceId = deviceId };
 
         try
         {
+            // We assign a new port for this client and start the reverse tcp tunnel
             session.localPort = AllocateLocalPort();
             RunAdbCommand($"-s {deviceId} reverse tcp:{remotePort} tcp:{session.localPort}");
-
             session.listener = new TcpListener(IPAddress.Loopback, session.localPort);
             session.listener.Start();
 
+            // In case the watcher loop double-fired for this device and it has already been handled
             if (!sessionsByDeviceId.TryAdd(deviceId, session))
             {
-                // Safety net in case the watcher loop double-fired for this device.
                 session.listener.Stop();
                 ReleaseLocalPort(session.localPort);
                 return;
@@ -272,28 +299,30 @@ public class ADBConnectionServer : MonoBehaviour
             };
             session.acceptThread.Start();
 
-            UnityEngine.Debug.Log($"[ADBServer] Device connected: {deviceId} (tcp:{remotePort} -> tcp:{session.localPort})");
+            if (debug) UnityEngine.Debug.Log($"[ADBServer] Device connected: {deviceId} (tcp:{remotePort} -> tcp:{session.localPort})");
         }
         catch (Exception ex)
         {
-            UnityEngine.Debug.LogError($"[ADBServer] Failed to set up device {deviceId}: {ex.Message}");
+            if (debug) UnityEngine.Debug.LogError($"[ADBServer] Failed to set up device {deviceId}: {ex.Message}");
             ReleaseLocalPort(session.localPort);
         }
     }
 
+    /// <summary>
+    /// Reacts to a device disconnection
+    /// </summary>
+    /// <param name="deviceId">Device disconnected</param>
     private void OnDeviceDisconnected(string deviceId)
     {
         if (!sessionsByDeviceId.TryRemove(deviceId, out DeviceSession session)) return;
 
-        UnityEngine.Debug.Log($"[ADBServer] Device disconnected: {deviceId}");
+        if (debug) UnityEngine.Debug.Log($"[ADBServer] Device disconnected: {deviceId}");
 
         try { session.listener?.Stop(); } catch { }
         try { session.tcpClient?.Close(); } catch { }
 
-        // Best effort: the device is physically gone already, so this will usually just
-        // fail silently, which is fine - there is nothing left to un-reverse on its side.
+        // Even if the device is already disconnected this would fail silently (there is nothing left to un-reverse on its side)
         RunAdbCommand($"-s {deviceId} reverse --remove tcp:{remotePort}");
-
         ReleaseLocalPort(session.localPort);
 
         if (!string.IsNullOrEmpty(session.clientID))
@@ -306,12 +335,10 @@ public class ADBConnectionServer : MonoBehaviour
 
     #endregion
 
-    #region TCP handling (mirrors SignalingServer's framed-message protocol)
-
+    #region Communication
     /// <summary>
-    /// Waits for the phone app to connect through this device's tunnel. If the connection
-    /// drops (app closed/crashed) it keeps listening in case the app reconnects, for as long
-    /// as the device stays plugged in.
+    /// Waits for the phone app to connect through this device's tunnel. 
+    /// If the connection drops (app closed/crashed) it keeps listening in case the app reconnects (only while the device stays connected)
     /// </summary>
     private void AcceptLoop(DeviceSession session)
     {
@@ -322,7 +349,7 @@ public class ADBConnectionServer : MonoBehaviour
                 TcpClient tcp = session.listener.AcceptTcpClient();
                 session.tcpClient = tcp;
                 UnityEngine.Debug.Log($"[ADBServer] App connected through ADB tunnel for device {session.deviceId}.");
-                HandleClient(session, tcp); // Blocks until this connection ends.
+                HandleClient(session, tcp);
             }
             catch (SocketException)
             {
@@ -337,8 +364,7 @@ public class ADBConnectionServer : MonoBehaviour
     }
 
     /// <summary>
-    /// Handshake + signaling loop for one device connection. Same message protocol as
-    /// SignalingServer (ConnectionData handshake, then SignalingMessage for SDP/ICE/DISCONNECT).
+    /// Stablish connection between hosta nd client. First Handshake, then messages for WebRTC connection
     /// </summary>
     private void HandleClient(DeviceSession session, TcpClient tcp)
     {
@@ -349,7 +375,7 @@ public class ADBConnectionServer : MonoBehaviour
         {
             if (!NetworkUtils.TryReadFramedMessage(stream, out string message))
             {
-                UnityEngine.Debug.LogError($"[ADBServer] Client {session.deviceId} closed connection before handshake.");
+                UnityEngine.Debug.LogError($"[ADBServer] Client {session.deviceId} closed connection before handshake");
                 return;
             }
 
@@ -357,7 +383,7 @@ public class ADBConnectionServer : MonoBehaviour
 
             if (decodedData.connType != ConnectionEvent.HANDSHAKE)
             {
-                UnityEngine.Debug.LogError("[ADBServer] Did not receive a valid handshake ConnectionData.");
+                UnityEngine.Debug.LogError("[ADBServer] Did not receive a valid handshake ConnectionData");
                 return;
             }
 
@@ -366,7 +392,7 @@ public class ADBConnectionServer : MonoBehaviour
             sessionsByClientID.TryAdd(clientID, session);
 
             ClientData newClient = ClientData.ForADB(session.deviceId, clientID);
-            UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeerForADBClient(newClient));
+            UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
             clients.Add(newClient);
 
             UnityEngine.Debug.Log($"[ADBServer] Client registered: {session.deviceId} (id: {clientID})");
@@ -402,8 +428,7 @@ public class ADBConnectionServer : MonoBehaviour
     }
 
     /// <summary>
-    /// Sends a signaling message to a specific client. Mirrors SignalingServer.SendMessage's signature
-    /// so StreamManager can wire WebRTCPeer.Initialize the same way for every transport.
+    /// Sends a signaling message to a specific client
     /// </summary>
     public bool SendMessage(string clientID, SignalingMessage msg)
     {
@@ -425,13 +450,11 @@ public class ADBConnectionServer : MonoBehaviour
 
     #endregion
 
-    #region Server lifecycle
-
+    #region Activation/Deactivation
     public void StartServer()
     {
         if (running) return;
 
-        adbPath = FindAdbPath();
         if (string.IsNullOrEmpty(adbPath))
         {
             UnityEngine.Debug.LogError("[ADBServer] adb.exe not found; ADB connections will not be available.");
@@ -442,7 +465,7 @@ public class ADBConnectionServer : MonoBehaviour
         deviceWatcherThread = new Thread(DeviceWatcherLoop) { IsBackground = true, Name = "ADB Device Watcher" };
         deviceWatcherThread.Start();
 
-        UnityEngine.Debug.Log("[ADBServer] ADB server launched.");
+        if (debug) UnityEngine.Debug.Log("[ADBServer] ADB server launched.");
     }
 
     public void StopServer()
@@ -455,7 +478,7 @@ public class ADBConnectionServer : MonoBehaviour
         foreach (string deviceId in new List<string>(sessionsByDeviceId.Keys))
             OnDeviceDisconnected(deviceId);
 
-        UnityEngine.Debug.Log("[ADBServer] ADB server stopped.");
+        if (debug) UnityEngine.Debug.Log("[ADBServer] ADB server stopped.");
     }
 
     public List<ClientData> GetClients()
@@ -465,11 +488,14 @@ public class ADBConnectionServer : MonoBehaviour
     #endregion
 
     #region Monobehaviour
+    private void Start()
+    {
+        adbPath = FindAdbPath();
+    }
 
     void OnDestroy()
     {
         try { StopServer(); } catch { }
     }
-
     #endregion
 }
