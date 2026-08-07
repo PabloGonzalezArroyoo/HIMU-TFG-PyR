@@ -1103,8 +1103,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1333489035}
-  - component: {fileID: 1333489036}
-  - component: {fileID: 1333489037}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -1128,38 +1126,6 @@ Transform:
   - {fileID: 1807893435}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1333489036
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1333489034}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e34ab30e8146ab4eb69f70e68d55fea, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ConnectionUIManager
-  statusMessageText: {fileID: 1958474095}
-  fadeOutImage: {fileID: 1640494752}
-  contentParent: {fileID: 1610505321}
-  sessionPrefab: {fileID: 6044284259001234535, guid: 4fb979163891b3c4f9e60d3836fe21cd, type: 3}
-  timeToFadeText: 2.5
-  timeToFadeScene: 1.5
---- !u!114 &1333489037
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1333489034}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 29b0ae708793c364ba42efd5346a44f0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SessionListenerComponent
-  uiManager: {fileID: 1333489036}
-  listenPort: 8053
 --- !u!1 &1404128341
 GameObject:
   m_ObjectHideFlags: 0
@@ -1722,6 +1688,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1927213308}
+  - component: {fileID: 1927213309}
   m_Layer: 0
   m_Name: ConnectionManager
   m_TagString: Untagged
@@ -1744,6 +1711,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1927213309
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1927213307}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0bebff8ba41b5ab4d9453e15a54ca85b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ConnectionManager
+  clientType: 1
 --- !u!1 &1958474093
 GameObject:
   m_ObjectHideFlags: 0

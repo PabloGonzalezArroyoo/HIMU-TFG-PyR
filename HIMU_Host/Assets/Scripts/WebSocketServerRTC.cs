@@ -53,7 +53,6 @@ public class WebSocketServerRTC : MonoBehaviour
     private Uri nodeUri;
 
     private List<ClientData> clients = new List<ClientData>();
-
     #endregion
 
     #region Bat

@@ -3,14 +3,14 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class UIManager : MonoBehaviour
+public class Old_UIManager : MonoBehaviour
 {
-    public static UIManager Instance { get; private set; }
+    public static Old_UIManager Instance { get; private set; }
 
     [SerializeField]
     private TextMeshProUGUI connectionText;
     [SerializeField]
-    private ConnectionManager connectionMannager;
+    private StreamManager connectionMannager;
     [SerializeField]
     private GameObject sessionButtons;
     [SerializeField]
@@ -33,11 +33,11 @@ public class UIManager : MonoBehaviour
         switch(c)
         {
             case 0: 
-                cl = ClientType.STREAM;
+                cl = ClientType.WEB_SOCKET;
                 Debug.Log("STREAM SELECCIONADO");
                 break;
             case 1: 
-                cl = ClientType.PLAYER;
+                cl = ClientType.ADB;
                 Debug.Log("PLAYER SELECCIONADO");
                 controlButtons.SetActive(true); 
                 break;

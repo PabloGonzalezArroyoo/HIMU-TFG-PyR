@@ -71,7 +71,7 @@ public class ClientInputManager : MonoBehaviour
             touches[i] = new TouchesData(t.touchId, t.screenPosition);
         }
 
-        InputFrame frameInput = new InputFrame(touches);
+        InputFrame frameInput = new InputFrame(touches, Vector3.zero);
         receiver.SendThroughDataChannel(JsonUtility.ToJson(frameInput));
         previousTouchCount = count;
     }

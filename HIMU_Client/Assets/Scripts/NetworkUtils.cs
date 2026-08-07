@@ -65,7 +65,7 @@ public static class NetworkUtils
     /// </summary>
     private static string ResolveLocalIPAddress()
     {
-        string ipAddress = "None";
+        string ipAddress = "0.0.0.0";
         try
         {
 #if UNITY_EDITOR || UNITY_STANDALONE_WIN

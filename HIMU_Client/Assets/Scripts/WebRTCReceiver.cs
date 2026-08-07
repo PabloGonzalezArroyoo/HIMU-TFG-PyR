@@ -29,7 +29,6 @@ public class WebRTCReceiver : MonoBehaviour
     /// Callback for when a signaling message is received.
     /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
-
     #endregion
 
     #region Methods
@@ -81,6 +80,7 @@ public class WebRTCReceiver : MonoBehaviour
     {
         displayTarget = vPanel;
         OnSignalingMessage = action;
+        // action = NetworkUtils.WriteFramedMessage(stream, JsonUtility.ToJson(msg)); pero stream lo tiene StreamManager
         Initialize();
     }
 
