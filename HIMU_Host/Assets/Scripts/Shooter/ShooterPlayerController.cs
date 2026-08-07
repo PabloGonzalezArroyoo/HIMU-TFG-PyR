@@ -69,11 +69,7 @@ public class ShooterPlayerController : MonoBehaviour
         if (keyboard.rightArrowKey.isPressed) rotationInput += 1f;
         if (keyboard.leftArrowKey.isPressed) rotationInput -= 1f;
 
-        if (keyboard.spaceKey.isPressed)
-        {
-            Debug.Log("Espacio");
-            shtComp.Shoot();
-        }
+        if (keyboard.spaceKey.isPressed) shtComp.Shoot();
 
         //if (peer == null) return; // no hay peer detecteado
 

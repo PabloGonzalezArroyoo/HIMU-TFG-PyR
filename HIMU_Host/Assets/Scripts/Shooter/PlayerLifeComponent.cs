@@ -3,11 +3,18 @@ using UnityEngine;
 
 public class PlayerLifeComponent : MonoBehaviour
 {
+    private string clientID;
+
     private int life = 3;
 
     [SerializeField] private List<GameObject> lifeObjects; 
     
     Queue<GameObject> lifeQueue;
+
+    public void SetClientID(string id)
+    {
+        clientID = id;
+    }
 
     private void Start()
     {
@@ -22,7 +29,11 @@ public class PlayerLifeComponent : MonoBehaviour
             GameObject lifeObject = lifeQueue.Dequeue();
             lifeObject.SetActive(false);
 
-            if (life <= 0 ) Destroy(gameObject);
+            if (life <= 0)
+            {
+                ShooterGameManager.Instance.PlayerEliminated(clientID);
+                Destroy(gameObject);
+            }
         }            
     }
 }

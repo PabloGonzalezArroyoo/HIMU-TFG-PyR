@@ -18,6 +18,10 @@ public class BulletComponent : MonoBehaviour
             Debug.Log("Soy un player!");
             life.TakeDamage();
         }
+        else
+        {
+            Debug.Log("No soy un player!" + collision.gameObject.name);
+        }
 
         Destroy(gameObject);
     }

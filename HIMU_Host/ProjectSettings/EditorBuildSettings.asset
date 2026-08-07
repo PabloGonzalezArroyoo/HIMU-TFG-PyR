@@ -20,6 +20,18 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/CarGame/RacingGame_EndScene.unity
     guid: 99f38657b5820a640ac1c799b76c0996
+  - enabled: 1
+    path: Assets/Scenes/Shooter/ShooterMainMenu.unity
+    guid: 5d419f1473832204c8ab0e8d24b06892
+  - enabled: 1
+    path: Assets/Scenes/Shooter/ShooterConnectionsScene.unity
+    guid: 59686071f5b5bc94693cd2262170b9ac
+  - enabled: 1
+    path: Assets/Scenes/Shooter/ShooterScene.unity
+    guid: 26e80f4c3f93b6a4fa455bfabad587a8
+  - enabled: 1
+    path: Assets/Scenes/Shooter/ShooterRemoteControlScene.unity
+    guid: 2783096cdf456044eb76f16748b459ea
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

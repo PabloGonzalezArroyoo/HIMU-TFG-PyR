@@ -20,7 +20,6 @@ public class ShootingComponent : MonoBehaviour
 
     public void Shoot()
     {
-        Debug.Log("Disparo");
         if (bulletPrefab == null || bulletSpawn == null) return;
 
         if (timer < cooldown) return;
