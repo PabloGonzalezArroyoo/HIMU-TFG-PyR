@@ -16,14 +16,14 @@ function setStatus(msg) {
 }
 
 function cleanup(reason) {
-    // Cerrar WebRTC y limpiar el frame congelado
+    // Close WebRTC and clean frozen frame
     if (pc) {
         pc.close();
         pc = null;
     }
     video.srcObject = null;
 
-    // Cerrar WebSocket anulando callbacks primero para evitar re-entrada
+    // Close WebSocket clearing callbacks first to avoid re-entry
     if (ws) {
         ws.onclose = null;
         ws.onerror = null;
@@ -40,12 +40,12 @@ async function connect() {
     const sessionId = sessionInput.value.trim();
 
     if (!SESSION_ID_REGEX.test(sessionId)) {
-        setStatus('Introduce un ID de sesión válido (4 dígitos)');
+        setStatus('Enter valid session ID (4 digits)');
         sessionInput.focus();
         return;
     }
 
-    cleanup('Conectando a señalización...');
+    cleanup('Connecting to signaling...');
     btn.disabled = true;
 
     let pendingCandidates = [];
@@ -53,27 +53,27 @@ async function connect() {
     ws = new WebSocket(`ws://192.168.1.12:8080?type=browser&id=${sessionId}`);
 
     ws.onopen = () => {
-        ws.binaryType = "arraybuffer"; // forzar arraybuffer en vez de Blob
+        ws.binaryType = "arraybuffer"; // Force arraybuffer instead of Blob
         setStatus('Esperando offer de Unity...');
     };
 
     ws.onmessage = async (event) => {
         let json;
     
-    // Manejar tanto arraybuffer como string
-    if (event.data instanceof ArrayBuffer) {
-        json = new TextDecoder().decode(event.data);
-    } else if (event.data instanceof Blob) {
-        json = await event.data.text();
-    } else {
-        json = event.data;
-    }
-
-    console.log("RAW recibido:", json); // ahora debería mostrar el JSON real
+        // Handle arraybuffer and string
+        if (event.data instanceof ArrayBuffer) {
+            json = new TextDecoder().decode(event.data);
+        } else if (event.data instanceof Blob) {
+            json = await event.data.text();
+        } else {
+            json = event.data;
+        }
+        // Showing real json received
+        console.log("RAW received:", json); 
         const msg = JSON.parse(json);
         
         if (msg.type === 4)
-            cleanup('Unity desconectado');
+            cleanup('Unity disconnected');
         
         // Unity manda la offer dentro de msg.body como JSON string
         else if (msg.type === 5) { // ConnectionEvent.SDP
@@ -86,8 +86,8 @@ async function connect() {
             pc.ontrack = (event) => {
                 const stream = event.streams?.[0] ?? new MediaStream([event.track]);
                 video.srcObject = stream;
-                video.play().catch(e => console.error('play() bloqueado:', e));
-                setStatus('Stream recibido ✓');
+                video.play().catch(e => console.error('play() blocked:', e));
+                setStatus('Receiving stream');
             };
 
             pc.onicecandidate = (event) => {
@@ -108,16 +108,16 @@ async function connect() {
                 if (pc.connectionState === 'failed') cleanup('Conexión WebRTC fallida');
             };
 
-            // Aplicar la offer de Unity
+            // Apply offer sent by Unity
             await pc.setRemoteDescription({ type: 'offer', sdp: sdpData.sdp });
 
-            // Aplicar ICE candidates que llegaron antes que la offer
+            // Apply ICE candidates received before offer
             for (const c of pendingCandidates) {
                 await pc.addIceCandidate(c).catch(e => console.warn('ICE error:', e));
             }
             pendingCandidates = [];
 
-            // Crear y enviar answer
+            // Create and send answer
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -126,7 +126,7 @@ async function connect() {
                 body: JSON.stringify({ type: 'answer', sdp: answer.sdp })
             }));
 
-            setStatus('Answer enviado, negociando ICE...');
+            setStatus('Answer sent, negotiating ICE...');
         }
         else if (msg.type === 6) { // ConnectionEvent.ICE
             const iceData = JSON.parse(msg.body);
@@ -145,6 +145,7 @@ async function connect() {
         }
     };
 
-    ws.onerror = () => cleanup('Error de señalización');
-    ws.onclose = () => cleanup('Señalización cerrada');
+    // Set callbacks for different situations
+    ws.onerror = () => cleanup('Signaling error');
+    ws.onclose = () => cleanup('Signaling closed');
 }

@@ -223,7 +223,7 @@ GameObject:
   - component: {fileID: 5512834476693356835}
   - component: {fileID: 5732829677330377837}
   - component: {fileID: 7499823965938351757}
-  - component: {fileID: 381539652990270984}
+  - component: {fileID: 8331974071602132211}
   m_Layer: 0
   m_Name: Session
   m_TagString: Untagged
@@ -298,7 +298,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 381539652990270984}
+      - m_Target: {fileID: 8331974071602132211}
         m_TargetAssemblyTypeName: SessionInfoComponent, Assembly-CSharp
         m_MethodName: SelectSession
         m_Mode: 1
@@ -330,7 +330,7 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
---- !u!114 &381539652990270984
+--- !u!114 &8331974071602132211
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -339,13 +339,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 6044284259001234535}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 437760008d5e474459842a073fb35448, type: 3}
+  m_Script: {fileID: 11500000, guid: 7de7ff44a56a7b049b57ae72df0f5ac1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SessionInfoComponent
   nameText: {fileID: 2055499663285173470}
   infoText: {fileID: 7352054351946558814}
-  IP: 
-  port: 0
+  IP: 127.0.0.1
+  port: 7777
   sessionName: 
   sessionInfo: 
 --- !u!1 &6576866127072035062

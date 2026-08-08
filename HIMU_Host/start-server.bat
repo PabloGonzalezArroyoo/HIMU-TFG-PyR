@@ -13,7 +13,7 @@ shift
 
 :: ============================================================
 :: 0. .bat has arguments (ports needed for execution). Example: start-server.bat 8080 3000
-:: (They recevive default values)
+:: (They receive default values)
 set "WS_PORT=8080"
 set "HTTP_PORT=3000"
 

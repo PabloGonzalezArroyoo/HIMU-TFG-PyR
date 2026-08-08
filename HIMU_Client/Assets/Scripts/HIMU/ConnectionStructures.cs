@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Net.Sockets;
+using System.Collections.Generic;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -7,6 +7,7 @@ using UnityEngine;
 /// HOST CONNECTION STRUCTURES
 /// </summary>
 
+#region Enums
 public enum ConnectionEvent
 {
     DEFAULT,
@@ -16,6 +17,13 @@ public enum ConnectionEvent
     DISCONNECT,
     SDP,        // SDP: Session Description Protocol (offer/answer)
     ICE         // ICE: Interactive Connectivity Establishment (ICE candidates)
+}
+
+public enum ClientConnectionState
+{
+    Disconnected,
+    Connecting,
+    Connected
 }
 
 public enum ConnectionTransport
@@ -33,7 +41,58 @@ public enum ClientType
     TCP,
     ADB
 }
+#endregion
 
+[Serializable]
+public class ConnectionData
+{
+    public string sessionName;
+    public int sessionID;
+    public string ipAddress;
+    public int port;
+    public ConnectionEvent connType;
+    public ClientType clientType;
+
+    private ConnectionData(string ipAddress, int port, string name, int session, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
+    {
+        sessionName = name;
+        sessionID = session;
+        this.ipAddress = ipAddress;
+        this.port = port;
+        this.connType = connEvent;
+        this.clientType = clientType;
+    }
+
+    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
+    {
+        this.ipAddress = ipAddress;
+        this.port = port;
+        this.connType = connEvent;
+        this.clientType = clientType;
+    }
+
+    /// <summary>
+    /// Payload that the host broadcasts over UDP multicast so nearby devices can discover it.
+    /// </summary>
+    /// <param name="hostIP">Host's IP, so the client knows where to connect.</param>
+    /// <param name="listenPort">TCP port SignalingServer is listening on.</param>
+    public static ConnectionData ForBroadcast(string hostIP, int listenPort, string name, int session)
+    {
+        return new ConnectionData(hostIP, listenPort, name, session, ConnectionEvent.BROADCAST, ClientType.NONE);
+    }
+
+    /// <summary>
+    /// Payload a client sends back over TCP to complete the handshake and register itself.
+    /// </summary>
+    /// <param name="clientIP">Client's own IP, used as its identifier until replaced by a GUID.</param>
+    /// <param name="clientType">Declares what kind of client this device is.</param>
+    public static ConnectionData ForHandshake(string clientIP, ClientType clientType)
+    {
+        return new ConnectionData(clientIP, 0, ConnectionEvent.HANDSHAKE, clientType);
+    }
+}
+
+#region Communication structures
 [Serializable]
 public class SignalingMessage
 {
@@ -47,6 +106,38 @@ public class SignalingMessage
     }
 }
 
+// Input structures
+[Serializable]
+public class InputFrame
+{
+    public List<Vector2> touches;
+    public Vector3 accelometer;
+    // GPS?
+    // Micro
+
+    public InputFrame(List<Vector2> t, Vector3 a)
+    {
+        touches = t;
+        accelometer = a;
+    }
+}
+#endregion
+
+#region WebSocket Structures
+[Serializable] public class WSBaseMessage { public int type; }
+
+[Serializable] public class WSNewClientMessage { public int type; public int clientId; }
+
+[Serializable]
+public class WSTaggedMessage
+{
+    public int type;
+    public int clientId;
+    public string body;
+}
+#endregion
+
+#region WebRTC Structures
 [Serializable]
 public class IceCandidateData
 {
@@ -84,82 +175,4 @@ public class SessionDescriptionData
         };
     }
 }
-
-[Serializable]
-public class ConnectionData
-{
-    public string ipAddress;
-    public int port;
-    public ConnectionEvent connType;
-    public ClientType clientType;
-
-    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
-    {
-        this.ipAddress = ipAddress;
-        this.port = port;
-        this.connType = connEvent;
-        this.clientType = clientType;
-    }
-
-    /// <summary>
-    /// Payload that the host broadcasts over UDP multicast so nearby devices can discover it.
-    /// </summary>
-    /// <param name="hostIP">Host's IP, so the client knows where to connect.</param>
-    /// <param name="listenPort">TCP port SignalingServer is listening on.</param>
-    public static ConnectionData ForBroadcast(string hostIP, int listenPort)
-    {
-        return new ConnectionData(hostIP, listenPort, ConnectionEvent.BROADCAST, ClientType.NONE);
-    }
-
-    /// <summary>
-    /// Payload a client sends back over TCP to complete the handshake and register itself.
-    /// </summary>
-    /// <param name="clientIP">Client's own IP, used as its identifier until replaced by a GUID.</param>
-    /// <param name="clientType">Declares what kind of client this device is.</param>
-    public static ConnectionData ForHandshake(string clientIP, ClientType clientType)
-    {
-        return new ConnectionData(clientIP, 0, ConnectionEvent.HANDSHAKE, clientType);
-    }
-}
-
-// Input structures
-[Serializable]
-public class TouchesData
-{
-    public int id;
-    public Vector2 pos;
-
-    public TouchesData(int _id, Vector2 _pos)
-    {
-        id = _id;
-        pos = _pos;
-    }
-}
-
-[Serializable]
-public class InputFrame
-{
-    public TouchesData[] touches;
-    public Vector3 accelometer;
-    // GPS?
-    // Micro
-
-    public InputFrame(TouchesData[] t, Vector3 a)
-    {
-        touches = t;
-        accelometer = a;
-    }
-}
-
-// WebSocket communication structures
-[Serializable] public class WSBaseMessage { public int type; }
-
-[Serializable] public class WSNewClientMessage { public int type; public int clientId; }
-
-[Serializable]
-public class WSTaggedMessage
-{
-    public int type;
-    public int clientId;
-    public string body;
-}
+#endregion

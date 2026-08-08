@@ -9,7 +9,6 @@ using UnityEngine.UI;
 public class WebRTCReceiver : MonoBehaviour
 {
     #region Variables
-
     /// <summary>
     /// Object that represents the P2P connection.
     /// </summary>
@@ -32,7 +31,6 @@ public class WebRTCReceiver : MonoBehaviour
     #endregion
 
     #region Methods
-
     /// <summary>
     /// Initializes the WebRTC connection and overrides callbacks for when data is sent through it.
     /// </summary>
@@ -80,7 +78,6 @@ public class WebRTCReceiver : MonoBehaviour
     {
         displayTarget = vPanel;
         OnSignalingMessage = action;
-        // action = NetworkUtils.WriteFramedMessage(stream, JsonUtility.ToJson(msg)); pero stream lo tiene StreamManager
         Initialize();
     }
 
@@ -155,16 +152,21 @@ public class WebRTCReceiver : MonoBehaviour
             dataChannel.Send(json);
         }
     }
-
     #endregion
 
-    #region MonoBehaviour
+    private void Start()
+    {
+        displayTarget = UIManager.Instance?.GetDisplayTarget();
+        DontDestroyOnLoad(gameObject);
+    }
 
+    #region MonoBehaviour
     void OnDestroy()
     {
+        dataChannel.Close();
+        dataChannel.Dispose();
         peer?.Close();
         peer?.Dispose();
     }
-
     #endregion
 }

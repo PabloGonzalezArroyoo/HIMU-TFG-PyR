@@ -1,4 +1,7 @@
+using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
@@ -61,20 +64,20 @@ public class ClientInputManager : MonoBehaviour
 
         // Nothing to send -> there weren't and there aren't any touches
         if (count == 0 && previousTouchCount == 0) return;
+        List<Vector2> touches = new List<Vector2>(count);
 
-        TouchesData[] touches = new TouchesData[count];
         for (int i = 0; i < count; i++)
         {
             Touch t = activeTouches[i];
             Vector2 normalizedPos = new Vector2(t.screenPosition.x / Screen.width, t.screenPosition.y / Screen.height);
-            Debug.Log(normalizedPos);
-            touches[i] = new TouchesData(t.touchId, t.screenPosition);
+            touches[i] = normalizedPos;
         }
 
-        InputFrame frameInput = new InputFrame(touches, Vector3.zero);
+        Vector3 accValue = Accelerometer.current.acceleration.ReadValue();
+
+        InputFrame frameInput = new InputFrame(touches, accValue);
         receiver.SendThroughDataChannel(JsonUtility.ToJson(frameInput));
         previousTouchCount = count;
     }
-
     #endregion
 }

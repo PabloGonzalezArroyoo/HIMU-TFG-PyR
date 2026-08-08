@@ -27,28 +27,6 @@ public class Old_UIManager : MonoBehaviour
         Instance = this;
     }
 
-    public void StartConnection(int c)
-    {
-        ClientType cl;
-        switch(c)
-        {
-            case 0: 
-                cl = ClientType.WEB_SOCKET;
-                Debug.Log("STREAM SELECCIONADO");
-                break;
-            case 1: 
-                cl = ClientType.ADB;
-                Debug.Log("PLAYER SELECCIONADO");
-                controlButtons.SetActive(true); 
-                break;
-            default: 
-                cl = ClientType.NONE; 
-                break;
-        }
-        connectionMannager.StartBroadcast(cl);  
-        sessionButtons.SetActive(false);
-    }
-
     public void OnConnectionStarted(string ip)
     {
         connectionText.gameObject.SetActive(true);
