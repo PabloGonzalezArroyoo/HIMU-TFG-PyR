@@ -8,9 +8,6 @@ public class InputManager : MonoBehaviour
 {
     public static InputManager Instance { get; private set; }
 
-    [SerializeField]
-    private bool shouldPersist = false;
-
     /// <summary>
     /// Component incharged of the communication through the WebRTC protcol with the host machine.
     /// </summary>
@@ -21,21 +18,19 @@ public class InputManager : MonoBehaviour
     /// </summary>
     private int previousTouchCount;
 
-    /// <summary>
-    /// Sets the receiver. This exists because the receiver is created dynamically once the connection
-    /// with the host has been established, therefore it should be called after those instructions.
-    /// </summary>
-    /// <param name="r">Active receiver where the data is sent to the host.</param>
-    public void SetReceiver(WebRTCReceiver r)
-    {
-        receiver = r;
-    }
-
     void Awake()
     {
         if (Instance) { DestroyImmediate(gameObject); return; }
         Instance = this;
-        if (shouldPersist) DontDestroyOnLoad(gameObject);
+        DontDestroyOnLoad(gameObject);
+    }
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        previousTouchCount = 0;
+        receiver = GetComponent<WebRTCReceiver>();
+        enabled = false;
     }
 
     private void OnEnable()
@@ -47,12 +42,6 @@ public class InputManager : MonoBehaviour
     private void OnDisable()
     {
         EnhancedTouchSupport.Disable();
-    }
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        previousTouchCount = 0;
     }
 
     // Update is called once per frame

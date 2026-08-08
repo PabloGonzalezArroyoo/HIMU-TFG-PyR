@@ -19,12 +19,12 @@ public class StreamManager : MonoBehaviour
     public ConnectionTransport currentTransport { get; private set; } = ConnectionTransport.NONE;
 
     [SerializeField] private int adbRemotePort = 7778;
-    [SerializeField] private int adbConnectMaxRetries = 6;
-    [SerializeField] private int adbConnectRetryDelayMs = 1000;
+    [SerializeField] private int adbConnectMaxRetries = 5;
+    [SerializeField] private int adbConnectRetryDelayMs = 1500;
 
-    [SerializeField] private int tcpConnectMaxRetries = 6;
-    [SerializeField] private int tcpConnectRetryDelayMs = 1000;
-    [SerializeField] private int tcpConnectTimeoutMs = 3000;
+    [SerializeField] private int tcpConnectMaxRetries = 5;
+    [SerializeField] private int tcpConnectRetryDelayMs = 1500;
+    [SerializeField] private int tcpConnectTimeoutMs = 1500;
 
     private volatile bool intentionalDisconnect;
 
@@ -102,7 +102,9 @@ public class StreamManager : MonoBehaviour
     /// <summary>
     /// Component that allows the WebRTC communication.
     /// </summary>
-    private WebRTCReceiver receiver;
+    private WebRTCReceiver receiver = null;
+
+    [SerializeField] private GameObject clientPrefab = null;
     #endregion
 
     #region TCP
@@ -302,9 +304,9 @@ public class StreamManager : MonoBehaviour
             }
             catch (SocketException se)
             {
-                Debug.LogWarning($"TCP connect attempt {attempt}/{tcpConnectMaxRetries} failed: {se.Message}");
+                Debug.LogWarning($"TCP connect attempt {attempt}/{adbConnectMaxRetries} failed: {se.Message}");
                 CleanupSocket();
-                if (attempt < tcpConnectMaxRetries) Thread.Sleep(tcpConnectRetryDelayMs);
+                if (attempt < adbConnectMaxRetries) Thread.Sleep(adbConnectRetryDelayMs);
             }
             catch (Exception ex)
             {
@@ -346,13 +348,10 @@ public class StreamManager : MonoBehaviour
     public void OnConnectionStarted()
     {
         connected = true;
-        // Create and configure the receiver
-        GameObject client = new GameObject();
+        GameObject client = Instantiate(clientPrefab);
         client.transform.position = Vector3.zero;
-        InputManager input = client.AddComponent<InputManager>();
-        receiver = client.AddComponent<WebRTCReceiver>();
-        receiver.SetUpAndInitialize(UIManager.Instance.GetDisplayTarget(), SendMessage);
-        input.SetReceiver(receiver);
+        receiver = client.GetComponent<WebRTCReceiver>();
+        receiver.SetUpAndInitialize(SendMessage);
 
         readThread = new Thread(ReadLoop) { IsBackground = true };
         readThread.Start();
@@ -391,6 +390,7 @@ public class StreamManager : MonoBehaviour
             catch (Exception e)
             {
                 if (running) Debug.LogWarning($"[StreamManager] {e.Message}");
+                OnConnectionLost();
                 break;
             }
         }
@@ -475,10 +475,11 @@ public class StreamManager : MonoBehaviour
         CloseConnection();
     }
 
-    private void OnConnectionLost(string reason)
+    private void OnConnectionLost()
     {
         intentionalDisconnect = false;
         CloseConnection();
+        AppManager.Instance.StartFading(null, "MainMenuScene");
     }
 
     /// <summary>
@@ -497,8 +498,6 @@ public class StreamManager : MonoBehaviour
         }
 
         CleanupSocket();
-
-        if (wasActive) Destroy(receiver.gameObject);
     }
 
     /// <summary>
@@ -551,20 +550,12 @@ public class StreamManager : MonoBehaviour
         StartListening();
     }
 
-    private void Update()
-    {
-        if (debug)
-        {
-            debug = false;
-            StoreSession(ConnectionData.ForBroadcast("199.10.22.12", 7728, "TEst", 2765));
-        }
-    }
-
     private void OnDestroy()
     {
         running = false;
         CloseConnection();
         CleanupListener();
+        if (receiver) Destroy(receiver.gameObject);
     }
     #endregion
 }

@@ -22,6 +22,7 @@ public class WebRTCReceiver : MonoBehaviour
     /// <summary>
     /// UI where the streamed image is displayed.
     /// </summary>
+    [SerializeField]
     private RawImage displayTarget;
 
     /// <summary>
@@ -74,9 +75,8 @@ public class WebRTCReceiver : MonoBehaviour
         };
     }
 
-    public void SetUpAndInitialize(RawImage vPanel, System.Action<SignalingMessage> action)
+    public void SetUpAndInitialize(System.Action<SignalingMessage> action)
     {
-        displayTarget = vPanel;
         OnSignalingMessage = action;
         Initialize();
     }
@@ -156,7 +156,6 @@ public class WebRTCReceiver : MonoBehaviour
 
     private void Start()
     {
-        displayTarget = UIManager.Instance?.GetDisplayTarget();
         DontDestroyOnLoad(gameObject);
     }
 

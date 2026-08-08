@@ -12,16 +12,14 @@ public class UIManager : MonoBehaviour
     private bool changingScene = false;
 
     [SerializeField] private TextMeshProUGUI statusMessageText;
-    [SerializeField] private Image fadeOutImage;
     [SerializeField] private Transform contentParent;
     [SerializeField] private GameObject sessionPrefab;
+    [SerializeField] private RawImage fadeOutImage;
 
     // Efecto de texto
     [SerializeField] private float timeToFadeText = 1f;
-    [SerializeField] private float timeToFadeScene = 1.5f;
     private float timer = 0.0f;
     private bool fadingText = false;
-    private bool fadingScene = false;
     private Color auxColor = Color.black;
 
     private List<GameObject> sessionList = new List<GameObject>();
@@ -64,12 +62,12 @@ public class UIManager : MonoBehaviour
 
     public void ConnectionSuccessful()
     {
+        if (changingScene) return;
         statusMessageText.text = "Connection was successful...";
         statusMessageText.alpha = 1;
         statusMessageText.color = Color.green;
-        fadingScene = true;
         changingScene = true;
-        fadeOutImage.raycastTarget = true;
+        AppManager.Instance.StartFading(fadeOutImage, "GameScene");
     }
 
     public void ConnectionFailed(string ip)
@@ -89,11 +87,6 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void ChangeScene()
-    {
-        SceneManager.LoadScene("GameScene");
-    }
-
     private void Awake()
     {
         if (Instance) { Destroy(gameObject); return; }
@@ -102,23 +95,6 @@ public class UIManager : MonoBehaviour
 
     void Update()
     {
-        if (fadingScene)
-        {
-            timer += Time.deltaTime;
-            auxColor = fadeOutImage.color;
-            auxColor.a = timer / timeToFadeScene;
-            fadeOutImage.color = auxColor;
-            if (timer >= timeToFadeScene)
-            {
-                fadingScene = false;
-                timer = 0.0f;
-                auxColor = Color.black;
-                auxColor.a = 0;
-                fadeOutImage.color = auxColor;
-                ChangeScene();
-            }
-        }
-
         if (fadingText)
         {
             timer += Time.deltaTime;
