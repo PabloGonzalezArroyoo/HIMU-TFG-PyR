@@ -15,12 +15,6 @@ public class InputManager : MonoBehaviour
     public static InputManager Instance { get; private set; }
 
     /// <summary>
-    /// Defines whether we print information or not
-    /// </summary>
-    [SerializeField]
-    private bool debug = false;
-
-    /// <summary>
     /// Defines whether this scripts object persists between scenes or not
     /// </summary>
     [SerializeField]

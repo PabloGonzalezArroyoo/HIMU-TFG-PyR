@@ -49,23 +49,6 @@ public class HIMUClient : MonoBehaviour
     /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
 
-    /// <summary>
-    /// Array of inputs recieved in the latest message reception from the peer.
-    /// Volatile so it can be accesible and updated for all threads that could access it
-    /// at the same time.
-    /// </summary>
-    private volatile TouchesData[] latestTouches = Array.Empty<TouchesData>();
-
-    /// <summary>
-    /// Intermediate object between the input registered in this component and the other
-    /// scripts that could use it. It uses the ReadOnly interface so that there is no way for
-    /// external scripts to overwrite or add any data to the input cached.
-    /// </summary>
-    public IReadOnlyList<TouchesData> CurrentTouches
-    {
-        get { return latestTouches; }
-    }
-
     [SerializeField]
     private bool handlesInput = false;
     [SerializeField]
@@ -127,12 +110,6 @@ public class HIMUClient : MonoBehaviour
                 InputManager.Instance?.ParseInputMessage(msg);
             };
         }
-
-        // Data channel configuration - Audio
-        if (handlesAudio)
-        {
-
-        }
     }
 
     /// <summary>
@@ -188,13 +165,48 @@ public class HIMUClient : MonoBehaviour
 
     public void ChangeTexture(RenderTexture texture)
     {
-        VideoStreamTrack newVST = new VideoStreamTrack(texture);
-        videoTrack.Dispose();
-        videoSender.ReplaceTrack(newVST);
+        if (texture == null)
+        {
+            Debug.LogError("Texture es null");
+            return;
+        }
+
+        if (videoSender == null)
+        {
+            Debug.LogError("videoSender es null");
+            return;
+        }
+
+        try
+        {
+            VideoStreamTrack newVST = new VideoStreamTrack(texture);
+
+            bool replaced = videoSender.ReplaceTrack(newVST);
+            Debug.Log($"ReplaceTrack devolvió: {replaced}");
+
+            if (!replaced)
+            {
+                newVST.Dispose();
+                return;
+            }
+
+            videoTrack?.Dispose();
+            videoTrack = newVST;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Debug.LogError($"ObjectDisposedException: {ex.StackTrace}");
+            throw;
+        }
     }
     #endregion
 
     #region Monobehaviour
+
+    private void Start()
+    {
+        DontDestroyOnLoad(gameObject);
+    }
 
     /// <summary>
     /// Closes the connection and cleans its objects.

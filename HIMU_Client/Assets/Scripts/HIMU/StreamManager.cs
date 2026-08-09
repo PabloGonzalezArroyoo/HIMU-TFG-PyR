@@ -296,10 +296,9 @@ public class StreamManager : MonoBehaviour
                 connected = true;
                 currentState = ClientConnectionState.Connected;
                 if (debug) Debug.Log("[StreamManager] Connected to host via ADB (USB).");
-                // Al conectar por ADB nos vamos directamente a la escena main
 
-                readThread = new Thread(ReadLoop) { IsBackground = true, Name = "StreamManager ADB Readloop" };
-                readThread.Start();
+                UnityMainThreadDispatcher.Instance().Enqueue(OnConnectionStarted);
+                UnityMainThreadDispatcher.Instance().Enqueue(UIManager.Instance.ConnectionSuccessful);
                 return;
             }
             catch (SocketException se)
@@ -312,7 +311,7 @@ public class StreamManager : MonoBehaviour
             {
                 Debug.LogError($"[StreamManager] Unexpected error during TCP connect: {ex}");
                 CleanupSocket();
-                break; // no tiene sentido reintentar un bug de programación
+                break;
             }
         }
 
@@ -385,12 +384,11 @@ public class StreamManager : MonoBehaviour
             }
             catch (ObjectDisposedException)
             {
-                break; // el stream se cerró desde otro hilo mientras leíamos, salida normal
+                break; // el stream se cerró desde otro hilo mientras leíamos (nuestro propio Disconnect()), salida normal
             }
             catch (Exception e)
             {
-                if (running) Debug.LogWarning($"[StreamManager] {e.Message}");
-                OnConnectionLost();
+                if (!intentionalDisconnect) UnityMainThreadDispatcher.Instance().Enqueue(OnConnectionLost);
                 break;
             }
         }
@@ -479,7 +477,7 @@ public class StreamManager : MonoBehaviour
     {
         intentionalDisconnect = false;
         CloseConnection();
-        AppManager.Instance.StartFading(null, "MainMenuScene");
+        AppManager.Instance.ConnectionLost();
     }
 
     /// <summary>

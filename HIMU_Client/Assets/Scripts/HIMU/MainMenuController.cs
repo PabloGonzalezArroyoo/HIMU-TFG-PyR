@@ -11,7 +11,7 @@ public class MainMenuController : MonoBehaviour
 
     public void StartFading()
     {
-        AppManager.Instance.StartFading(fadeObject, "ConnectionsScene");
+        AppManager.Instance.StartFading(fadeObject, "ConnectionSelectionScene");
     }
 
     public void ExitApp()

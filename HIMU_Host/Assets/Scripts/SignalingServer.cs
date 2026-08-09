@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class SignalingServer : MonoBehaviour
@@ -103,7 +104,10 @@ public class SignalingServer : MonoBehaviour
         try
         {
             string ip = NetworkUtils.GetIP();
-            string json = JsonUtility.ToJson(ConnectionData.ForBroadcast(ip, listenPort));
+            ConnectionData connectionData = ConnectionData.ForBroadcast(ip, listenPort);
+            connectionData.sessionName = StreamManager.Instance.sessionName;
+            connectionData.sessionID = StreamManager.Instance.sessionID;
+            string json = JsonUtility.ToJson(connectionData);
             byte[] data = Encoding.UTF8.GetBytes(json);
 
             using (UdpClient sender = new UdpClient())

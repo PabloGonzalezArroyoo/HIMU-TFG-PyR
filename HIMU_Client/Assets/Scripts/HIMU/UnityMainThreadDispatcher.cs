@@ -105,7 +105,9 @@ public class UnityMainThreadDispatcher : MonoBehaviour {
 
 
 	void Awake() {
-		if (_instance == null) {
+		if (Exists()) Destroy(gameObject);
+		else
+		{
 			_instance = this;
 			DontDestroyOnLoad(this.gameObject);
 		}

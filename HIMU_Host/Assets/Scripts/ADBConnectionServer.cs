@@ -496,6 +496,10 @@ public class ADBConnectionServer : MonoBehaviour
     void OnDestroy()
     {
         try { StopServer(); } catch { }
+
+        foreach (ClientData client in clients) {
+            Destroy(client.himuClient.gameObject);
+        }
     }
     #endregion
 }

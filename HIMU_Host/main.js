@@ -50,7 +50,8 @@ async function connect() {
 
     let pendingCandidates = [];
 
-    ws = new WebSocket(`ws://192.168.1.12:8080?type=browser&id=${sessionId}`);
+    const signalingHost = window.location.hostname;
+    ws = new WebSocket(`ws://${signalingHost}:8080?type=browser&id=${sessionId}`);
 
     ws.onopen = () => {
         ws.binaryType = "arraybuffer"; // Force arraybuffer instead of Blob

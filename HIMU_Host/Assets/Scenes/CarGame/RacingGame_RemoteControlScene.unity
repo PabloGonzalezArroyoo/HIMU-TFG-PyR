@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 284386381}
   - component: {fileID: 284386383}
   - component: {fileID: 284386382}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: MessageText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -395,7 +395,7 @@ GameObject:
   - component: {fileID: 722320417}
   - component: {fileID: 722320416}
   - component: {fileID: 722320415}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: PauseButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -515,7 +515,7 @@ GameObject:
   - component: {fileID: 927146240}
   - component: {fileID: 927146239}
   - component: {fileID: 927146238}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: RemoteControl_Canvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -621,7 +621,7 @@ GameObject:
   - component: {fileID: 935878224}
   - component: {fileID: 935878226}
   - component: {fileID: 935878225}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -715,6 +715,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RacingInputController
   paused: 0
+  connected: 1
 --- !u!4 &1104261115
 Transform:
   m_ObjectHideFlags: 0
@@ -742,7 +743,7 @@ GameObject:
   - component: {fileID: 1299375484}
   - component: {fileID: 1299375483}
   - component: {fileID: 1299375482}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: RightArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -907,7 +908,7 @@ Camera:
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 64
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -990,7 +991,7 @@ GameObject:
   - component: {fileID: 1657652977}
   - component: {fileID: 1657652976}
   - component: {fileID: 1657652975}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: LeftArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1110,7 +1111,7 @@ GameObject:
   - component: {fileID: 1849229491}
   - component: {fileID: 1849229490}
   - component: {fileID: 1849229489}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: ActionButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}

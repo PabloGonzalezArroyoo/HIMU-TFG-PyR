@@ -29,9 +29,15 @@ public class AppManager : MonoBehaviour
 
         timer = 0.0f;
         auxColor = Color.black;
-        auxColor.a = 0;
+        auxColor.a = 1;
         fadeOutImage.color = auxColor;
         UnityMainThreadDispatcher.Instance().Enqueue(() => AppManager.Instance.ChangeScene(nextScene));
+        if (nextScene.Contains("Menu"))
+        {
+            UnityMainThreadDispatcher.Instance().Enqueue(() => Destroy(UnityMainThreadDispatcher.Instance().gameObject));
+            Destroy(StreamManager.Instance.gameObject);
+        }
+        isFading = false;
     }
 
     private RawImage FindFadeOutInScene()
@@ -75,7 +81,7 @@ public class AppManager : MonoBehaviour
         Application.Quit();
     }
 
-    public void ExitGame()
+    public void ConnectionLost()
     {
         ChangeScene("MainMenuScene");
         Destroy(StreamManager.Instance.gameObject);
@@ -88,7 +94,7 @@ public class AppManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance) { Destroy(gameObject); return; }
+        if (Instance) Destroy(Instance.gameObject);
         Instance = this;
         DontDestroyOnLoad(gameObject);
     }

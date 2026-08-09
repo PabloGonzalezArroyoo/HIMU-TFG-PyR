@@ -22,7 +22,6 @@ public class WebSocketServerRTC : MonoBehaviour
     private int nodePort = 8080;
     [SerializeField]
     private int browserPort = 3000;
-    private int sessionID = 1234;
     private bool running = false;
     /// <summary>
     /// Socket de conexion al servidor de Node
@@ -393,11 +392,6 @@ public class WebSocketServerRTC : MonoBehaviour
         return browserPort;
     }
 
-    public int GetSessionId()
-    {
-        return sessionID;
-    }
-
     public List<ClientData> GetClients()
     {
         return clients;
@@ -407,12 +401,10 @@ public class WebSocketServerRTC : MonoBehaviour
     #region Monobehaviour
     public void Start()
     {
-        System.Random rnd = new System.Random();
-        sessionID = rnd.Next(1000, 10000);
         nodeHost = NetworkUtils.GetIP();
         batPath = System.IO.Path.Combine(Application.dataPath, "..", batRelativePath);
         ws = new ClientWebSocket();
-        nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity&id={sessionID}");
+        nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity&id={StreamManager.Instance.sessionID}");
         _cts = new CancellationTokenSource();
     }
 

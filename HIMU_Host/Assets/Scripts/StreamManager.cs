@@ -40,6 +40,10 @@ public class StreamManager : MonoBehaviour
     [SerializeField]
     private bool shouldPersist = false;
 
+    public string sessionName = "Placeholder";
+
+    public int sessionID { get; private set; } = 1234;
+
     /// <summary>
     /// All currently connected clients, keyed by their clientID (GUID for TCP clients,
     /// session key for browser clients).
@@ -310,11 +314,6 @@ public class StreamManager : MonoBehaviour
         return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
     }
 
-    public int GetSessionId()
-    {
-        return webSocketServer.GetSessionId();
-    }
-
     /// <summary>
     /// Copies the current clients to the returned list.
     /// </summary>
@@ -438,10 +437,13 @@ public class StreamManager : MonoBehaviour
     {
         if (Instance) { DestroyImmediate(gameObject); return; }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (shouldPersist) DontDestroyOnLoad(gameObject);
 
         StartCoroutine(WebRTC.Update());
         NetworkUtils.GetIP();
+
+        System.Random rnd = new System.Random();
+        sessionID = rnd.Next(1000, 10000);
 
         if (acceptWebSocketConnection)
         {

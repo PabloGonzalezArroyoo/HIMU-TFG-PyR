@@ -18,6 +18,8 @@ public class InputManager : MonoBehaviour
     /// </summary>
     private int previousTouchCount;
 
+    public bool send = false;
+
     void Awake()
     {
         if (Instance) { DestroyImmediate(gameObject); return; }
@@ -30,7 +32,7 @@ public class InputManager : MonoBehaviour
     {
         previousTouchCount = 0;
         receiver = GetComponent<WebRTCReceiver>();
-        enabled = false;
+        send = false;
     }
 
     private void OnEnable()
@@ -47,25 +49,28 @@ public class InputManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (receiver == null) return;
+        if (!send || receiver == null) return;
 
         var activeTouches = Touch.activeTouches;
         int count = activeTouches.Count;
 
-        // Nothing to send -> there weren't and there aren't any touches
-        if (count == 0 && previousTouchCount == 0) return;
-        List<Vector2> touches = new List<Vector2>(count);
+        List<Vector2> touches = new List<Vector2>();
+        Vector3 accValue = Accelerometer.current.acceleration.ReadValue();
+        InputFrame frameInput = new InputFrame(touches, accValue);
+
+        if (count == 0 && previousTouchCount == 0)
+        {
+            receiver.SendThroughDataChannel(JsonUtility.ToJson(frameInput));
+            return; 
+        }
 
         for (int i = 0; i < count; i++)
         {
             Touch t = activeTouches[i];
             Vector2 normalizedPos = new Vector2(t.screenPosition.x / Screen.width, t.screenPosition.y / Screen.height);
-            touches[i] = normalizedPos;
+            touches.Add(normalizedPos);
         }
 
-        Vector3 accValue = Accelerometer.current.acceleration.ReadValue();
-
-        InputFrame frameInput = new InputFrame(touches, accValue);
         receiver.SendThroughDataChannel(JsonUtility.ToJson(frameInput));
         previousTouchCount = count;
     }

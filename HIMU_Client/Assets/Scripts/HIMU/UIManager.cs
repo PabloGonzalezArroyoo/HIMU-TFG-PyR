@@ -87,6 +87,13 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    public void ExitConnectionScene()
+    {
+        if (changingScene) return;
+        changingScene = true;
+        AppManager.Instance.StartFading(fadeOutImage, "MainMenuScene");
+    }
+
     private void Awake()
     {
         if (Instance) { Destroy(gameObject); return; }

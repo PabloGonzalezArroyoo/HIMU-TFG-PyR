@@ -76,8 +76,9 @@ public class RacingGameManager : MonoBehaviour
     public void LoadRemoteControlScene(Scene current, Scene next)
     {
         if (next.name != "RacingGame_MainScene") return;
-
+        Debug.Log("Se cargo escena de mando");
         SceneManager.LoadScene("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
+        SceneManager.activeSceneChanged -= RacingGameManager.Instance.LoadRemoteControlScene;
     }
 
 
@@ -89,7 +90,6 @@ public class RacingGameManager : MonoBehaviour
             Camera backgroundCamera = FindCameraInScene(loadedScene, "RemoteControl_Camera");
             backgroundCamera.targetTexture = controlTexture;
             AssignADBTexture();
-            Debug.Log("Escena de mando cargada");
         }
 
         // Cuando se carga la escena de juego -> seteamos la camara de los clientes WebSocket
@@ -98,7 +98,6 @@ public class RacingGameManager : MonoBehaviour
             Camera mainCamera = FindCameraInScene(loadedScene, "StreamCamera");
             mainCamera.targetTexture = gameTexture;
             ChangeStreamTextures();
-            Debug.Log("Escena de juego cargada");
         }
 
         // Cuando se carga la escena de conexiones
@@ -111,6 +110,12 @@ public class RacingGameManager : MonoBehaviour
             streamCamera.targetTexture = connectionsTexture;
             StreamManager.Instance.SetADBTextureCallback(TextureOnConnections);
             StreamManager.Instance.SetBrowserTextureCallback(TextureOnConnections);
+        }
+
+        if (loadedScene.name.Contains("Menu"))
+        {
+            Destroy(StreamManager.Instance.gameObject);
+            SceneManager.sceneLoaded -= RacingGameManager.Instance.OnSceneChanged;
         }
     }
 
@@ -196,11 +201,7 @@ public class RacingGameManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance)
-        {
-            DestroyImmediate(gameObject);
-            return;
-        }
+        if (Instance) DestroyImmediate(Instance.gameObject);
 
         Instance = this;
         DontDestroyOnLoad(gameObject);

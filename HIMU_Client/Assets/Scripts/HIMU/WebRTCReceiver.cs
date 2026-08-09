@@ -144,8 +144,6 @@ public class WebRTCReceiver : MonoBehaviour
     /// <param name="json"></param>
     public void SendThroughDataChannel(string json)
     {
-        Debug.Log(dataChannel);
-        Debug.Log(dataChannel.ReadyState);
         if (dataChannel != null && dataChannel.ReadyState == RTCDataChannelState.Open)
         {
             Debug.Log(json);
@@ -154,16 +152,11 @@ public class WebRTCReceiver : MonoBehaviour
     }
     #endregion
 
-    private void Start()
-    {
-        DontDestroyOnLoad(gameObject);
-    }
-
     #region MonoBehaviour
     void OnDestroy()
     {
-        dataChannel.Close();
-        dataChannel.Dispose();
+        dataChannel?.Close();
+        dataChannel?.Dispose();
         peer?.Close();
         peer?.Dispose();
     }

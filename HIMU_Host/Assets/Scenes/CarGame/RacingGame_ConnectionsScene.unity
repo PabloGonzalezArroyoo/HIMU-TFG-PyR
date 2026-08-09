@@ -747,6 +747,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StreamManager
   debug: 1
   shouldPersist: 1
+  sessionName: Placeholder
   mainCamera: {fileID: 1384832207}
   acceptWebSocketConnection: 1
   acceptTCPConnection: 0
@@ -826,7 +827,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: STREAMING ON 192.168.1.14:3000\nSession:1234
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c37ffa2731df8cd469422b9b9a38d33a, type: 2}
   m_sharedMaterial: {fileID: 5874801970723715550, guid: c37ffa2731df8cd469422b9b9a38d33a, type: 2}
@@ -2227,7 +2228,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1962163973
 RectTransform:
   m_ObjectHideFlags: 0

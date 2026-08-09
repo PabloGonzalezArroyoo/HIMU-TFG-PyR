@@ -1,7 +1,7 @@
 using TMPro;
 using UnityEngine;
 
-public class FiniishLineComponent : MonoBehaviour
+public class FinishLineComponent : MonoBehaviour
 {
     [SerializeField]
     private int lapsLimit = 5;

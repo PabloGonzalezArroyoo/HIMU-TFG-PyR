@@ -28,7 +28,10 @@ public class RacingConnectionsUIManager : MonoBehaviour
 
     public void ExitGame()
     {
-        Application.Quit();
+        fading = true;
+        fadeOutImage.StartFading();
+        fadeOutImage.SetScene("RacingGame_MenuScene");
+        fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
     }
 
     public void SearchADBClients()
@@ -45,7 +48,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
     {
         RacingGameManager.Instance.OnStreamButtonClicked();
         streamText.gameObject.SetActive(RacingGameManager.Instance.streaming);
-        streamText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.GetSessionId().ToString();
+        streamText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.sessionID.ToString();
     }
 
     public void StartGame()
@@ -78,7 +81,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
             playButton.SetActive(true);
             adbStatusText.text = "PHONE FOUND";
             adbStatusText.color = Color.green;
-            //StartCoroutine(CheckADBClient());
+            StartCoroutine(CheckADBClient());
         }
     }
 
