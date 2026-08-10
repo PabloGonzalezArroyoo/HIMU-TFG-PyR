@@ -27,24 +27,29 @@ public class ShooterGameManager : MonoBehaviour
 
     private Dictionary<string, PlayerInfo> players = new Dictionary<string, PlayerInfo>();
 
+    [SerializeField] private Camera spectatorCamera;
+
     #endregion
 
     #region OnGameStart
 
     private void OrganizePeers()
     {
-        List<ClientData> peers = StreamManager.Instance.GetClients();
+        List<ClientData> allPeers = StreamManager.Instance.GetClients();
 
-        if (peers.Count > spawnPositions.Count)
+        // Filter the player peers from the browser peers
+        List<ClientData> playerPeers = allPeers.Where(p => p.transport != ConnectionTransport.WebSocket).ToList();
+
+        if (playerPeers.Count > spawnPositions.Count)
         {
-            Debug.LogError($"[ShooterGameManager] {peers.Count} connected peers but there are ony " +
-                            $"{spawnPositions.Count} spawnpositions. Aborting OrganizePeers...");
+            Debug.LogError("[ShooterGameManager] " + allPeers.Count + " connected peers but there are ony " +
+                            spawnPositions.Count + " spawnpositions. Aborting OrganizePeers...");
             return;
         }
 
-        for (int i = 0; i < peers.Count; i++)
+        for (int i = 0; i < playerPeers.Count; i++)
         {
-            string clientID = peers[i].clientID;
+            string clientID = playerPeers[i].clientID;
             Transform player = spawnPositions[i].GetChild(0);
             player.GetComponent<PlayerLifeComponent>().SetClientID(clientID);
             player.GetChild(1).GetChild(0).GetComponent<TextMeshProUGUI>().text = clientID;
@@ -53,7 +58,26 @@ public class ShooterGameManager : MonoBehaviour
             players[clientID] = new PlayerInfo(i, default);
         }
 
-        StartCoroutine(LoadRemoteControlScenes(peers));
+        RegisterSpectatorsSource();
+
+        StartCoroutine(LoadRemoteControlScenes(playerPeers));
+    }
+
+    private void RegisterSpectatorsSource()
+    {
+        if (FrameCaptureFeature.Instance == null)
+        {
+            Debug.LogError("[ShooterGameManager] FrameCaptureFeature not present in the active URP renderer. Spectating will not work.");
+            return;
+        }
+
+        if (spectatorCamera == null)
+        {
+            Debug.LogError("[ShooterGameManager] spectatorCamera is not assigned. Aborting spectators source registration...");
+            return;
+        }
+
+        FrameCaptureFeature.Instance.SetSourceCamera(spectatorCamera);
     }
 
     private IEnumerator LoadRemoteControlScenes(List<ClientData> peers)
@@ -151,6 +175,7 @@ public class ShooterGameManager : MonoBehaviour
         {
             SceneManager.activeSceneChanged -= LoadRemoteControlScene;
             SceneManager.sceneLoaded -= OnSceneChanged;
+            FrameCaptureFeature.Instance?.SetSourceCamera(null);
         }
     }
 
