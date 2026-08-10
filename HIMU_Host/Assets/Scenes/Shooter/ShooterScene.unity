@@ -763,6 +763,7 @@ GameObject:
   m_Component:
   - component: {fileID: 473862620}
   - component: {fileID: 473862619}
+  - component: {fileID: 473862621}
   m_Layer: 0
   m_Name: ShooterManager
   m_TagString: Untagged
@@ -787,6 +788,7 @@ MonoBehaviour:
   - {fileID: 944364245}
   - {fileID: 512072265}
   - {fileID: 256826160}
+  spectatorCamera: {fileID: 0}
 --- !u!4 &473862620
 Transform:
   m_ObjectHideFlags: 0
@@ -802,6 +804,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1904633620}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &473862621
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 473862618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09523008b10a1394ca741ab3234d975e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FrameCaptureComponent
 --- !u!1 &498199580
 GameObject:
   m_ObjectHideFlags: 0
@@ -3442,6 +3456,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9fcc8d8c470a38f4da568c80b7e3d343, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShooterUIManager
+  fadeOutImage: {fileID: 0}
   victoryCanvas: {fileID: 498199580}
 --- !u!1 &1753180965
 GameObject:
