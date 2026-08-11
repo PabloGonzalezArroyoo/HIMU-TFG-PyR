@@ -219,7 +219,6 @@ public class SignalingServer : MonoBehaviour
             tcpSockets.TryAdd(clientID, tcp);
 
             Debug.Log($"[SignalingServer] Client connected: {decodedData.ipAddress}");
-            UIManager.Instance?.UpdateTCPClientsText(true);
 
             // Data process loop ---
             while (running)
@@ -244,7 +243,6 @@ public class SignalingServer : MonoBehaviour
             tcp.Close();
             UnityMainThreadDispatcher.Instance().Enqueue(() => 
                 StreamManager.Instance?.RemovePeer(clientID));
-            UIManager.Instance?.UpdateTCPClientsText(false);
         }
     }
 

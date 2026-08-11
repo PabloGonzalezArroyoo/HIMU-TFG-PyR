@@ -53,12 +53,6 @@ public class StreamManager : MonoBehaviour
     readonly ConcurrentDictionary<string, ClientData> clients = new ConcurrentDictionary<string, ClientData>();
 
     /// <summary>
-    /// Main Camera of the game
-    /// </summary>
-    [SerializeField]
-    private GameObject mainCamera;
-
-    /// <summary>
     /// Server that works through a WebSocket. It connects to an external siganling server.
     /// </summary>
     private WebSocketServerRTC webSocketServer;

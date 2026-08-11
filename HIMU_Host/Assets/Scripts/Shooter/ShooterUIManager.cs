@@ -6,16 +6,8 @@ using UnityEngine.SceneManagement;
 public class ShooterUIManager : MonoBehaviour
 {
     public static ShooterUIManager Instance { get; private set; }
-
-    [SerializeField] private FadeOutComponent fadeOutImage;
     
     [SerializeField] private GameObject victoryCanvas;
-
-    public void GoToConnections()
-    {
-        fadeOutImage.StartFading();
-        fadeOutImage.SetCallback(ShooterGameManager.Instance.ChangeScene);
-    }
 
     public void SetVictoryUIState(int player)
     {

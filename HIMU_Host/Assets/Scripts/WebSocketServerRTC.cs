@@ -251,7 +251,6 @@ public class WebSocketServerRTC : MonoBehaviour
         if (ws?.State == WebSocketState.Open)
             await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnected", CancellationToken.None);
 
-        UIManager.Instance?.ResetStreamClientsText();
         _cts.Dispose();
         ws.Dispose();
         _cts = new CancellationTokenSource();

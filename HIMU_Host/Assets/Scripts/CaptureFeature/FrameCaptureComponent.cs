@@ -26,7 +26,6 @@ public class FrameCaptureComponent : MonoBehaviour
 
     #region Monobehaviour
 
-
     private IEnumerator Start()
     {
         // If we don't wait till the end of Unity's pipeline, we are goint to send the frame N-1 in frame N. In order to blit the current

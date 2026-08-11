@@ -113,6 +113,10 @@ public class FrameCaptureFeature : ScriptableRendererFeature
         sourceCamera = cam;
     }
 
+    /// <summary>
+    /// Marks the capture as enabled so that the pass is done when URP tries to enqueue it.
+    /// </summary>
+    /// <param name="enabled"></param>
     public void SetCaptureEnabled(bool enabled)
     {
         captureEnabled = enabled;
