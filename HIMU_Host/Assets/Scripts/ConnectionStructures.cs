@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Threading;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -9,26 +10,23 @@ using UnityEngine;
 /// </summary>
 
 #region Enums
+
+/// <summary>
+/// Indicates which fase the message we are sending belongs too
+/// </summary>
 public enum ConnectionEvent
 {
-    DEFAULT,
     BROADCAST,
     HANDSHAKE,
-    SEND,
     DISCONNECT,
-    SDP,        // SDP: Session Description Protocol (offer/answer)
-    ICE         // ICE: Interactive Connectivity Establishment (ICE candidates)
+    SDP, 
+    ICE
 }
 
-public enum ConnectionTransport
-{
-    NONE,
-    TCP,
-    WebSocket,
-    ADB
-}
-
-public enum ClientType
+/// <summary>
+/// Indicates the type of connection stablished with a client
+/// </summary>
+public enum ClientConnectionType
 {
     NONE,
     WEB_SOCKET,
@@ -37,6 +35,22 @@ public enum ClientType
 }
 #endregion
 
+/// <summary>
+/// Class that represents each device connected via USB cable
+/// </summary>
+public class WiredDeviceData
+{
+    public string deviceId;
+    public int localPort;
+    public TcpListener listener;
+    public Thread acceptThread;
+    public TcpClient tcpClient;
+    public string clientID;
+}
+
+/// <summary>
+/// Class that encapsulates information needed when establishing connection between devices
+/// </summary>
 [Serializable]
 public class ConnectionData
 {
@@ -45,19 +59,9 @@ public class ConnectionData
     public string ipAddress;
     public int port;
     public ConnectionEvent connType;
-    public ClientType clientType;
+    public ClientConnectionType clientType;
 
-    private ConnectionData(string ipAddress, int port, string name, int session, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
-    {
-        sessionName = name;
-        sessionID = session;
-        this.ipAddress = ipAddress;
-        this.port = port;
-        this.connType = connEvent;
-        this.clientType = clientType;
-    }
-
-    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientType clientType = ClientType.NONE)
+    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientConnectionType clientType = ClientConnectionType.NONE)
     {
         this.ipAddress = ipAddress;
         this.port = port;
@@ -72,7 +76,7 @@ public class ConnectionData
     /// <param name="listenPort">TCP port SignalingServer is listening on.</param>
     public static ConnectionData ForBroadcast(string hostIP, int listenPort)
     {
-        return new ConnectionData(hostIP, listenPort, ConnectionEvent.BROADCAST, ClientType.NONE);
+        return new ConnectionData(hostIP, listenPort, ConnectionEvent.BROADCAST, ClientConnectionType.NONE);
     }
 
     /// <summary>
@@ -80,26 +84,25 @@ public class ConnectionData
     /// </summary>
     /// <param name="clientIP">Client's own IP, used as its identifier until replaced by a GUID.</param>
     /// <param name="clientType">Declares what kind of client this device is.</param>
-    public static ConnectionData ForHandshake(string clientIP, ClientType clientType)
+    public static ConnectionData ForHandshake(string clientIP, ClientConnectionType clientType)
     {
         return new ConnectionData(clientIP, 0, ConnectionEvent.HANDSHAKE, clientType);
     }
 }
 
+/// <summary>
+/// Class that contains an unique identifier 
+/// </summary>
 public class ClientData
 {
-    public string identifier;               // IP for TCP / ID for WebSocket / UID for Android devices
-    public ClientType type;
-    public ConnectionTransport transport;
+    public string clientID;             // En el caso de WebSocket es el clientID que nos llega del servidor de Node, en los otros es un GUID
+    public ClientConnectionType type;
     public HIMUClient himuClient;
-    public string clientID;
 
-    private ClientData(string identifier, ClientType type, string clientID, ConnectionTransport transport)
+    private ClientData(ClientConnectionType type, string clientID)
     {
-        this.identifier = identifier;
         this.type = type;
         this.clientID = clientID;
-        this.transport = transport;
     }
 
     /// <summary>
@@ -109,7 +112,7 @@ public class ClientData
     /// <param name="clientID">GUID assigned by SignalingServer to key this client.</param>
     public static ClientData ForDevice(ConnectionData connData, string clientID)
     {
-        return new ClientData(connData.ipAddress, connData.clientType, clientID, ConnectionTransport.TCP);
+        return new ClientData(connData.clientType, clientID);
     }
 
     /// <summary>
@@ -117,23 +120,23 @@ public class ClientData
     /// Browsers have no IP/port visible to Unity, so the relay's session id is used directly
     /// as the identifier instead of faking network fields through ConnectionData.
     /// </summary>
-    /// <param name="sessionId">Session id assigned by Node for this browser tab.</param>
-    /// <param name="clientID">GUID key for this client (currently the same value as sessionId,
-    /// kept as a separate parameter for symmetry with ForDevice, in case that changes later).</param>
-    public static ClientData ForBrowser(string sessionId, string clientID)
+    /// <param name="clientID">Unique key for this client received from Node server</param>
+    public static ClientData ForBrowser(string clientID)
     {
-        return new ClientData(sessionId, ClientType.WEB_SOCKET, clientID, ConnectionTransport.WebSocket);
+        return new ClientData(ClientConnectionType.WEB_SOCKET, clientID);
     }
 
 
-    public static ClientData ForADB(string sessionId, string clientID)
+    public static ClientData ForADB(string clientID)
     {
-        return new ClientData(sessionId, ClientType.ADB, clientID, ConnectionTransport.ADB);
+        return new ClientData(ClientConnectionType.ADB, clientID);
     }
 }
 
 #region Communication Structures
-
+/// <summary>
+/// Message shared between two devices
+/// </summary>
 [Serializable]
 public class SignalingMessage
 {
@@ -147,13 +150,14 @@ public class SignalingMessage
     }
 }
 
+/// <summary>
+/// Structure that represents the entire input state from a connected device
+/// </summary>
 [Serializable]
 public class InputFrame
 {
     public List<Vector2> touches;
     public Vector3 accelometer;
-    // GPS?
-    // Micro
 
     public InputFrame(List<Vector2> t, Vector3 a)
     {
@@ -161,15 +165,12 @@ public class InputFrame
         accelometer = a;
     }
 }
-#endregion
 
-#region WebSocket Structures
-[Serializable] public class WSBaseMessage { public int type; }
-
-[Serializable] public class WSNewClientMessage { public int type; public int clientId; }
-
+/// <summary>
+/// Message structure for communication to NodeServer
+/// </summary>
 [Serializable]
-public class WSTaggedMessage
+public class WSMessage
 {
     public int type;
     public int clientId;
@@ -178,6 +179,9 @@ public class WSTaggedMessage
 #endregion
 
 #region WebRTC Structures
+/// <summary>
+/// Class inherited from 
+/// </summary>
 [Serializable]
 public class IceCandidateData
 {

@@ -11,7 +11,7 @@ public class InputManager : MonoBehaviour
     /// <summary>
     /// Component incharged of the communication through the WebRTC protcol with the host machine.
     /// </summary>
-    private WebRTCReceiver receiver;
+    private HIMUReceiver receiver;
 
     /// <summary>
     /// Touches in the previous frame.
@@ -31,7 +31,7 @@ public class InputManager : MonoBehaviour
     void Start()
     {
         previousTouchCount = 0;
-        receiver = GetComponent<WebRTCReceiver>();
+        receiver = GetComponent<HIMUReceiver>();
         send = false;
     }
 

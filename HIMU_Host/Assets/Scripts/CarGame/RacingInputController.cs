@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class RacingInputController : MonoBehaviour
 {
@@ -8,6 +9,10 @@ public class RacingInputController : MonoBehaviour
 
     public bool paused = false;
     public bool connected = true;
+
+    public GraphicRaycaster backgroundRaycaster;
+
+    public Camera backgroundCamera;
 
     public void PauseGame()
     {
@@ -25,7 +30,11 @@ public class RacingInputController : MonoBehaviour
 
     private void ProcessInput()
     {
-
+        // pilla los eventos del InputManager
+        // Lanza los raycasts
+        // activa las flags en car controller
+        // activa pausa
+        // esto no esta en los OnClick porque no tengo ni idea de como asignarlos
     }
 
     private IEnumerator CheckPhoneConnected()
@@ -56,7 +65,7 @@ public class RacingInputController : MonoBehaviour
 
     private void Start()
     {
-        //StartCoroutine(CheckPhoneConnected());
+        StartCoroutine(CheckPhoneConnected());
     }
 
     private void Update()

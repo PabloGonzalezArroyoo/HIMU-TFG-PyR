@@ -7,14 +7,14 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Unity.VisualScripting;
 using UnityEngine;
 
+/// <summary>
+/// Class in charge to establish WiFi connections
+/// </summary>
 public class SignalingServer : MonoBehaviour
 {
-
     #region Variables
-
     /// <summary>
     /// Wether the server is running or not
     /// </summary>
@@ -59,7 +59,6 @@ public class SignalingServer : MonoBehaviour
     #endregion
 
     #region Conection
-
     /// <summary>
     /// Stops the TCP server.
     /// </summary>
@@ -185,6 +184,21 @@ public class SignalingServer : MonoBehaviour
         }
     }
 
+    private bool SendHandshake(NetworkStream stream, string clientIP)
+    {
+        try
+        {
+            ConnectionData ack = ConnectionData.ForHandshake(clientIP, ClientConnectionType.TCP);
+            NetworkUtils.WriteFramedMessage(stream, JsonUtility.ToJson(ack));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[SignalingServer] Error sending HANDSHAKE_ACK: {ex.Message}");
+            return false;
+        }
+    }
+
     /// <summary>
     /// Gestion de los clientes (handshake y bucle de recepcion)
     /// </summary>
@@ -212,7 +226,15 @@ public class SignalingServer : MonoBehaviour
                 return;
             }
 
+            string clientIP = decodedData.ipAddress;
+            // Confirmamos el handshake ANTES de registrar el cliente como activo.
+            if (!SendHandshake(stream, clientIP))
+            {
+                Debug.LogError($"[SignalingServer] Failed to send HANDSHAKE to {decodedData.ipAddress}");
+                return;
+            }
             clientID = Guid.NewGuid().ToString();
+
             ClientData newClient = ClientData.ForDevice(decodedData, clientID);
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
             clients.Add(newClient);
@@ -239,10 +261,14 @@ public class SignalingServer : MonoBehaviour
         }
         finally
         {
-            tcpSockets.TryRemove(clientID, out _);
             tcp.Close();
-            UnityMainThreadDispatcher.Instance().Enqueue(() => 
-                StreamManager.Instance?.RemovePeer(clientID));
+
+            if (!string.IsNullOrEmpty(clientID))
+            {
+                tcpSockets.TryRemove(clientID, out _);
+                UnityMainThreadDispatcher.Instance().Enqueue(() =>
+                    StreamManager.Instance?.RemovePeer(clientID));
+            }
         }
     }
 

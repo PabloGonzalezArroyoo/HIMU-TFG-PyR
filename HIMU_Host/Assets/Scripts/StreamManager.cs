@@ -18,7 +18,7 @@ public delegate GameObject CreateClient(ClientData client);
 public delegate RenderTexture TextureAssignmentCallback();
 
 /// <summary>
-/// Orquestates 'straming to other devices' feature. Each type (WebSocket, TCP, ADB) has its own component, flags, callbacks
+/// Orquestates 'streaming to other devices' feature. Each type (WebSocket, TCP, ADB) has its own component, flags, callbacks
 /// </summary>
 public class StreamManager : MonoBehaviour
 {
@@ -153,36 +153,42 @@ public class StreamManager : MonoBehaviour
 
         GameObject go;
         TextureAssignmentCallback textureCallback;
+        HIMUClient peer;
         switch (client.type)
         {
-            case ClientType.WEB_SOCKET:
+            case ClientConnectionType.WEB_SOCKET:
                 {
                     go = browserClientCallback(client);
                     textureCallback = browserTextureCallback;
+                    peer = go.AddComponent<HIMUClient>(); 
+                    peer.Initialize(clientID, textureCallback(), msg => _ = webSocketServer.SendToNode(clientID, msg), true, false);
                 }
                 break;
-            case ClientType.TCP:
+            case ClientConnectionType.TCP:
                 {
                     go = tcpClientCallback(client);
                     textureCallback = tcpTextureCallback;
+                    peer = go.AddComponent<HIMUClient>(); 
+                    peer.Initialize(clientID, textureCallback(), msg => signalingServer.SendMessage(clientID, msg), true, false);
                 }
                 break;
-            case ClientType.ADB:
+            case ClientConnectionType.ADB:
                 {
                     go = adbClientCallback(client);
                     textureCallback = adbTextureCallback;
+                    peer = go.AddComponent<HIMUClient>(); 
+                    peer.Initialize(clientID, textureCallback(), msg => adbServer.SendMessage(clientID, msg), true, false);
                 }
                 break;
             default:
                 {
-                    go = new GameObject();
+                    go = BaseCreateClient(client);
                     textureCallback = BaseCreateTexture;
+                    peer = go.AddComponent<HIMUClient>();
+                    peer.Initialize(clientID, textureCallback(), msg => signalingServer.SendMessage(clientID, msg), true, false);
                 }
                 break;
         }
-
-        HIMUClient peer = go.AddComponent<HIMUClient>();
-        peer.Initialize(clientID, textureCallback(), msg => adbServer.SendMessage(clientID, msg), true, false);
         clients[clientID].himuClient = peer;
         StartCoroutine(peer.CreateOffer());
     }
@@ -202,7 +208,7 @@ public class StreamManager : MonoBehaviour
         if (data.himuClient != null)
             Destroy(data.himuClient.gameObject);
 
-        if (debug) Debug.Log($"[StreamManager] Destroyed {data.transport} peer: {clientID}");
+        if (debug) Debug.Log($"[StreamManager] Destroyed {data.type} peer: {clientID}");
     }
 
     /// <summary>
@@ -405,9 +411,9 @@ public class StreamManager : MonoBehaviour
     {
         switch(client.type)
         {
-            case ClientType.WEB_SOCKET: return new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.identifier}");
-            case ClientType.TCP: return new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.identifier}");
-            default: return new GameObject($"{client.type.ToString()}-Adb-Peer_{client.identifier}");
+            case ClientConnectionType.WEB_SOCKET: return new GameObject($"{client.type.ToString()}-Bsw-Peer_{client.clientID}");
+            case ClientConnectionType.TCP: return new GameObject($"{client.type.ToString()}-Dvc-Peer_{client.clientID}");
+            default: return new GameObject($"{client.type.ToString()}-Adb-Peer_{client.clientID}");
         }
     }
 

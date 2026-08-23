@@ -11,7 +11,7 @@ public class DisplayCanvasController : MonoBehaviour
 
     public void ExitGame()
     {
-        StreamManager.Instance.Disconnect();
+        ConnectionManager.Instance.Disconnect();
         AppManager.Instance.StartFading(fadeOutImage, "MainMenuScene");
     }
 

@@ -38,7 +38,7 @@ public class ShooterGameManager : MonoBehaviour
         List<ClientData> allPeers = StreamManager.Instance.GetClients();
 
         // Filter the player peers from the browser peers
-        List<ClientData> playerPeers = allPeers.Where(p => p.transport != ConnectionTransport.WebSocket).ToList();
+        List<ClientData> playerPeers = allPeers.Where(p => p.type != ClientConnectionType.WEB_SOCKET).ToList();
 
         if (playerPeers.Count > spawnPositions.Count)
         {

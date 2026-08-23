@@ -23,8 +23,8 @@ public static class NetworkUtils
     private static string ipAddress;
 
     /// <summary>
-    // Synchronizes IP resolution to prevent two threads from calculating it at the same time
-    // (e.g. if two components call GetIP() in the same frame from different threads).
+    /// Synchronizes IP resolution to prevent two threads from calculating it at the same time
+    /// (e.g. if two components call GetIP() in the same frame from different threads).
     /// </summary>
     private static readonly object ipResolutionLock = new object();
 

@@ -14,7 +14,7 @@ public class RacingMenuUIManager : MonoBehaviour
     {
         fadeOutImage.StartFading();
         fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
-        SceneManager.activeSceneChanged += RacingGameManager.Instance.LoadRemoteControlScene;
+        SceneManager.activeSceneChanged += RacingGameManager.Instance.OnGameStarted;
         SceneManager.sceneLoaded += RacingGameManager.Instance.OnSceneChanged;
     }
 

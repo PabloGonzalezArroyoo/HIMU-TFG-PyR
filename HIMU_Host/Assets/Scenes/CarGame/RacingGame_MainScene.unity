@@ -974,6 +974,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RacingInputController
   paused: 0
   connected: 1
+  backgroundRaycaster: {fileID: 0}
+  backgroundCamera: {fileID: 0}
 --- !u!114 &142089879
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -986,7 +988,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d2e172022342254ba84a8d016f05080, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputManager
-  debug: 0
   shouldPersist: 0
 --- !u!4 &142089880
 Transform:

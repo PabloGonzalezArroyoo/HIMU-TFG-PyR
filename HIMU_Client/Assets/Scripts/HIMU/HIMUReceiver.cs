@@ -6,7 +6,7 @@ using UnityEngine.UI;
 /// <summary>
 /// This component represents the client's connection with the host via WebRTC.
 /// </summary>
-public class WebRTCReceiver : MonoBehaviour
+public class HIMUReceiver : MonoBehaviour
 {
     #region Variables
     /// <summary>

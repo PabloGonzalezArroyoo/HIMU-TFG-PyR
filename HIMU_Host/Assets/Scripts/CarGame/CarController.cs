@@ -9,30 +9,26 @@ using UnityEngine.InputSystem; // Requiere el paquete "Input System" instalado
 /// </summary>
 public class CarController : MonoBehaviour
 {
-    [Header("Movimiento / Aceleración")]
-    [Tooltip("Velocidad máxima que puede alcanzar el coche (m/s)")]
+    [SerializeField]
     public float maxSpeed = 20f;
 
-    [Tooltip("Tiempo (segundos) que tarda el coche en pasar de 0 a la velocidad máxima manteniendo SPACE pulsado")]
+    [SerializeField]
     public float timeToMaxSpeed = 2.5f;
 
-    [Tooltip("Tiempo (segundos) que tarda el coche en perder toda su inercia al soltar SPACE")]
+    [SerializeField]
     public float timeToStop = 2f;
 
-    [Header("Dirección")]
-    [Tooltip("Velocidad de giro del coche en grados/segundo")]
+    [SerializeField]
     public float turnSpeed = 90f;
 
-    [Tooltip("Velocidad mínima que debe tener el coche para poder girar")]
+    [SerializeField]
     public float minSpeedToTurn = 0.5f;
 
-    [Header("Agarre (evita derrapes tipo hielo)")]
-    [Tooltip("0 = sin agarre lateral (patina como en hielo), 1 = agarre total (elimina todo el deslizamiento lateral)")]
+    [SerializeField]
     [Range(0f, 1f)]
     public float lateralGrip = 0.9f;
 
-    [Header("Suelo")]
-    [Tooltip("Capas que cuentan como 'suelo' para poder acelerar/frenar")]
+    [SerializeField]
     public LayerMask groundLayer = ~0;
 
     private Rigidbody rb;

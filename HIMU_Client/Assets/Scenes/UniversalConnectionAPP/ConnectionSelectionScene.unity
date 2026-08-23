@@ -800,7 +800,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &530291239
 RectTransform:
   m_ObjectHideFlags: 0
@@ -865,7 +865,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1927213309}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: StreamManager, Assembly-CSharp
         m_MethodName: ConnectViaADB
         m_Mode: 1
@@ -1289,6 +1289,7 @@ MonoBehaviour:
   statusMessageText: {fileID: 1958474095}
   contentParent: {fileID: 1610505321}
   sessionPrefab: {fileID: 6044284259001234535, guid: 4fb979163891b3c4f9e60d3836fe21cd, type: 3}
+  adbButton: {fileID: 530291238}
   fadeOutImage: {fileID: 1640494754}
   timeToFadeText: 1
 --- !u!4 &884097067
@@ -2006,17 +2007,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 1927213307}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0bebff8ba41b5ab4d9453e15a54ca85b, type: 3}
+  m_Script: {fileID: 11500000, guid: 9e77e6c7e5ebe5946b69dc83cec2d60b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConnectionManager
-  debug: 0
+  debug: 1
   adbRemotePort: 7778
-  adbConnectMaxRetries: 6
-  adbConnectRetryDelayMs: 1000
-  tcpConnectMaxRetries: 6
-  tcpConnectRetryDelayMs: 1000
-  tcpConnectTimeoutMs: 3000
-  clientType: 1
+  adbConnectMaxRetries: 5
+  adbConnectRetryDelayMs: 1500
+  tunnelCheckIntervalSeconds: 2
+  tunnelProbeTimeoutMs: 500
+  tcpConnectMaxRetries: 5
+  tcpConnectRetryDelayMs: 1500
+  tcpConnectTimeoutMs: 1500
+  handshakeTimeoutMs: 3000
+  clientType: 0
   clientPrefab: {fileID: 1485488949362450760, guid: 1217689dd5589184c8e4d1e16558c1f4, type: 3}
 --- !u!1 &1958474093
 GameObject:

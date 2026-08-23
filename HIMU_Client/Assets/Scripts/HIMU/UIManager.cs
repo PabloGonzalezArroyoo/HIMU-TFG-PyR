@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 public class UIManager : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI statusMessageText;
     [SerializeField] private Transform contentParent;
     [SerializeField] private GameObject sessionPrefab;
+    [SerializeField] private GameObject adbButton;
     [SerializeField] private RawImage fadeOutImage;
 
     // Efecto de texto
@@ -51,6 +53,11 @@ public class UIManager : MonoBehaviour
         newSession.name = "Session" + numSessions.ToString();
         sessionList.Add(newSession);
         sessions.Add(data.ipAddress, newSession);
+    }
+
+    public void UpdateADBButton(bool active)
+    {
+        adbButton.SetActive(active);
     }
 
     public void ConnectionAttemp()

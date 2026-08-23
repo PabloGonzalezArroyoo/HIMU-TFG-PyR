@@ -55,12 +55,11 @@ public class WebSocketServerRTC : MonoBehaviour
     #endregion
 
     #region Bat
-
     /// <summary>
-    /// Metodo que desbloquea el bat para poder ejecutarlo
+    /// Metodo que desbloquea un archivo
     /// </summary>
     /// <param name="path"></param>
-    void UnblockFile(string path)
+    public static void UnblockFile(string path)
     {
         string zoneIdentifierPath = path + ":Zone.Identifier";
         try
@@ -80,7 +79,7 @@ public class WebSocketServerRTC : MonoBehaviour
     /// <summary>
     /// Busca que proceso esta escuchando en un puerto TCP dado usando netstat, y lo mata por PID con taskkill
     /// </summary>
-    void KillProcessOnPort(int port)
+    public static void KillProcessOnPort(int port)
     {
         try
         {
@@ -131,8 +130,7 @@ public class WebSocketServerRTC : MonoBehaviour
     }
     #endregion
 
-    #region Connection
-
+    #region Activation/Deactivation
     /// <summary>
     /// Lanza el servidor de Node ejecutando el archivo .bat
     /// </summary>
@@ -198,7 +196,9 @@ public class WebSocketServerRTC : MonoBehaviour
 
         launchedBatProcess = null;
     }
+    #endregion
 
+    #region Connection
     /// <summary>
     /// Inicia la conexion al servidor de Node (con reintentos por si se llega a ejecutar antes que el LaunchServer acabe)
     /// </summary>
@@ -233,7 +233,7 @@ public class WebSocketServerRTC : MonoBehaviour
     public async Task DisconnectToNode()
     {
         var browserClients = StreamManager.Instance.GetClients()
-            .Where(c => c.transport == ConnectionTransport.WebSocket).ToList();
+            .Where(c => c.type == ClientConnectionType.WEB_SOCKET).ToList();
 
         if (ws?.State == WebSocketState.Open && browserClients.Count > 0)
         {
@@ -242,8 +242,8 @@ public class WebSocketServerRTC : MonoBehaviour
             // copia las claves para no modificar la colección mientras iteras
             foreach (var client in browserClients)
             {
-                await SendToNode(byeMsg, client.identifier);
-                StreamManager.Instance.RemovePeer(client.identifier);
+                await SendToNode(client.clientID, byeMsg);
+                StreamManager.Instance.RemovePeer(client.clientID);
             }
         }
 
@@ -258,7 +258,9 @@ public class WebSocketServerRTC : MonoBehaviour
 
         UnityEngine.Debug.Log("[WebSocketServerRTC] Node clients deleted.");
     }
+    #endregion
 
+    #region Communication
     /// <summary>
     /// Bucle de recepcion de mensajes WebSockets
     /// </summary>
@@ -288,7 +290,7 @@ public class WebSocketServerRTC : MonoBehaviour
                     string json = sb.ToString();
                     sb.Clear();
 
-                    UnityMainThreadDispatcher.Instance().Enqueue(() => HandleIncoming(json));
+                    UnityMainThreadDispatcher.Instance().Enqueue(() => HandleWebIncoming(json));
                 }
                 catch (Exception ex)
                 {
@@ -307,35 +309,31 @@ public class WebSocketServerRTC : MonoBehaviour
     /// Manejo de informacion recibida del servidor de Node
     /// </summary>
     /// <param name="rawJson"></param>
-    void HandleIncoming(string rawJson)
+    void HandleWebIncoming(string rawJson)
     {
-        WSBaseMessage baseMsg = JsonUtility.FromJson<WSBaseMessage>(rawJson);
-        UnityEngine.Debug.Log("LLEGAN MENSAJES DEL BROWSER");
+        WSMessage msg = JsonUtility.FromJson<WSMessage>(rawJson);
 
-        if (baseMsg.type == 99) // newClient
+        if (msg.type == 99) // newClient
         {
-            WSNewClientMessage newClient = JsonUtility.FromJson<WSNewClientMessage>(rawJson);
-            string clientKey = newClient.clientId.ToString();
-            ClientData client = ClientData.ForBrowser(clientKey, clientKey);
+            string clientKey = msg.clientId.ToString();
+            ClientData client = ClientData.ForBrowser(clientKey);
 
             StreamManager.Instance?.CreatePeer(client);
             clients.Add(client);
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
 
         }
-        else if (baseMsg.type == (int)ConnectionEvent.DISCONNECT) // un navegador se desconectó del lado de Node
+        else if (msg.type == (int)ConnectionEvent.DISCONNECT) // un navegador se desconectó del lado de Node
         {
-            WSTaggedMessage tagged = JsonUtility.FromJson<WSTaggedMessage>(rawJson);
-            string clientKey = tagged.clientId.ToString();
+            string clientKey = msg.clientId.ToString();
 
             StreamManager.Instance?.RemovePeer(clientKey);
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser deleted from register: {clientKey}");
         }
         else // SDP o ICE de un browser existente
         {
-            WSTaggedMessage tagged = JsonUtility.FromJson<WSTaggedMessage>(rawJson);
-            SignalingMessage sigMsg = new SignalingMessage((ConnectionEvent)tagged.type, tagged.body);
-            string clientKey = tagged.clientId.ToString();
+            SignalingMessage sigMsg = new SignalingMessage((ConnectionEvent)msg.type, msg.body);
+            string clientKey = msg.clientId.ToString();
             StreamManager.Instance?.HandleIncomingSignaling(clientKey, sigMsg);
         }
     }
@@ -346,7 +344,7 @@ public class WebSocketServerRTC : MonoBehaviour
     /// <param name="msg">Signaling message.</param>
     /// <param name="clientId">Which client seends the date.</param>
     /// <returns></returns>
-    public async Task SendToNode(SignalingMessage msg, string clientId)
+    public async Task SendToNode(string clientId, SignalingMessage msg)
     {
         if (ws?.State != WebSocketState.Open) return;
 
@@ -358,8 +356,8 @@ public class WebSocketServerRTC : MonoBehaviour
 
         try
         {
-            WSTaggedMessage tagged = new WSTaggedMessage { type = (int)msg.type, clientId = idInt, body = msg.body };
-            byte[] data = Encoding.UTF8.GetBytes(JsonUtility.ToJson(tagged));
+            WSMessage wsmes = new WSMessage { type = (int)msg.type, clientId = idInt, body = msg.body };
+            byte[] data = Encoding.UTF8.GetBytes(JsonUtility.ToJson(wsmes));
             await ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Text, true, CancellationToken.None);
         }
         catch (Exception ex)
@@ -367,18 +365,17 @@ public class WebSocketServerRTC : MonoBehaviour
             UnityEngine.Debug.LogError($"[WebSocketServerRTC] Error sending message to Node (clientId={clientId}): {ex.Message}");
         }
     }
+    #endregion
 
     public void ChangeVideoTrack(VideoStreamTrack newTrack)
     {
         foreach (var client in StreamManager.Instance.GetClients()
-            .Where(c => c.transport == ConnectionTransport.WebSocket))
+            .Where(c => c.type == ClientConnectionType.WEB_SOCKET))
         {
             RTCRtpSender sender = client.himuClient?.GetVideoSender();
             sender?.ReplaceTrack(newTrack);
         }
     }
-
-    #endregion
 
     #region Getters&Setters
     public string GetNodeHost()

@@ -32,11 +32,11 @@ public class SessionInfoComponent : MonoBehaviour
 
     private IEnumerator UpdateUIPostConnectionAttemp()
     {
-        while (StreamManager.Instance.currentState == ClientConnectionState.Connecting)
+        while (ConnectionManager.Instance.currentState == ClientConnectionState.Connecting)
         {
             yield return null;
         }
-        if (StreamManager.Instance.connected)
+        if (ConnectionManager.Instance.connected)
         {
             UIManager.Instance.ConnectionSuccessful();
         }
@@ -51,7 +51,7 @@ public class SessionInfoComponent : MonoBehaviour
     {
         // No queremos intentar mas conexiones si estamos cambiando de escena
         if (UIManager.Instance.IsChangingScene()) return;
-        StreamManager.Instance.ConnectViaTCP(connectionData);
+        ConnectionManager.Instance.ConnectViaTCP(connectionData);
         StartCoroutine(UpdateUIPostConnectionAttemp());
     }
 }

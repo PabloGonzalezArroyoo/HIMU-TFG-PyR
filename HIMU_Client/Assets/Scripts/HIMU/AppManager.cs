@@ -35,7 +35,7 @@ public class AppManager : MonoBehaviour
         if (nextScene.Contains("Menu"))
         {
             UnityMainThreadDispatcher.Instance().Enqueue(() => Destroy(UnityMainThreadDispatcher.Instance().gameObject));
-            Destroy(StreamManager.Instance.gameObject);
+            Destroy(ConnectionManager.Instance.gameObject);
         }
         isFading = false;
     }
@@ -84,7 +84,7 @@ public class AppManager : MonoBehaviour
     public void ConnectionLost()
     {
         ChangeScene("MainMenuScene");
-        Destroy(StreamManager.Instance.gameObject);
+        Destroy(ConnectionManager.Instance.gameObject);
     }
 
     public void ChangeScene(string scene)

@@ -1,8 +1,10 @@
 using NUnit.Framework;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class RacingGameManager : MonoBehaviour
 {
@@ -73,12 +75,26 @@ public class RacingGameManager : MonoBehaviour
     #endregion
 
     #region OnGameStart
-    public void LoadRemoteControlScene(Scene current, Scene next)
+    private IEnumerator LoadBackgroundSceneAsync()
+    {
+        AsyncOperation op = SceneManager.LoadSceneAsync("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
+
+        // Esperamos a que termine de cargar
+        while (!op.isDone)
+        {
+            yield return null;
+        }
+
+        Scene loadedScene = SceneManager.GetSceneByName("RacingGame_RemoteControlScene");
+    }
+
+    public void OnGameStarted(Scene current, Scene next)
     {
         if (next.name != "RacingGame_MainScene") return;
-        Debug.Log("Se cargo escena de mando");
         SceneManager.LoadScene("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
-        SceneManager.activeSceneChanged -= RacingGameManager.Instance.LoadRemoteControlScene;
+        StartCoroutine(LoadBackgroundSceneAsync());
+
+        SceneManager.activeSceneChanged -= RacingGameManager.Instance.OnGameStarted;
     }
 
 

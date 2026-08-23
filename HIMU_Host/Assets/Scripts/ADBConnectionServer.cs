@@ -77,30 +77,17 @@ public class ADBConnectionServer : MonoBehaviour
     /// <summary>
     /// Active sessions keyed by ADB serial (one per physical device).
     /// </summary>
-    private readonly ConcurrentDictionary<string, DeviceSession> sessionsByDeviceId = new ConcurrentDictionary<string, DeviceSession>();
+    private readonly ConcurrentDictionary<string, WiredDeviceData> sessionsByDeviceId = new ConcurrentDictionary<string, WiredDeviceData>();
 
     /// <summary>
     /// Same sessions, keyed by the clientID StreamManager knows them by
     /// </summary>
-    private readonly ConcurrentDictionary<string, DeviceSession> sessionsByClientID = new ConcurrentDictionary<string, DeviceSession>();
+    private readonly ConcurrentDictionary<string, WiredDeviceData> sessionsByClientID = new ConcurrentDictionary<string, WiredDeviceData>();
 
     /// <summary>
     /// Lineal structure that contains all ClientData of this type of client
     /// </summary>
     private List<ClientData> clients = new List<ClientData>();
-
-    /// <summary>
-    /// Per-device state: its reverse tunnel, listener and (once the app connects) socket.
-    /// </summary>
-    private class DeviceSession
-    {
-        public string deviceId;
-        public int localPort;
-        public TcpListener listener;
-        public Thread acceptThread;
-        public TcpClient tcpClient;
-        public string clientID;
-    }
     #endregion
 
     #region ADB
@@ -142,12 +129,6 @@ public class ADBConnectionServer : MonoBehaviour
     /// </summary>
     private string RunAdbCommand(string arguments)
     {
-        if (string.IsNullOrEmpty(adbPath))
-        {
-            if (debug) UnityEngine.Debug.LogError("[ADBServer] adb.exe path is not set, cannot run command.");
-            return "";
-        }
-
         var process = new Process();
         process.StartInfo = new ProcessStartInfo
         {
@@ -183,29 +164,6 @@ public class ADBConnectionServer : MonoBehaviour
 
         return output.ToString();
     }
-
-    /// <summary>
-    /// Processes "adb devices" output into a list of available devices (ignoring "unauthorized"/"offline" devices)
-    /// </summary>
-    private List<string> GetConnectedDeviceIds()
-    {
-        var ids = new List<string>();
-        string output = RunAdbCommand("devices");
-        if (string.IsNullOrEmpty(output)) return ids;
-
-        foreach (string rawLine in output.Split('\n'))
-        {
-            string line = rawLine.Trim();
-            if (string.IsNullOrEmpty(line) || line.StartsWith("List of devices")) continue;
-
-            string[] parts = line.Split('\t');
-            if (parts.Length >= 2 && parts[1].Trim() == "device")
-                ids.Add(parts[0].Trim());
-        }
-
-        return ids;
-    }
-
     #endregion
 
     #region Port administration
@@ -241,6 +199,28 @@ public class ADBConnectionServer : MonoBehaviour
 
     #region Device watcher
     /// <summary>
+    /// Processes "adb devices" output into a list of available devices (ignoring "unauthorized"/"offline" devices)
+    /// </summary>
+    private List<string> GetConnectedDeviceIds()
+    {
+        var ids = new List<string>();
+        string output = RunAdbCommand("devices");
+        if (string.IsNullOrEmpty(output)) return ids;
+
+        foreach (string rawLine in output.Split('\n'))
+        {
+            string line = rawLine.Trim();
+            if (string.IsNullOrEmpty(line) || line.StartsWith("List of devices")) continue;
+
+            string[] parts = line.Split('\t');
+            if (parts.Length >= 2 && parts[1].Trim() == "device")
+                ids.Add(parts[0].Trim());
+        }
+
+        return ids;
+    }
+
+    /// <summary>
     /// Background thread that executes "adb devices" repeteadly and reacts to changes in devices status
     /// </summary>
     private void DeviceWatcherLoop()
@@ -274,7 +254,7 @@ public class ADBConnectionServer : MonoBehaviour
     /// <param name="deviceId">Device connected</param>
     private void OnDeviceConnected(string deviceId)
     {
-        var session = new DeviceSession { deviceId = deviceId };
+        var session = new WiredDeviceData { deviceId = deviceId };
 
         try
         {
@@ -314,7 +294,7 @@ public class ADBConnectionServer : MonoBehaviour
     /// <param name="deviceId">Device disconnected</param>
     private void OnDeviceDisconnected(string deviceId)
     {
-        if (!sessionsByDeviceId.TryRemove(deviceId, out DeviceSession session)) return;
+        if (!sessionsByDeviceId.TryRemove(deviceId, out WiredDeviceData session)) return;
 
         if (debug) UnityEngine.Debug.Log($"[ADBServer] Device disconnected: {deviceId}");
 
@@ -332,7 +312,6 @@ public class ADBConnectionServer : MonoBehaviour
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.RemovePeer(clientID));
         }
     }
-
     #endregion
 
     #region Communication
@@ -340,7 +319,7 @@ public class ADBConnectionServer : MonoBehaviour
     /// Waits for the phone app to connect through this device's tunnel. 
     /// If the connection drops (app closed/crashed) it keeps listening in case the app reconnects (only while the device stays connected)
     /// </summary>
-    private void AcceptLoop(DeviceSession session)
+    private void AcceptLoop(WiredDeviceData session)
     {
         while (running && sessionsByDeviceId.ContainsKey(session.deviceId))
         {
@@ -366,7 +345,7 @@ public class ADBConnectionServer : MonoBehaviour
     /// <summary>
     /// Stablish connection between hosta nd client. First Handshake, then messages for WebRTC connection
     /// </summary>
-    private void HandleClient(DeviceSession session, TcpClient tcp)
+    private void HandleClient(WiredDeviceData session, TcpClient tcp)
     {
         NetworkStream stream = tcp.GetStream();
         string clientID = "";
@@ -387,11 +366,18 @@ public class ADBConnectionServer : MonoBehaviour
                 return;
             }
 
+            string clientIP = decodedData.ipAddress;
+            if (!SendHandshake(stream, clientIP))
+            {
+                UnityEngine.Debug.LogError($"[ADBServer] Failed to send HANDSHAKE_ACK to {session.deviceId}");
+                return;
+            }
+
             clientID = Guid.NewGuid().ToString();
             session.clientID = clientID;
             sessionsByClientID.TryAdd(clientID, session);
 
-            ClientData newClient = ClientData.ForADB(session.deviceId, clientID);
+            ClientData newClient = ClientData.ForADB(clientID);
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
             clients.Add(newClient);
 
@@ -427,12 +413,28 @@ public class ADBConnectionServer : MonoBehaviour
         }
     }
 
+    private bool SendHandshake(NetworkStream stream, string clientIP)
+    {
+        try
+        {
+            ConnectionData ack = ConnectionData.ForHandshake(clientIP, ClientConnectionType.ADB);
+            NetworkUtils.WriteFramedMessage(stream, JsonUtility.ToJson(ack));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            if (debug) UnityEngine.Debug.LogWarning($"[ADBServer] Error sending HANDSHAKE_ACK: {ex.Message}");
+            return false;
+        }
+    }
+
+
     /// <summary>
     /// Sends a signaling message to a specific client
     /// </summary>
     public bool SendMessage(string clientID, SignalingMessage msg)
     {
-        if (!sessionsByClientID.TryGetValue(clientID, out DeviceSession session) || session.tcpClient == null)
+        if (!sessionsByClientID.TryGetValue(clientID, out WiredDeviceData session) || session.tcpClient == null)
             return false;
 
         try
