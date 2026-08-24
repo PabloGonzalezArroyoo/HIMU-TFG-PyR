@@ -214,6 +214,8 @@ public class HIMUClient : MonoBehaviour
     void OnDestroy()
     {
         videoTrack?.Dispose();
+        inputTrack?.Close();
+        inputTrack?.Dispose();
         peer?.Close();
         peer?.Dispose();
     }
