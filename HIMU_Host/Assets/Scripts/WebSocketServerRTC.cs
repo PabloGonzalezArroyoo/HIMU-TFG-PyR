@@ -50,8 +50,6 @@ public class WebSocketServerRTC : MonoBehaviour
     /// Direccion del servidor de Node
     /// </summary>
     private Uri nodeUri;
-
-    private List<ClientData> clients = new List<ClientData>();
     #endregion
 
     #region Bat
@@ -318,8 +316,7 @@ public class WebSocketServerRTC : MonoBehaviour
             string clientKey = msg.clientId.ToString();
             ClientData client = ClientData.ForBrowser(clientKey);
 
-            StreamManager.Instance?.CreatePeer(client);
-            clients.Add(client);
+            UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(client));
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
 
         }
@@ -386,11 +383,6 @@ public class WebSocketServerRTC : MonoBehaviour
     public int GetBrowserPort()
     {
         return browserPort;
-    }
-
-    public List<ClientData> GetClients()
-    {
-        return clients;
     }
     #endregion
 

@@ -54,8 +54,6 @@ public class SignalingServer : MonoBehaviour
     /// Multicast IP group for specific broadcasting
     /// </summary>
     private const string MulticastGroup = "239.0.0.1";
-
-    private List<ClientData> clients = new List<ClientData>();
     #endregion
 
     #region Conection
@@ -237,7 +235,6 @@ public class SignalingServer : MonoBehaviour
 
             ClientData newClient = ClientData.ForDevice(decodedData, clientID);
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
-            clients.Add(newClient);
             tcpSockets.TryAdd(clientID, tcp);
 
             Debug.Log($"[SignalingServer] Client connected: {decodedData.ipAddress}");
@@ -274,18 +271,11 @@ public class SignalingServer : MonoBehaviour
 
     #endregion
 
-    public List<ClientData> GetClients()
-    {
-        return clients;
-    }
-
     #region Monobehaviour
-
     void OnDestroy()
     {
         if (!running) return;
         try { StopServer(); } catch { }
     }
-
     #endregion
 }

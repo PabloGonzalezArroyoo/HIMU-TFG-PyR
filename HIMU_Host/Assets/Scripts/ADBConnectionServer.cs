@@ -83,11 +83,6 @@ public class ADBConnectionServer : MonoBehaviour
     /// Same sessions, keyed by the clientID StreamManager knows them by
     /// </summary>
     private readonly ConcurrentDictionary<string, WiredDeviceData> sessionsByClientID = new ConcurrentDictionary<string, WiredDeviceData>();
-
-    /// <summary>
-    /// Lineal structure that contains all ClientData of this type of client
-    /// </summary>
-    private List<ClientData> clients = new List<ClientData>();
     #endregion
 
     #region ADB
@@ -379,7 +374,6 @@ public class ADBConnectionServer : MonoBehaviour
 
             ClientData newClient = ClientData.ForADB(clientID);
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
-            clients.Add(newClient);
 
             UnityEngine.Debug.Log($"[ADBServer] Client registered: {session.deviceId} (id: {clientID})");
 
@@ -482,11 +476,6 @@ public class ADBConnectionServer : MonoBehaviour
 
         if (debug) UnityEngine.Debug.Log("[ADBServer] ADB server stopped.");
     }
-
-    public List<ClientData> GetClients()
-    {
-        return clients;
-    }
     #endregion
 
     #region Monobehaviour
@@ -498,10 +487,6 @@ public class ADBConnectionServer : MonoBehaviour
     void OnDestroy()
     {
         try { StopServer(); } catch { }
-
-        foreach (ClientData client in clients) {
-            Destroy(client.himuClient.gameObject);
-        }
     }
     #endregion
 }

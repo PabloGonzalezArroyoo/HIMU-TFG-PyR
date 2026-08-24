@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.WebRTC;
 using UnityEngine;
 
@@ -329,17 +330,32 @@ public class StreamManager : MonoBehaviour
 
     public List<ClientData> GetBrowserClients()
     {
-        return webSocketServer?.GetClients();
+        List<ClientData> browserClients = new List<ClientData>();
+        foreach(var client in clients.Where(c => c.Value.type == ClientConnectionType.WEB_SOCKET))
+        {
+            browserClients.Add(client.Value);
+        }
+        return browserClients;
     }
 
     public List<ClientData> GetTCPClients()
     {
-        return signalingServer?.GetClients();
+        List<ClientData> tcpClients = new List<ClientData>();
+        foreach (var client in clients.Where(c => c.Value.type == ClientConnectionType.TCP))
+        {
+            tcpClients.Add(client.Value);
+        }
+        return tcpClients;
     }
 
     public List<ClientData> GetADBClients()
     {
-        return adbServer?.GetClients();
+        List<ClientData> adbClients = new List<ClientData>();
+        foreach (var client in clients.Where(c => c.Value.type == ClientConnectionType.ADB))
+        {
+            adbClients.Add(client.Value);
+        }
+        return adbClients;
     }
 
     public CreateClient GetBrowserClientCallback()
