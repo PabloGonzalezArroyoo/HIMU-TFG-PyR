@@ -234,8 +234,8 @@ public class SignalingServer : MonoBehaviour
             clientID = Guid.NewGuid().ToString();
 
             ClientData newClient = ClientData.ForDevice(decodedData, clientID);
-            UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
             tcpSockets.TryAdd(clientID, tcp);
+            UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(newClient));
 
             Debug.Log($"[SignalingServer] Client connected: {decodedData.ipAddress}");
 

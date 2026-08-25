@@ -620,7 +620,7 @@ public class ConnectionManager : MonoBehaviour
         if (sessions.TryGetValue(data.ipAddress, out ConnectionData duplicatedSession)) return;
 
         sessions.Add(data.ipAddress, data);
-        UIManager.Instance.AddNewSessionUI(data);
+        UnityMainThreadDispatcher.Instance().Enqueue(() => UIManager.Instance?.AddNewSessionUI(data));
     }
 
     /// <summary>
@@ -706,7 +706,6 @@ public class ConnectionManager : MonoBehaviour
         running = false;
         connected = false;
         ipAddress = NetworkUtils.GetIP();
-        clientType = ClientConnectionType.NONE;
 
         StartCoroutine(WebRTC.Update());
     }
