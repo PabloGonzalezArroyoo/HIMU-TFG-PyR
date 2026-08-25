@@ -162,7 +162,7 @@ public class StreamManager : MonoBehaviour
                     go = browserClientCallback(client);
                     textureCallback = browserTextureCallback;
                     peer = go.AddComponent<HIMUClient>(); 
-                    peer.Initialize(clientID, textureCallback(), msg => _ = webSocketServer.SendToNode(clientID, msg), true, false);
+                    peer.Initialize(clientID, textureCallback(), msg => _ = webSocketServer.SendToNode(clientID, msg), true);
                 }
                 break;
             case ClientConnectionType.TCP:
@@ -170,7 +170,7 @@ public class StreamManager : MonoBehaviour
                     go = tcpClientCallback(client);
                     textureCallback = tcpTextureCallback;
                     peer = go.AddComponent<HIMUClient>(); 
-                    peer.Initialize(clientID, textureCallback(), msg => signalingServer.SendMessage(clientID, msg), true, false);
+                    peer.Initialize(clientID, textureCallback(), msg => signalingServer.SendMessage(clientID, msg), true);
                 }
                 break;
             case ClientConnectionType.ADB:
@@ -178,7 +178,7 @@ public class StreamManager : MonoBehaviour
                     go = adbClientCallback(client);
                     textureCallback = adbTextureCallback;
                     peer = go.AddComponent<HIMUClient>(); 
-                    peer.Initialize(clientID, textureCallback(), msg => adbServer.SendMessage(clientID, msg), true, false);
+                    peer.Initialize(clientID, textureCallback(), msg => adbServer.SendMessage(clientID, msg), true);
                 }
                 break;
             default:
@@ -186,7 +186,7 @@ public class StreamManager : MonoBehaviour
                     go = BaseCreateClient(client);
                     textureCallback = BaseCreateTexture;
                     peer = go.AddComponent<HIMUClient>();
-                    peer.Initialize(clientID, textureCallback(), msg => signalingServer.SendMessage(clientID, msg), true, false);
+                    peer.Initialize(clientID, textureCallback(), msg => signalingServer.SendMessage(clientID, msg), true);
                 }
                 break;
         }

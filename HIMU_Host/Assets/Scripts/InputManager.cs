@@ -1,14 +1,14 @@
-using NUnit.Framework;
-using UnityEngine;
-using Unity.WebRTC;
 using System.Collections.Generic;
-using UnityEngine.UI;
+using UnityEngine;
 
 /// <summary>
 /// Parses input events received from clients. It stores them into a list that is accessible for other scripts and flushes the events at lateUpdate (all processing must be done in update)
 /// </summary>
 public class InputManager : MonoBehaviour
 {
+
+    #region Variables
+
     /// <summary>
     /// Instance of InputManager (Singleton)
     /// </summary>
@@ -21,28 +21,77 @@ public class InputManager : MonoBehaviour
     private bool shouldPersist = false;
 
     /// <summary>
-    /// List of events pending of processing (accessible)
+    /// Time in seconds after which a client's input state stops being considered valid.
     /// </summary>
-    private List<InputFrame> pendingInputFrames = new List<InputFrame>();
+    [SerializeField]
+    private float inputTimeout = 0.5f;
+
+    /// <summary>
+    /// Dictionary of events pending of processing (accessible)
+    /// </summary>
+    private readonly Dictionary<string, InputFrame> pendingInputFrames = new Dictionary<string, InputFrame>();
+
+    /// <summary>
+    /// Returned for unknown or expired clients, so callers never have to handle a null list.
+    /// </summary>
+    private static readonly List<Vector2> EmptyTouches = new List<Vector2>();
+
+    #endregion
+
+    #region Methods
 
     /// <summary>
     /// Parses data received from client
     /// </summary>
     /// <param name="data"></param>
-    public void ParseInputMessage(string data)
+    public void ParseInputMessage(string clientID, string data)
     {
-        InputFrame frame = JsonUtility.FromJson<InputFrame>(data);
-        pendingInputFrames.Add(frame);
+        InputFrame frame;
+        try
+        {
+            frame = JsonUtility.FromJson<InputFrame>(data);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[InputManager] Malformed input frame from " + clientID + ":" + e.Message);
+            return;
+        }
+
+        pendingInputFrames[clientID] = frame;
     }
+
+    public void RemoveClient(string clientID)
+    {
+        if (string.IsNullOrEmpty(clientID)) return;
+        pendingInputFrames.Remove(clientID);
+    }
+
+    #endregion
+
+    #region Getters
 
     /// <summary>
     /// Access to pending InputFrames list
     /// </summary>
     /// <returns></returns>
-    public List<InputFrame> GetPendingInputFrames()
+    public IReadOnlyList<Vector2> GetPendingInputFrames(string clientID)
     {
-        return pendingInputFrames;
+        InputFrame frame = GetValidFrame(clientID);
+        return frame != null ? frame.touches : EmptyTouches;
     }
+
+    private InputFrame GetValidFrame(string clientID)
+    {
+        if (string.IsNullOrEmpty(clientID)) return null;
+        if (!pendingInputFrames.TryGetValue(clientID, out InputFrame frame)) return null;
+        if (Time.unscaledTime - frame.timestamp > inputTimeout) return null;
+
+        return frame;
+    }
+
+    #endregion
+
+    #region Monobehaviour
 
     private void Awake()
     {
@@ -55,4 +104,6 @@ public class InputManager : MonoBehaviour
     {
         pendingInputFrames.Clear();
     }
+
+    #endregion
 }

@@ -5,29 +5,43 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-struct PlayerInfo
+class PlayerInfo
 {
     public int playerN;
+
+    public ShooterPlayerController controller;
+
     public Scene controlScene;
 
-    public PlayerInfo(int pN, Scene cS)
+    // Virtual input device backed by controlScene
+    public RemoteControlRig rig;
+
+    public PlayerInfo(int playerN, ShooterPlayerController controller)
     {
-        playerN = pN;
-        controlScene = cS;
+        this.playerN = playerN;
+        this.controller = controller;
     }
 }
 
 public class ShooterGameManager : MonoBehaviour
 {
+
     #region Variables
 
     public static ShooterGameManager Instance { get; private set; }
 
     [SerializeField] private List<Transform> spawnPositions;
 
+    [SerializeField] private Camera spectatorCamera; 
+
     private Dictionary<string, PlayerInfo> players = new Dictionary<string, PlayerInfo>();
 
-    [SerializeField] private Camera spectatorCamera;
+    [SerializeField] private string remoteControlSceneName = "ShooterRemoteControlScene";
+
+    /// <summary>
+    /// Distance along +X between consecutive copies of the control scene.
+    /// </summary>
+    [SerializeField] private float controlSceneOffset = 1000f;
 
     #endregion
 
@@ -35,6 +49,8 @@ public class ShooterGameManager : MonoBehaviour
 
     private void OrganizePeers()
     {
+        players.Clear();
+
         List<ClientData> allPeers = StreamManager.Instance.GetClients();
 
         // Filter the player peers from the browser peers
@@ -51,16 +67,23 @@ public class ShooterGameManager : MonoBehaviour
         {
             string clientID = playerPeers[i].clientID;
             Transform player = spawnPositions[i].GetChild(0);
-            player.GetComponent<PlayerLifeComponent>().SetClientID(clientID);
+
+            PlayerLifeComponent life = player.GetComponent<PlayerLifeComponent>();
+            if (life != null) life.SetClientID(clientID);
+
+            ShooterPlayerController controller = player.GetComponent<ShooterPlayerController>();
+            if (controller == null)
+                Debug.LogError("[ShooterGameManager] Avatar at spawn " + i + " has no ShooterPlayerController.");
+
             player.GetChild(1).GetChild(0).GetComponent<TextMeshProUGUI>().text = clientID;
             player.GetChild(1).GetChild(1).GetComponent<TextMeshProUGUI>().text = clientID;
             
-            players[clientID] = new PlayerInfo(i, default);
+            players[clientID] = new PlayerInfo(i, controller);
         }
 
         RegisterSpectatorsSource();
 
-        StartCoroutine(LoadRemoteControlScenes(playerPeers));
+        StartCoroutine(SetUpRemoteControls(playerPeers));
     }
 
     private void RegisterSpectatorsSource()
@@ -80,24 +103,88 @@ public class ShooterGameManager : MonoBehaviour
         FrameCaptureFeature.Instance.SetSourceCamera(spectatorCamera);
     }
 
-    private IEnumerator LoadRemoteControlScenes(List<ClientData> peers)
+    /// <summary>
+    /// Loads one copy of the control scene per peer and wires the three ends of the loop: the
+    /// client's input feeds the rig, the rig drives that client's avatar, and the control camera
+    /// renders into the RenderTexture that client is streaming.
+    ///
+    /// Loads are serialized (one yield per scene) so that the newly loaded scene is always the
+    /// last one in SceneManager's list, which is the only way to obtain the Scene handle of a
+    /// copy: several copies of the same asset share name and path, so lookups by name are
+    /// ambiguous by construction.
+    /// </summary>
+    /// <param name="peers">Peers that take part in the match, in spawn order.</param>
+    private IEnumerator SetUpRemoteControls(List<ClientData> peers)
     {
-        foreach (var peer in peers)
+        for (int i = 0; i < peers.Count; i++)
         {
-            AsyncOperation op = SceneManager.LoadSceneAsync("ShooterRemoteControlScene", LoadSceneMode.Additive);
+            ClientData peer = peers[i];
+
+            AsyncOperation op = SceneManager.LoadSceneAsync(remoteControlSceneName, LoadSceneMode.Additive);
             yield return op;
 
             Scene loaded = SceneManager.GetSceneAt(SceneManager.sceneCount - 1);
+            if (!loaded.IsValid() || loaded.name != remoteControlSceneName)
+            {
+                Debug.LogError($"[ShooterGameManager] Could not resolve the control scene loaded for " + peer.clientID + ".");
+                continue;
+            }
 
-            PlayerInfo info = players[peer.clientID];
+            OffsetScene(loaded, i);
+
+            if (!players.TryGetValue(peer.clientID, out PlayerInfo info))
+            {
+                Debug.LogError($"[ShooterGameManager] No player registered for " + peer.clientID + ".");
+                continue;
+            }
+
+            RemoteControlRig rig = FindInScene<RemoteControlRig>(loaded);
+            if (rig == null)
+            {
+                Debug.LogError($"[ShooterGameManager] The control scene loaded for " + peer.clientID + " has no RemoteControlRig.");
+                continue;
+            }
+
             info.controlScene = loaded;
-            players[peer.clientID] = info;
+            info.rig = rig;
+
+            // Client -> rig: the rig now reads the input of this clientID and no other.
+            rig.Bind(peer.clientID);
+
+            // Rig -> avatar: the avatar now reads this control scene and no other.
+            info.controller?.SetControlSource(rig);
+
+            BindCameraToPeer(rig.GetControlCamera(), peer.himuClient);
         }
     }
 
-    public void ChangeScene(string sceneName)
+    private void OffsetScene(Scene scene, int index)
     {
-        SceneManager.LoadScene(sceneName);
+        Vector3 offset = new Vector3(controlSceneOffset * (index + 1), 0f, 0f);
+
+        foreach (GameObject root in scene.GetRootGameObjects())
+            root.transform.position += offset;
+    }
+
+    private void BindCameraToPeer(Camera camera, HIMUClient peer)
+    {
+        if (camera == null || peer == null)
+        {
+            Debug.LogError("[ShooterGameManager] Cannot bind control camera: camera or peer is null.");
+            return;
+        }
+
+        if (peer.renderTexture == null)
+        {
+            Debug.LogError($"[ShooterGameManager] Peer " + peer.GetClientID() + " has no RenderTexture assigned.");
+            return;
+        }
+
+        // Several cameras tagged MainCamera make Camera.main non-deterministic; the control
+        // cameras are never the main camera of the application.
+        if (camera.CompareTag("MainCamera")) camera.tag = "Untagged";
+
+        camera.targetTexture = peer.renderTexture;
     }
 
     public void LoadRemoteControlScene(Scene current, Scene next)
@@ -106,37 +193,15 @@ public class ShooterGameManager : MonoBehaviour
         OrganizePeers();
     }
 
-    public void OnSceneChanged(Scene loadedScene, LoadSceneMode mode)
+    private static T FindInScene<T>(Scene scene) where T : Component
     {
-        // Cuando se carga la escena de mando -> seteamos la camara del cliente adb
-        if (mode == LoadSceneMode.Additive)
+        foreach (GameObject root in scene.GetRootGameObjects())
         {
-            //Camera backgroundCamera = FindCameraInScene(loadedScene, "RemoteControl_Camera");
-            //backgroundCamera.targetTexture = controlTexture;
-            //AssignADBTexture();
-            //Debug.Log("Escena de mando cargada");
+            T found = root.GetComponentInChildren<T>(true);
+            if (found != null) return found;
         }
 
-        // Cuando se carga la escena de juego -> seteamos la camara de los clientes WebSocket
-        if (loadedScene.name.Contains("Main"))
-        {
-            //Camera mainCamera = FindCameraInScene(loadedScene, "StreamCamera");
-            //mainCamera.targetTexture = gameTexture;
-            //ChangeStreamTextures();
-            //Debug.Log("Escena de juego cargada");
-        }
-
-        // Cuando se carga la escena de conexiones
-        if (loadedScene.name.Contains("Connections"))
-        {
-            //StreamManager.Instance.SetADBClientCallback(CreateADBClient);
-            //StreamManager.Instance.SetBrowserClientCallback(CreateBrowserClient);
-            //Camera streamCamera = new GameObject().AddComponent<Camera>();
-            //streamCamera.gameObject.transform.position = FindCameraInScene(loadedScene, "Main Camera").gameObject.transform.position;
-            //streamCamera.targetTexture = connectionsTexture;
-            //StreamManager.Instance.SetADBTextureCallback(TextureOnConnections);
-            //StreamManager.Instance.SetBrowserTextureCallback(TextureOnConnections);
-        }
+        return null;
     }
 
     #endregion
@@ -166,7 +231,6 @@ public class ShooterGameManager : MonoBehaviour
         Instance = this;
 
         SceneManager.activeSceneChanged += LoadRemoteControlScene;
-        SceneManager.sceneLoaded += OnSceneChanged;
     }
 
     private void OnDestroy()
@@ -174,8 +238,8 @@ public class ShooterGameManager : MonoBehaviour
         if (Instance == this)
         {
             SceneManager.activeSceneChanged -= LoadRemoteControlScene;
-            SceneManager.sceneLoaded -= OnSceneChanged;
             FrameCaptureFeature.Instance?.SetSourceCamera(null);
+            Instance = null;
         }
     }
 

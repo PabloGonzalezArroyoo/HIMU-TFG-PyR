@@ -115,6 +115,9 @@ public class RacingGameUIManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        RacingGameManager.Instance.SetScore(Math.Min((int)raceCounter, 999));
+        if (Instance == this)
+        {
+            RacingGameManager.Instance.SetScore(Math.Min((int)raceCounter, 999));
+        }
     }
 }

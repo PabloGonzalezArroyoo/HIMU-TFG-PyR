@@ -54,6 +54,10 @@ public class FrameCaptureFeature : ScriptableRendererFeature
     public override void Create()
     {
         Instance = this;
+
+        // URP calls Create without a matching Dispose, so the previous data needs to be realesed by
+        // explicitly calling its release now (Cleanup)
+        pass?.Cleanup();
         pass = new FrameCapturePass(width, height);
 
         // Adds the pass to URP's render pipeline after everything has been rendered. This way

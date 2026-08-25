@@ -35,11 +35,6 @@ public class HIMUClient : MonoBehaviour
     VideoStreamTrack videoTrack;
 
     /// <summary>
-    /// 
-    /// </summary>
-    AudioStreamTrack audioTrack;
-
-    /// <summary>
     /// Object incharged of tracking JSON packages.
     /// </summary>
     RTCDataChannel inputTrack;
@@ -49,10 +44,10 @@ public class HIMUClient : MonoBehaviour
     /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
 
-    [SerializeField]
+    /// <summary>
+    /// Wether this client needs a DataChannel for input or not.
+    /// </summary>
     private bool handlesInput = false;
-    [SerializeField]
-    private bool handlesAudio = false;
     #endregion
 
     #region Methods
@@ -64,13 +59,12 @@ public class HIMUClient : MonoBehaviour
     /// <param name="id">Id of this client.</param>
     /// <param name="rt">RenderTexture of the attached camera for streaming.</param>
     /// <param name="onSignalingMsg">Callback for when a SignalingMessage is received.</param>
-    public void Initialize(string id, RenderTexture rt, System.Action<SignalingMessage> onSignalingMsg, bool input, bool audio)
+    public void Initialize(string id, RenderTexture rt, System.Action<SignalingMessage> onSignalingMsg, bool input)
     {
         clientID = id;
         renderTexture = rt;
         OnSignalingMessage = onSignalingMsg;
         handlesInput = input;
-        handlesAudio = audio;
 
         // Connection configuration. Uses STUN to discover the public IP of this device.
         RTCConfiguration config = new RTCConfiguration
@@ -107,7 +101,7 @@ public class HIMUClient : MonoBehaviour
             {
                 string msg = System.Text.Encoding.UTF8.GetString(bytes);
                 Debug.Log($"[DataChannel] Recieved Message: {msg}");
-                InputManager.Instance?.ParseInputMessage(msg);
+                UnityMainThreadDispatcher.Instance().Enqueue(() => DeliverInputMessage(msg));
             };
         }
     }
@@ -155,13 +149,20 @@ public class HIMUClient : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns the video track object.
+    /// Sends the input message with the GUID of this peer attached to it.
     /// </summary>
-    /// <returns>Video track object.</returns>
-    public RTCRtpSender GetVideoSender()
+    /// <param name="msg"></param>
+    private void DeliverInputMessage(string msg)
     {
-        return videoSender;
+        if (InputManager.Instance == null)
+        {
+            Debug.LogError("[HIMUClient] No InputManager in the scene: input from " + clientID + " is being dropped.");
+            return;
+        }
+
+        InputManager.Instance.ParseInputMessage(clientID, msg);
     }
+
 
     public void ChangeTexture(RenderTexture texture)
     {
@@ -199,6 +200,29 @@ public class HIMUClient : MonoBehaviour
             throw;
         }
     }
+
+    #endregion
+
+    #region Getters
+
+    /// <summary>
+    /// Returns the video track object.
+    /// </summary>
+    /// <returns>Video track object.</returns>
+    public RTCRtpSender GetVideoSender()
+    {
+        return videoSender;
+    }
+
+    /// <summary>
+    /// Returns this peer's id
+    /// </summary>
+    /// <returns>Client id assigned</returns>
+    public string GetClientID()
+    {
+        return clientID;
+    }
+
     #endregion
 
     #region Monobehaviour

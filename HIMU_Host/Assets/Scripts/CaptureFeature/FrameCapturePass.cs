@@ -42,6 +42,11 @@ public class FrameCapturePass : ScriptableRenderPass
     {
         // BGRA32 -> format expected by WebRTC
         OutputTexture = new RenderTexture(width, height, 0, RenderTextureFormat.BGRA32);
+
+        // The feature that owns this pass is an asset and survives Play Mode transitions.
+        // Without DontSave, Unity destroys this texture on those transitions while the
+        // managed wrapper stays alive, leaving a dangling reference behind.
+        OutputTexture.hideFlags = HideFlags.HideAndDontSave;
         OutputTexture.Create();
 
         outputHandle = RTHandles.Alloc(OutputTexture, "_FrameCaptureOutput");
@@ -87,9 +92,22 @@ public class FrameCapturePass : ScriptableRenderPass
     /// </summary>
     public void Cleanup()
     {
-        outputHandle?.Release();
+        if (outputHandle != null)
+            outputHandle?.Release();
+            
+        if (OutputTexture != null)
+        {
+            OutputTexture?.Release();
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying) Object.DestroyImmediate(OutputTexture);
+            else Object.Destroy(OutputTexture);
+#else
+        Object.Destroy(OutputTexture);
+#endif
+        }
+
         outputHandle = null;
-        OutputTexture?.Release();
         OutputTexture = null;
     }
     #endregion

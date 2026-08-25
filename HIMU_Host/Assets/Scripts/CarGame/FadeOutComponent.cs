@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class FadeOutComponent : MonoBehaviour
@@ -46,7 +45,7 @@ public class FadeOutComponent : MonoBehaviour
             yield return null;
         }
 
-        callback(nextScene);
+        callback?.Invoke(nextScene);
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created

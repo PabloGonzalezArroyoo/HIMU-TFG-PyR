@@ -159,10 +159,13 @@ public class InputFrame
     public List<Vector2> touches;
     public Vector3 accelometer;
 
-    public InputFrame(List<Vector2> t, Vector3 a)
+    public float timestamp;
+
+    public InputFrame(List<Vector2> t, Vector3 a, float ts)
     {
         touches = t;
         accelometer = a;
+        timestamp = ts;
     }
 }
 

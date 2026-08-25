@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class ShooterMenuUIManager : MonoBehaviour
 {
@@ -9,8 +10,13 @@ public class ShooterMenuUIManager : MonoBehaviour
 
     public void GoToConnections()
     {
+        fadeOutImage.SetCallback(LoadScene);
         fadeOutImage.StartFading();
-        fadeOutImage.SetCallback(ShooterGameManager.Instance.ChangeScene);
+    }
+
+    private void LoadScene(string scene)
+    {
+        SceneManager.LoadScene(scene);
     }
 
     public void ExitGame()
@@ -27,5 +33,13 @@ public class ShooterMenuUIManager : MonoBehaviour
         }
 
         Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 }

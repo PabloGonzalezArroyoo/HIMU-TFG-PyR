@@ -788,7 +788,9 @@ MonoBehaviour:
   - {fileID: 944364245}
   - {fileID: 512072265}
   - {fileID: 256826160}
-  spectatorCamera: {fileID: 0}
+  spectatorCamera: {fileID: 1011428971}
+  remoteControlSceneName: ShooterRemoteControlScene
+  controlSceneOffset: 1000
 --- !u!4 &473862620
 Transform:
   m_ObjectHideFlags: 0
@@ -3456,7 +3458,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9fcc8d8c470a38f4da568c80b7e3d343, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShooterUIManager
-  fadeOutImage: {fileID: 0}
   victoryCanvas: {fileID: 498199580}
 --- !u!1 &1720970742
 GameObject:
