@@ -243,7 +243,10 @@ public class ConnectionManager : MonoBehaviour
                     continue;
                 }
 
-                UnityMainThreadDispatcher.Instance().Enqueue(OnConnectionStarted);
+                UnityMainThreadDispatcher.Instance().Enqueue(() => {
+                    OnConnectionStarted();
+                    UIManager.Instance.ConnectionSuccessful();
+                });
                 return;
             }
             catch (SocketException se)
@@ -313,8 +316,6 @@ public class ConnectionManager : MonoBehaviour
                     continue;
                 }
 
-                connected = true;
-                currentState = ClientConnectionState.Connected;
                 if (debug) Debug.Log("[StreamManager] Connected to host via ADB (USB).");
 
                 UnityMainThreadDispatcher.Instance().Enqueue(() => {
@@ -513,6 +514,7 @@ public class ConnectionManager : MonoBehaviour
     public void OnConnectionStarted()
     {
         connected = true;
+        currentState = ClientConnectionState.Connected;
         GameObject client = Instantiate(clientPrefab);
         client.transform.position = Vector3.zero;
         receiver = client.GetComponent<HIMUReceiver>();

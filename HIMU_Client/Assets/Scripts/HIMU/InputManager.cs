@@ -6,7 +6,22 @@ using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 public class InputManager : MonoBehaviour
 {
+
+    #region Variable
+
     public static InputManager Instance { get; private set; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    [SerializeField]
+    private float sendRateHz = 60f;
+
+    /// <summary>
+    /// Frequency in which the accelerometer changes will be registered in hz.
+    /// </summary>
+    [SerializeField]
+    private float accSamplingHz = 60f;
 
     /// <summary>
     /// Component incharged of the communication through the WebRTC protcol with the host machine.
@@ -14,11 +29,83 @@ public class InputManager : MonoBehaviour
     private HIMUReceiver receiver;
 
     /// <summary>
-    /// Touches in the previous frame.
+    /// Accelerometer reference (null if it doesn't exist).
     /// </summary>
-    private int previousTouchCount;
+    private Accelerometer accelerometer;
 
+    /// <summary>
+    /// Touches buffer for processing touches in an already allocated structure.
+    /// </summary>
+    private readonly List<Vector2> touches = new List<Vector2>();
+
+    /// <summary>
+    /// Whether InputManager is sending or not input to the host machine.
+    /// </summary>
     public bool send = false;
+
+    /// <summary>
+    /// Variables for sending frequency control.
+    /// </summary>
+    private float sendInterval;
+    private float nextSendTime;
+
+    #endregion
+
+    #region Methods
+
+    /// <summary>
+    /// Enables EnhancedTouch (API for easy tracking of touches on a screen) and the accelerometer, due to both of them being
+    /// off by default. It also configures the accelerometer sampling frequency.
+    /// </summary>
+    private void EnablePhoneInput()
+    {
+        // Enhanced Touch ---
+        EnhancedTouchSupport.Enable();
+
+        // Accelerometer ---
+        accelerometer = Accelerometer.current;
+
+        if (accelerometer == null)
+        {
+            Debug.LogWarning("[InputManager] No accelerometer detected.");
+            return;
+        }
+
+        if (!accelerometer.enabled)
+        {
+            InputSystem.EnableDevice(accelerometer);
+
+            if (accSamplingHz > 0f)
+                accelerometer.samplingFrequency = accSamplingHz;
+        }        
+    }
+
+    /// <summary>
+    /// Disable the previous enabled input channels.
+    /// </summary>
+    private void DisablePhoneInput()
+    {
+        // Enhanced Touch ---
+        EnhancedTouchSupport.Disable();
+
+        // Accelerometer ---
+        if (accelerometer != null && accelerometer.enabled)
+            InputSystem.DisableDevice(accelerometer);
+    }
+
+    #endregion
+
+    #region Monobehaviour
+
+    private void OnEnable()
+    {
+        EnablePhoneInput();
+    }
+
+    private void OnDisable()
+    {
+        DisablePhoneInput();
+    }
 
     void Awake()
     {
@@ -30,20 +117,10 @@ public class InputManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        previousTouchCount = 0;
         receiver = GetComponent<HIMUReceiver>();
+        sendInterval = sendRateHz > 0f ? 1f / sendRateHz : 0f;
+        nextSendTime = 0f;
         send = false;
-    }
-
-    private void OnEnable()
-    {
-        // EnhancedTouch is disabled by default (perf reasons), so it must be enabled explicitly.
-        EnhancedTouchSupport.Enable();
-    }
-
-    private void OnDisable()
-    {
-        EnhancedTouchSupport.Disable();
     }
 
     // Update is called once per frame
@@ -51,27 +128,39 @@ public class InputManager : MonoBehaviour
     {
         if (!send || receiver == null) return;
 
+        // We limit the sending frequency
+        if (sendInterval > 0f)
+        {
+            if (Time.unscaledTime < nextSendTime) return;
+            nextSendTime = Time.unscaledTime + sendInterval;
+        }
+
+        // Touches
+        touches.Clear();
+
         var activeTouches = Touch.activeTouches;
         int count = activeTouches.Count;
 
-        List<Vector2> touches = new List<Vector2>();
-        Vector3 accValue = Accelerometer.current.acceleration.ReadValue();
+        if (count > 0)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                Touch t = activeTouches[i];
+                Vector2 normalizedPos = new Vector2(t.screenPosition.x / Screen.width, t.screenPosition.y / Screen.height);
+                touches.Add(normalizedPos);
+            }
+        }
+
+        // Accelerometer
+        Vector3 accValue = Vector3.zero;
+        if (accelerometer != null)
+            accValue = Accelerometer.current.acceleration.ReadValue();
+
+        // Sending
         InputFrame frameInput = new InputFrame(touches, accValue);
-
-        if (count == 0 && previousTouchCount == 0)
-        {
-            receiver.SendThroughDataChannel(JsonUtility.ToJson(frameInput));
-            return; 
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            Touch t = activeTouches[i];
-            Vector2 normalizedPos = new Vector2(t.screenPosition.x / Screen.width, t.screenPosition.y / Screen.height);
-            touches.Add(normalizedPos);
-        }
-
         receiver.SendThroughDataChannel(JsonUtility.ToJson(frameInput));
-        previousTouchCount = count;
     }
+
+    #endregion
+
 }

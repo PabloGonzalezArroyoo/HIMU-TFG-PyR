@@ -33,12 +33,12 @@ public class ShooterPlayerController : MonoBehaviour
     /// <summary>
     /// Virtual device driving this player. Null while the player has no control scene bound.
     /// </summary>
-    private IControlSource controlSource;
+    private RemoteControlRig controlSource;
 
     /// <summary>
     /// State sampled in Update and consumed in FixedUpdate.
     /// </summary>
-    private ControlState state;
+    private ShootingState state;
 
     #endregion
 
@@ -46,7 +46,7 @@ public class ShooterPlayerController : MonoBehaviour
     /// Injects the virtual device that drives this player.
     /// </summary>
     /// <param name="source">Control source, or null to detach the player from remote input.</param>
-    public void SetControlSource(IControlSource source)
+    public void SetControlSource(RemoteControlRig source)
     {
         controlSource = source;
     }
@@ -59,8 +59,8 @@ public class ShooterPlayerController : MonoBehaviour
     {
         state = default;
 
-        if (controlSource != null && controlSource.IsConnected)
-            state = controlSource.GetState();
+        if (controlSource != null && controlSource != null)
+            state = controlSource.GetShootingState();
 
         if (keyboardFallback) MergeKeyboard(ref state);
 
@@ -73,7 +73,7 @@ public class ShooterPlayerController : MonoBehaviour
     /// Adds the local keyboard on top of the remote state, for editor testing.
     /// </summary>
     /// <param name="target">State to merge the keyboard input into.</param>
-    private void MergeKeyboard(ref ControlState target)
+    private void MergeKeyboard(ref ShootingState target)
     {
         Keyboard keyboard = Keyboard.current;
         if (keyboard == null) return;
