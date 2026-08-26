@@ -201,8 +201,8 @@ public class ConnectionManager : MonoBehaviour
             return; // <-- falta este return, ahora mismo sigue ejecutando igual
         }
 
-        currentTransport = ClientConnectionType.TCP;
         intentionalDisconnect = false;
+        currentTransport = ClientConnectionType.TCP;
         currentState = ClientConnectionState.Connecting;
         hostIP = data.ipAddress;
         hostPort = data.port;
@@ -238,10 +238,15 @@ public class ConnectionManager : MonoBehaviour
                 }
                 if (!Handshake(stream))
                 {
-                    CleanupSocket();
+                    CleanupStream();
+                    clientType = ClientConnectionType.NONE;
                     if (attempt < tcpConnectMaxRetries) Thread.Sleep(tcpConnectRetryDelayMs);
                     continue;
                 }
+
+                currentState = ClientConnectionState.Connected;
+                clientType = ClientConnectionType.TCP;
+                intentionalDisconnect = false;
 
                 UnityMainThreadDispatcher.Instance().Enqueue(() => {
                     OnConnectionStarted();
@@ -252,20 +257,20 @@ public class ConnectionManager : MonoBehaviour
             catch (SocketException se)
             {
                 Debug.LogWarning($"TCP connect attempt {attempt}/{tcpConnectMaxRetries} failed: {se.Message}");
-                CleanupSocket();
+                CleanupStream();
                 if (attempt < tcpConnectMaxRetries) Thread.Sleep(tcpConnectRetryDelayMs);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[StreamManager] Unexpected error during TCP connect: {ex}");
-                CleanupSocket();
+                CleanupStream();
                 break;
             }
         }
 
-        Debug.LogError($"[StreamManager] Could not connect via TCP to {hostIP}:{hostPort} after {tcpConnectMaxRetries} attempts.");
         UnityMainThreadDispatcher.Instance().Enqueue(() =>
         {
+            Debug.LogError($"[StreamManager] Could not connect via TCP to {hostIP}:{hostPort} after {tcpConnectMaxRetries} attempts.");
             RemoveSession(data);
             CloseConnection();
         });
@@ -311,11 +316,15 @@ public class ConnectionManager : MonoBehaviour
                 
                 if(!Handshake(stream, expectedHostPort: adbRemotePort))
                 {
-                    CleanupSocket();
+                    CleanupStream();
+                    clientType = ClientConnectionType.NONE;
                     if (attempt < adbConnectMaxRetries) Thread.Sleep(adbConnectRetryDelayMs);
                     continue;
                 }
 
+                currentState = ClientConnectionState.Connected;
+                clientType = ClientConnectionType.ADB;
+                intentionalDisconnect = false;
                 if (debug) Debug.Log("[StreamManager] Connected to host via ADB (USB).");
 
                 UnityMainThreadDispatcher.Instance().Enqueue(() => {
@@ -327,13 +336,13 @@ public class ConnectionManager : MonoBehaviour
             catch (SocketException se)
             {
                 Debug.LogWarning($"TCP connect attempt {attempt}/{adbConnectMaxRetries} failed: {se.Message}");
-                CleanupSocket();
+                CleanupStream();
                 if (attempt < adbConnectMaxRetries) Thread.Sleep(adbConnectRetryDelayMs);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[StreamManager] Unexpected error during TCP connect: {ex}");
-                CleanupSocket();
+                CleanupStream();
                 break;
             }
         }
@@ -399,7 +408,7 @@ public class ConnectionManager : MonoBehaviour
                 // pueda reintentar antes.
                 if (debug) UnityMainThreadDispatcher.Instance().Enqueue(() =>
                     Debug.LogWarning("[StreamManager] Tunnel lost while waiting for handshake ACK, aborting attempt."));
-                CleanupSocket();
+                CleanupStream();
             }
 
             UnityMainThreadDispatcher.Instance().Enqueue(() =>
@@ -639,7 +648,6 @@ public class ConnectionManager : MonoBehaviour
     public void Disconnect()
     {
         intentionalDisconnect = true;
-        StopTunnelWatcher();
         CloseConnection();
     }
 
@@ -655,23 +663,34 @@ public class ConnectionManager : MonoBehaviour
     /// </summary>
     private void CloseConnection()
     {
-        bool wasActive = connected;
-        connected = false;
-        currentState = ClientConnectionState.Disconnected;
-        currentTransport = ClientConnectionType.NONE;
-
-        if (wasActive && intentionalDisconnect && GetStreamSafe() != null)
+        if (connected && intentionalDisconnect && GetStreamSafe() != null)
         {
             try { SendMessage(new SignalingMessage(ConnectionEvent.DISCONNECT, null)); } catch { }
         }
 
-        CleanupSocket();
+        CleanupStream();
+        if (currentTransport == ClientConnectionType.ADB)
+            CleanupADB();
+
+        connected = false;
+        currentState = ClientConnectionState.Disconnected;
+        currentTransport = ClientConnectionType.NONE;
+        clientType = ClientConnectionType.NONE;
     }
 
     /// <summary>
-    /// Closes all structures after disconnection
+    /// Cleans all structures of an ADB connection
     /// </summary>
-    private void CleanupSocket()
+    private void CleanupADB()
+    {
+        StopTunnelWatcher();
+        tunnelEstablished = false;
+    }
+
+    /// <summary>
+    /// Cleans all structures used on TCP connection (both cases)
+    /// </summary>
+    private void CleanupStream()
     {
         NetworkStream streamToClose;
         TcpClient connectionToClose;

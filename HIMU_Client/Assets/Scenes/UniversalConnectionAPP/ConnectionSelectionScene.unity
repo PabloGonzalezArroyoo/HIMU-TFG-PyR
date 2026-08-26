@@ -865,8 +865,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: StreamManager, Assembly-CSharp
+      - m_Target: {fileID: 1927213309}
+        m_TargetAssemblyTypeName: ConnectionManager, Assembly-CSharp
         m_MethodName: ConnectViaADB
         m_Mode: 1
         m_Arguments:
