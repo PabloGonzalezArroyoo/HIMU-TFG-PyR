@@ -6,7 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class RemoteControlRig : MonoBehaviour, IControlSource
+public class RemoteControlRig : MonoBehaviour
 {
 
     #region Variables
@@ -35,7 +35,7 @@ public class RemoteControlRig : MonoBehaviour, IControlSource
     /// <summary>
     /// State published to consumers, recomputed once per frame in Update.
     /// </summary>
-    private ControlState state;
+    private ShootingState state;
 
     /// <summary>
     /// Reused raycast inputs and outputs, so hit-testing does not allocate every frame.
@@ -60,19 +60,6 @@ public class RemoteControlRig : MonoBehaviour, IControlSource
 
     #endregion
 
-    #region IControlSource
-
-    /// <inheritdoc/>
-    public bool IsConnected => !string.IsNullOrEmpty(clientID);
-
-    /// <inheritdoc/>
-    public ControlState GetState()
-    {
-        return state;
-    }
-
-    #endregion
-
     #region Methods
 
     public void Bind(string id)
@@ -89,47 +76,10 @@ public class RemoteControlRig : MonoBehaviour, IControlSource
     }
 
     /// <summary>
-    /// Resolves canvas, camera and buttons inside this component's own scene.
-    /// </summary>
-    private void ResolveSceneReferences()
-    {
-        Scene scene = gameObject.scene;
-
-        if (controlCanvas == null || controlCamera == null)
-        {
-            foreach (GameObject root in scene.GetRootGameObjects())
-            {
-                if (controlCanvas == null)
-                {
-                    Canvas c = root.GetComponentInChildren<Canvas>(true);
-                    if (c != null) controlCanvas = c;
-                }
-
-                if (controlCamera == null)
-                {
-                    Camera cam = root.GetComponentInChildren<Camera>(true);
-                    if (cam != null) controlCamera = cam;
-                }
-            }
-        }
-
-        // A Screen Space - Camera canvas already stores the camera it is rendered by.
-        if (controlCamera == null && controlCanvas != null)
-            controlCamera = controlCanvas.worldCamera;
-
-        if (raycaster == null && controlCanvas != null)
-            raycaster = controlCanvas.GetComponent<GraphicRaycaster>();
-
-        if (controlCanvas == null || controlCamera == null || raycaster == null)
-            UnityEngine.Debug.LogError($"[RemoteControlRig] Incomplete setup in scene '{scene.name}': " +
-                           $"canvas={controlCanvas != null}, camera={controlCamera != null}, raycaster={raycaster != null}.");
-    }
-
-    /// <summary>
     /// Hit-tests one normalized touch through this canvas's own raycaster and records every
     /// RemoteControlButton it reaches.
     /// </summary>
-    private void ResolveTouch(Vector2 normalized)
+    private void ResolveTouch(TouchData normalized)
     {
         pointerData.Reset();
         pointerData.position = new Vector2(normalized.x * controlCamera.pixelWidth,
@@ -155,9 +105,9 @@ public class RemoteControlRig : MonoBehaviour, IControlSource
     /// <summary>
     /// Aggregates the pressed buttons into the state published this frame.
     /// </summary>
-    private ControlState BuildState()
+    private ShootingState BuildState()
     {
-        ControlState result = default;
+        ShootingState result = default;
 
         foreach (RemoteControlButton button in currentHits)
         {
@@ -218,6 +168,11 @@ public class RemoteControlRig : MonoBehaviour, IControlSource
 
     #region Getters
 
+    public ShootingState GetShootingState()
+    {
+        return state;
+    }
+
     public Camera GetControlCamera()
     {
         return controlCamera;
@@ -234,8 +189,6 @@ public class RemoteControlRig : MonoBehaviour, IControlSource
 
     private void Awake()
     {
-        ResolveSceneReferences();
-
         // EventSystem.current may be null: this rig never routes events through it, and
         // PointerEventData only dereferences the system when its selection API is used.
         pointerData = new PointerEventData(EventSystem.current);
@@ -254,9 +207,9 @@ public class RemoteControlRig : MonoBehaviour, IControlSource
         {
             // CurrentTouches returns an empty list when the peer stopped sending, so a lost
             // connection degrades to "no input" instead of latching the last known state.
-            IReadOnlyList<Vector2> touches = InputManager.Instance.GetPendingInputFrames(clientID);
-            for (int i = 0; i < touches.Count; i++)
-                ResolveTouch(touches[i]);
+            InputFrame frame = InputManager.Instance.GetInputFrame(clientID);
+            for (int i = 0; i < frame.touches.Count; i++)
+                ResolveTouch(frame.touches[i]);
         }
 
         // Edges must be computed before previousHits is overwritten.

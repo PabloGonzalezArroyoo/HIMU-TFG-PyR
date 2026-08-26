@@ -151,17 +151,36 @@ public class SignalingMessage
 }
 
 /// <summary>
+/// Information of a touch, with its position and finger id
+/// </summary>
+[System.Serializable]
+public struct TouchData
+{
+    public int id;
+    public float x;
+    public float y;
+
+    public TouchData(int id, Vector2 position)
+    {
+        this.id = id;
+        this.x = position.x;
+        this.y = position.y;
+    }
+}
+
+/// <summary>
 /// Structure that represents the entire input state from a connected device
 /// </summary>
 [Serializable]
 public class InputFrame
 {
-    public List<Vector2> touches;
+    public List<TouchData> touches;
+
     public Vector3 accelometer;
 
     public float timestamp;
 
-    public InputFrame(List<Vector2> t, Vector3 a, float ts)
+    public InputFrame(List<TouchData> t, Vector3 a, float ts)
     {
         touches = t;
         accelometer = a;

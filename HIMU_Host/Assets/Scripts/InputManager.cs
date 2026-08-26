@@ -31,11 +31,6 @@ public class InputManager : MonoBehaviour
     /// </summary>
     private readonly Dictionary<string, InputFrame> pendingInputFrames = new Dictionary<string, InputFrame>();
 
-    /// <summary>
-    /// Returned for unknown or expired clients, so callers never have to handle a null list.
-    /// </summary>
-    private static readonly List<Vector2> EmptyTouches = new List<Vector2>();
-
     #endregion
 
     #region Methods
@@ -74,10 +69,10 @@ public class InputManager : MonoBehaviour
     /// Access to pending InputFrames list
     /// </summary>
     /// <returns></returns>
-    public IReadOnlyList<Vector2> GetPendingInputFrames(string clientID)
+    public InputFrame GetInputFrame(string clientID)
     {
         InputFrame frame = GetValidFrame(clientID);
-        return frame != null ? frame.touches : EmptyTouches;
+        return frame != null ? frame : null;
     }
 
     private InputFrame GetValidFrame(string clientID)
