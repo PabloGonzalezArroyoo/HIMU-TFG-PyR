@@ -9,12 +9,6 @@ public class DisplayCanvasController : MonoBehaviour
     [SerializeField] private RawImage fadeOutImage;
     [SerializeField] private Canvas canvas;
 
-    public void ExitGame()
-    {
-        ConnectionManager.Instance.Disconnect();
-        AppManager.Instance.StartFading(fadeOutImage, "MainMenuScene");
-    }
-
     private Camera FindCameraInScene(UnityEngine.SceneManagement.Scene scene, string cameraName)
     {
         // Recorremos los objetos raíz de la escena buscando la cámara
@@ -59,5 +53,14 @@ public class DisplayCanvasController : MonoBehaviour
     {
         canvas.gameObject.SetActive(false);
         SceneManager.activeSceneChanged += OnGameStarted;
+    }
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            ConnectionManager.Instance.Disconnect();
+            AppManager.Instance.StartFading(fadeOutImage, "MainMenuScene");
+        }
     }
 }
