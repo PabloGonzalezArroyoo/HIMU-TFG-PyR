@@ -18,25 +18,27 @@ public class FadeOutComponent : MonoBehaviour
 
     private Action<string> callback;
 
-    public void StartFading()
+    public void StartFading(string sceneName, Action<string> c)
     {
-        if (!isFading) StartCoroutine(Fade());
+        if (!isFading)
+        {
+            StartCoroutine(Fade());
+            nextScene = sceneName;
+            callback = c;
+        }
     }
 
-    public void SetCallback(Action<string> c)
+    public void CancelFade()
     {
-        callback = c;
-    }
-
-    public void SetScene(string scene)
-    {
-        nextScene = scene;
+        isFading = false;
+        callback = null;
+        nextScene = "";
     }
 
     private IEnumerator Fade()
     {
         isFading = true;
-        while (timer < timeToFade)
+        while (isFading && timer < timeToFade)
         {
             timer += Time.deltaTime;
             Color aux = image.color;
@@ -45,7 +47,12 @@ public class FadeOutComponent : MonoBehaviour
             yield return null;
         }
 
-        callback?.Invoke(nextScene);
+        if (isFading) callback?.Invoke(nextScene);
+        else
+        {
+            timer = 0f;
+            image.color = new Color(0, 0, 0, 0);
+        }
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created

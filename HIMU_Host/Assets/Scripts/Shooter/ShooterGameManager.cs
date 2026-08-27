@@ -208,6 +208,11 @@ public class ShooterGameManager : MonoBehaviour
 
     #region Game Methods
 
+    public void ChangeScene(string sceneName)
+    {
+        SceneManager.LoadScene(sceneName);
+    }
+
     public void PlayerEliminated(string player)
     {
         players.Remove(player);

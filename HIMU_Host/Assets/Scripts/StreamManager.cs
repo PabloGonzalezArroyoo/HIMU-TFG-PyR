@@ -381,6 +381,12 @@ public class StreamManager : MonoBehaviour
         browserTextureCallback = newCallback;
     }
 
+    public void FlagBrowserAcceptConnections(bool active)
+    {
+        if (webSocketServer = null) return;
+        webSocketServer.acceptsConnections = active;
+    }
+
     public CreateClient GetTCPClientCallback()
     {
         return tcpClientCallback;
@@ -400,6 +406,13 @@ public class StreamManager : MonoBehaviour
         tcpTextureCallback = newCallback;
     }
 
+    public void FlagTCPAcceptConnections(bool active)
+    {
+        if (signalingServer = null) return;
+        signalingServer.acceptsConnections = active;
+        signalingServer.searchingDevices = active;
+    }
+
     public CreateClient GetADBClientCallback()
     {
         return adbClientCallback;
@@ -417,6 +430,11 @@ public class StreamManager : MonoBehaviour
     public void SetADBTextureCallback(TextureAssignmentCallback newCallback)
     {
         adbTextureCallback = newCallback;
+    }
+    public void FlagADBAcceptConnections(bool active)
+    {
+        if (adbServer = null) return;
+        adbServer.acceptsConnections = active;
     }
     #endregion
 

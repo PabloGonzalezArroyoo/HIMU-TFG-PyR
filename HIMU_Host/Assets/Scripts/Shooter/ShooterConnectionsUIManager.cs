@@ -24,15 +24,12 @@ public class ShooterConnectionsUIManager : MonoBehaviour
 
     public void GoToGame()
     {
-        fadeOutImage.SetCallback(LoadScene);
-        fadeOutImage.StartFading();
+        fadeOutImage.StartFading("ShooterScene", LoadScene);
     }
 
     public void ExitGame()
     {
-        fadeOutImage.SetScene("ShooterMainMenu");
-        fadeOutImage.SetCallback(LoadScene);
-        fadeOutImage.StartFading();
+        fadeOutImage.StartFading("ShooterMainMenu", LoadScene);
     }
 
     private void LoadScene(string scene)

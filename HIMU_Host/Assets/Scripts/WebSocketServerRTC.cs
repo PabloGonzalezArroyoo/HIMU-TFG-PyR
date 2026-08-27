@@ -23,6 +23,7 @@ public class WebSocketServerRTC : MonoBehaviour
     [SerializeField]
     private int browserPort = 3000;
     private bool running = false;
+    public bool acceptsConnections = true;
     /// <summary>
     /// Socket de conexion al servidor de Node
     /// </summary>
@@ -311,14 +312,13 @@ public class WebSocketServerRTC : MonoBehaviour
     {
         WSMessage msg = JsonUtility.FromJson<WSMessage>(rawJson);
 
-        if (msg.type == 99) // newClient
+        if (msg.type == 99 && acceptsConnections) // newClient
         {
             string clientKey = msg.clientId.ToString();
             ClientData client = ClientData.ForBrowser(clientKey);
 
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(client));
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
-
         }
         else if (msg.type == (int)ConnectionEvent.DISCONNECT) // un navegador se desconectó del lado de Node
         {

@@ -38,7 +38,7 @@ public class CarController : MonoBehaviour
     private float accelerationForceMagnitude;
     private float brakeDecelerationMagnitude;
 
-    private bool isAccelerating;
+    public bool isAccelerating;
     private float turnInput;
 
     void Awake()

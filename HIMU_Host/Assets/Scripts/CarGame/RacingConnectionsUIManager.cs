@@ -15,11 +15,12 @@ public class RacingConnectionsUIManager : MonoBehaviour
     [SerializeField]
     private TextMeshProUGUI adbStatusText;
     [SerializeField]
-    private TextMeshProUGUI streamText;
+    private TextMeshProUGUI streamText; 
+    [SerializeField]
+    private TextMeshProUGUI streamButtonText;
     [SerializeField]
     private GameObject playButton;
 
-    private bool searchingADB = false;
     public bool deviceFound = false;
     private bool fading = false;
     [SerializeField]
@@ -29,19 +30,13 @@ public class RacingConnectionsUIManager : MonoBehaviour
     public void ExitGame()
     {
         fading = true;
-        fadeOutImage.StartFading();
-        fadeOutImage.SetScene("RacingGame_MenuScene");
-        fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+        fadeOutImage.StartFading("RacingGame_MenuScene", RacingGameManager.Instance.ChangeScene);
     }
 
-    public void SearchADBClients()
+    public void StartGame()
     {
-        if (searchingADB) return;
-
-        adbStatusText.text = "SEARCHING";
-        adbStatusText.color = Color.yellow;
-        searchingADB = true;
-        StartCoroutine(SearchForDevices());
+        fading = true;
+        fadeOutImage.StartFading("RacingGame_MainScene", RacingGameManager.Instance.ChangeScene);
     }
 
     public void StreamSwitched()
@@ -49,40 +44,38 @@ public class RacingConnectionsUIManager : MonoBehaviour
         RacingGameManager.Instance.OnStreamButtonClicked();
         streamText.gameObject.SetActive(RacingGameManager.Instance.streaming);
         streamText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.sessionID.ToString();
+        streamButtonText.text = RacingGameManager.Instance.streaming ? "STREAM ON" : "STREAM OFF";
     }
 
-    public void StartGame()
+    private IEnumerator WaitAfterDisconnection()
     {
-        fading = true;
-        fadeOutImage.StartFading();
-        fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+        adbStatusText.text = "SEARCHING";
+        adbStatusText.color = Color.yellow;
+
+        while (timer <= searchLimitTime)
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        timer = 0f;
+        StartCoroutine(SearchForDevices());
     }
 
     private IEnumerator SearchForDevices()
     {
         StreamManager.Instance.FlagADBConnection();
-        while (!deviceFound && timer < searchLimitTime)
+        while (!deviceFound)
         {
-            timer += Time.deltaTime;
             deviceFound = StreamManager.Instance.GetADBClients().Count > 0;
             yield return null;
         }
 
-        timer = 0f;
-        searchingADB = false;
-        if (!deviceFound)
-        {
-            adbStatusText.text = "PHONE MISSING";
-            adbStatusText.color = Color.red;
-            StreamManager.Instance.FlagADBConnection();
-        }
-        else
-        {
-            playButton.SetActive(true);
-            adbStatusText.text = "PHONE FOUND";
-            adbStatusText.color = Color.green;
-            StartCoroutine(CheckADBClient());
-        }
+        playButton.SetActive(true);
+        adbStatusText.text = "PHONE FOUND";
+        adbStatusText.color = Color.green;
+        RacingGameManager.Instance.SetPlayerID(StreamManager.Instance.GetADBClients()[0].clientID);
+        StartCoroutine(CheckADBClient());
     }
 
     private IEnumerator CheckADBClient()
@@ -98,7 +91,13 @@ public class RacingConnectionsUIManager : MonoBehaviour
             playButton.SetActive(false);
             adbStatusText.text = "PHONE MISSING";
             adbStatusText.color = Color.red;
-            StreamManager.Instance.FlagADBConnection();
+            if (fading)
+            {
+                fading = false;
+                fadeOutImage.CancelFade();
+                StreamManager.Instance.FlagADBConnection(); // Desactivamos busqueda de dispositivos para notificar al usuario
+                StartCoroutine(WaitAfterDisconnection());
+            }
         }
     }
 
@@ -111,6 +110,11 @@ public class RacingConnectionsUIManager : MonoBehaviour
         }
 
         Instance = this;
+    }
+
+    private void Start()
+    {
+        StartCoroutine(SearchForDevices());
     }
 
     private void OnDestroy()

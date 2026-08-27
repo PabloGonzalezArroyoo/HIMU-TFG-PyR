@@ -23,7 +23,9 @@ public class SignalingServer : MonoBehaviour
     /// <summary>
     /// Wether if the server is searching for new devieces or not
     /// </summary>
-    private bool searchingDevices;
+    public bool searchingDevices = true;
+
+    public bool acceptsConnections = true;
 
     /// <summary>
     /// Port where the server will listen to upcoming network data
@@ -135,6 +137,7 @@ public class SignalingServer : MonoBehaviour
         {
             try
             {
+                if (!acceptsConnections) continue;
                 TcpClient tcp = listener.AcceptTcpClient();
                 Debug.Log($"[SignalingServer] TCP connection from: {((IPEndPoint)tcp.Client.RemoteEndPoint).Address}");
 

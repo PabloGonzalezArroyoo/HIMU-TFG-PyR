@@ -19,7 +19,11 @@ public class RacingGameManager : MonoBehaviour
     public bool streaming = false;
     public bool controllerConnected = false;
 
+    private string clientID = "";
+
     private int recordTime = 0;
+
+    private HashSet<int> buttonIDs = new HashSet<int>();
 
     #region Getters&Setters
     public int GetScore()
@@ -30,6 +34,16 @@ public class RacingGameManager : MonoBehaviour
     public void SetScore(int record)
     {
         recordTime = record;
+    }
+
+    public string GetPlayerID()
+    {
+        return clientID;
+    }
+
+    public void SetPlayerID(string id)
+    {
+        clientID = id;
     }
     #endregion
 
@@ -100,22 +114,6 @@ public class RacingGameManager : MonoBehaviour
 
     public void OnSceneChanged(Scene loadedScene, LoadSceneMode mode)
     {
-        // Cuando se carga la escena de mando -> seteamos la camara del cliente adb
-        if (mode == LoadSceneMode.Additive)
-        {
-            Camera backgroundCamera = FindCameraInScene(loadedScene, "RemoteControl_Camera");
-            backgroundCamera.targetTexture = controlTexture;
-            AssignADBTexture();
-        }
-
-        // Cuando se carga la escena de juego -> seteamos la camara de los clientes WebSocket
-        if (loadedScene.name.Contains("Main"))
-        {
-            Camera mainCamera = FindCameraInScene(loadedScene, "StreamCamera");
-            mainCamera.targetTexture = gameTexture;
-            ChangeStreamTextures();
-        }
-
         // Cuando se carga la escena de conexiones
         if (loadedScene.name.Contains("Connections"))
         {
@@ -126,6 +124,22 @@ public class RacingGameManager : MonoBehaviour
             streamCamera.targetTexture = connectionsTexture;
             StreamManager.Instance.SetADBTextureCallback(TextureOnConnections);
             StreamManager.Instance.SetBrowserTextureCallback(TextureOnConnections);
+        }
+
+        // Cuando se carga la escena de juego -> seteamos la camara de los clientes WebSocket
+        if (loadedScene.name.Contains("Main"))
+        {
+            Camera mainCamera = FindCameraInScene(loadedScene, "StreamCamera");
+            mainCamera.targetTexture = gameTexture;
+            ChangeStreamTextures();
+        }
+
+        // Cuando se carga la escena de mando -> seteamos la camara del cliente adb
+        if (mode == LoadSceneMode.Additive)
+        {
+            Camera backgroundCamera = FindCameraInScene(loadedScene, "RemoteControl_Camera");
+            backgroundCamera.targetTexture = controlTexture;
+            AssignADBTexture();
         }
 
         if (loadedScene.name.Contains("Menu"))
@@ -163,6 +177,15 @@ public class RacingGameManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    public int CreateButtonID()
+    {
+        int id = 0;
+        do { id = UnityEngine.Random.Range(10, 100); }
+        while (buttonIDs.Contains(id));
+
+        return id;
     }
     #endregion
 

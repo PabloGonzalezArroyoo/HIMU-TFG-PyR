@@ -12,17 +12,13 @@ public class RacingEndUIManager : MonoBehaviour
 
     public void GoToMenu()
     {
-        fadeOutImage.StartFading();
-        fadeOutImage.SetScene("RacingGame_MenuScene");
-        fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+        fadeOutImage.StartFading("RacingGame_MenuScene", RacingGameManager.Instance.ChangeScene);
         Destroy(StreamManager.Instance.gameObject);
     }
 
     public void RepeatGame()
     {
-        fadeOutImage.StartFading();
-        fadeOutImage.SetScene("RacingGame_ConnectionsScene");
-        fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+        fadeOutImage.StartFading("RacingGame_ConnectionsScene", RacingGameManager.Instance.ChangeScene);
         Destroy(StreamManager.Instance.gameObject);
     }
 

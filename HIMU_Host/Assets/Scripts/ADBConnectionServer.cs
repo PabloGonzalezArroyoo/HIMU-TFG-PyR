@@ -9,17 +9,7 @@ using System.Threading;
 using UnityEngine;
 
 /// <summary>
-/// Handles phones connected by USB cable through ADB.
-///
-/// How the tunnel works:
-/// The mobile app always connects to "localhost:remotePort" on the device itself.
-/// For each connected device we run "adb -s {serial} reverse tcp:remotePort tcp:localPort",
-/// assigning a DIFFERENT localPort per device. This lets adb forward that device's
-/// connection to a TcpListener we own on the PC, so we can tell devices apart even
-/// though everything arrives over loopback (127.0.0.1) once tunneled by adb.
-///
-/// From that point on, the flow mirrors SignalingServer: a framed-message handshake
-/// (ConnectionData / HANDSHAKE) followed by a loop of SignalingMessage (SDP/ICE/DISCONNECT).
+/// Class in charge to establish ADB connections
 /// </summary>
 public class ADBConnectionServer : MonoBehaviour
 {
@@ -58,6 +48,8 @@ public class ADBConnectionServer : MonoBehaviour
     /// Indicates whether the script is running or not
     /// </summary>
     private bool running;
+
+    public bool acceptsConnections = true;
 
     /// <summary>
     /// Path to adb.exe
@@ -249,6 +241,7 @@ public class ADBConnectionServer : MonoBehaviour
     /// <param name="deviceId">Device connected</param>
     private void OnDeviceConnected(string deviceId)
     {
+        if (!acceptsConnections) return;
         var session = new WiredDeviceData { deviceId = deviceId };
 
         try
@@ -349,7 +342,7 @@ public class ADBConnectionServer : MonoBehaviour
         {
             if (!NetworkUtils.TryReadFramedMessage(stream, out string message))
             {
-                UnityEngine.Debug.LogError($"[ADBServer] Client {session.deviceId} closed connection before handshake");
+                if (debug) UnityEngine.Debug.Log($"[ADBServer] Empty/probe connection closed for {session.deviceId} (no handshake sent).");
                 return;
             }
 

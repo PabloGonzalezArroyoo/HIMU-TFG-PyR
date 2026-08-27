@@ -44,8 +44,7 @@ public class RacingGameUIManager : MonoBehaviour
         if (!isChangingScene)
         {
             isChangingScene = true;
-            fadeOutImage.StartFading();
-            fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
+            fadeOutImage.StartFading("RacingGame_EndScene", RacingGameManager.Instance.ChangeScene);
         }
     }
 
@@ -58,10 +57,9 @@ public class RacingGameUIManager : MonoBehaviour
     {
         if (!isChangingScene) {
             isChangingScene = true;
-            fadeOutImage.SetScene("RacingGame_MenuScene");
-            fadeOutImage.StartFading();
-            fadeOutImage.SetCallback(RacingGameManager.Instance.ChangeScene);
-            Destroy(StreamManager.Instance.gameObject);
+            fadeOutImage.StartFading("RacingGame_MenuScene", RacingGameManager.Instance.ChangeScene);
+            // StreamManager KABOOM
+            UnityMainThreadDispatcher.Instance().Enqueue(() => Destroy(StreamManager.Instance.gameObject));
         }
     }
 

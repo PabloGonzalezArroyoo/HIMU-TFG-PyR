@@ -1,5 +1,8 @@
+using NUnit.Framework;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
@@ -12,29 +15,86 @@ public class RacingInputController : MonoBehaviour
 
     public GraphicRaycaster backgroundRaycaster;
 
-    public Camera backgroundCamera;
+    [SerializeField] CarController carController;
 
-    public void PauseGame()
-    {
-        paused = true;
-        RacingGameUIManager.Instance.Pause();
-        RacingGameManager.Instance.PauseGame();
-    }
+    private Dictionary<int, CarButtonComponent> previousButtonsPressed = new Dictionary<int, CarButtonComponent>();
 
-    public void ResumeGame()
+    private List<CarButtonComponent> buttonsPressed = new List<CarButtonComponent>();
+
+
+    public void OnPauseButtonClick()
     {
-        paused = false;
-        RacingGameUIManager.Instance.Resume();
-        RacingGameManager.Instance.ResumeGame();
+        paused = (!paused);
+        if (paused)
+        {
+            RacingGameUIManager.Instance.Pause();
+            RacingGameManager.Instance.PauseGame();
+        }
+        else
+        {
+            RacingGameUIManager.Instance.Resume();
+            RacingGameManager.Instance.ResumeGame();
+        }
     }
 
     private void ProcessInput()
     {
-        // pilla los eventos del InputManager
-        // Lanza los raycasts
-        // activa las flags en car controller
-        // activa pausa
-        // esto no esta en los OnClick porque no tengo ni idea de como asignarlos
+        InputFrame inputEvent = InputManager.Instance.GetInputFrame(RacingGameManager.Instance.GetPlayerID());
+
+        if (inputEvent == null) return;
+
+        foreach (TouchData touch in inputEvent.touches) {
+            TryClickBackgroundUI(touch.x, touch.y);
+        }
+
+        foreach (var button in previousButtonsPressed)
+        {
+            if (!button.Value.pressed) button.Value.ReleasePressing();
+        }
+        previousButtonsPressed.Clear();
+
+        for (int i = 0; i < buttonsPressed.Count; i++)
+        {
+            previousButtonsPressed.Add(buttonsPressed[i].buttonID, buttonsPressed[i]);
+        }
+        buttonsPressed.Clear();
+    }
+
+    /// <summary>
+    /// Lanza un raycast al recibir un vector posicion que representa un click o toque de un cliente
+    /// </summary>
+    /// <param name="screenPosition">Posicion del click donde debemos lanzar el raycast (viene ya normalizada)</param>
+    private void TryClickBackgroundUI(float screenPositionX, float screenPositionY)
+    {
+        if (backgroundRaycaster == null)
+        {
+            Debug.Log("No hay referencia al raycaster del canvas");
+            return;
+        }
+
+        // Desnormalizamos las coordenadas del click
+        Vector2 virtualScreenPos = new Vector2(screenPositionX * 1280, screenPositionY * 720);
+
+        // Lanzamos el raycast
+        PointerEventData pointerData = new PointerEventData(EventSystem.current) { position = virtualScreenPos };
+        List<RaycastResult> results = new List<RaycastResult>();
+        backgroundRaycaster.Raycast(pointerData, results);
+
+        // Recorremos todos los objetos que detecta el raycast
+        if (results.Count > 0)
+        {
+            for (int i = 0; i < results.Count; i++)
+            {
+                CarButtonComponent carButton = null;
+                carButton = results[i].gameObject.GetComponent<CarButtonComponent>();
+                if (carButton != null)
+                {
+                    if (!previousButtonsPressed.ContainsKey(carButton.buttonID))
+                        carButton.StartPressing();
+                    buttonsPressed.Add(carButton);
+                }
+            }
+        }
     }
 
     private IEnumerator CheckPhoneConnected()
@@ -70,13 +130,6 @@ public class RacingInputController : MonoBehaviour
 
     private void Update()
     {
-        // Aqui proceso el input y meto la logica
-
-        // Para la pausa
-        if (RacingGameManager.Instance.gameStarted && Keyboard.current.escapeKey.wasReleasedThisFrame)
-        {
-            if (paused) ResumeGame(); 
-            else PauseGame();
-        }
+        ProcessInput();
     }
 }
