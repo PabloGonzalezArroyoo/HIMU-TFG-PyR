@@ -209,6 +209,9 @@ public class StreamManager : MonoBehaviour
         if (data.himuClient != null)
             Destroy(data.himuClient.gameObject);
 
+        if (InputManager.Instance != null)
+            InputManager.Instance.RemoveClient(clientID);
+
         if (debug) Debug.Log($"[StreamManager] Destroyed {data.type} peer: {clientID}");
     }
 

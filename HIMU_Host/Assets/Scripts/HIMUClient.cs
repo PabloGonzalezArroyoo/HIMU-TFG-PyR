@@ -100,7 +100,7 @@ public class HIMUClient : MonoBehaviour
             inputTrack.OnMessage = bytes =>
             {
                 string msg = System.Text.Encoding.UTF8.GetString(bytes);
-                Debug.Log($"[DataChannel] Recieved Message: {msg}");
+                //Debug.Log($"[DataChannel] Recieved Message: {msg}");
                 UnityMainThreadDispatcher.Instance().Enqueue(() => DeliverInputMessage(msg));
             };
         }

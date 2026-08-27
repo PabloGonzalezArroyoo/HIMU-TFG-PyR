@@ -19,10 +19,10 @@ public enum RemoteControlAction
     MoveBackward,
 
     /// <summary>Move the player against its own right axis.</summary>
-    StrafeLeft,
+    MoveLeft,
 
     /// <summary>Move the player along its own right axis.</summary>
-    StrafeRight,
+    MoveRight,
 
     /// <summary>Rotate the player counter-clockwise around the Y axis.</summary>
     RotateLeft,

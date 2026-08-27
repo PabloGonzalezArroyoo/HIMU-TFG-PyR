@@ -39,7 +39,7 @@ public class ShooterGameManager : MonoBehaviour
     [SerializeField] private string remoteControlSceneName = "ShooterRemoteControlScene";
 
     /// <summary>
-    /// Distance along +X between consecutive copies of the control scene.
+    /// Distance along +X between copies of the control scene.
     /// </summary>
     [SerializeField] private float controlSceneOffset = 1000f;
 
@@ -74,9 +74,6 @@ public class ShooterGameManager : MonoBehaviour
             ShooterPlayerController controller = player.GetComponent<ShooterPlayerController>();
             if (controller == null)
                 Debug.LogError("[ShooterGameManager] Avatar at spawn " + i + " has no ShooterPlayerController.");
-
-            player.GetChild(1).GetChild(0).GetComponent<TextMeshProUGUI>().text = clientID;
-            player.GetChild(1).GetChild(1).GetComponent<TextMeshProUGUI>().text = clientID;
             
             players[clientID] = new PlayerInfo(i, controller);
         }
@@ -150,6 +147,9 @@ public class ShooterGameManager : MonoBehaviour
 
             // Client -> rig: the rig now reads the input of this clientID and no other.
             rig.Bind(peer.clientID);
+
+            // Shows the player's number this controller belongs to in the controller scene.
+            rig.SetPlayerNumber(i + 1);
 
             // Rig -> avatar: the avatar now reads this control scene and no other.
             info.controller?.SetControlSource(rig);

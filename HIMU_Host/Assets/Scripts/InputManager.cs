@@ -52,6 +52,13 @@ public class InputManager : MonoBehaviour
             return;
         }
 
+        // Discards unordered inputs if the previous one is newer than the one recieved by comparing times
+        if (pendingInputFrames.TryGetValue(clientID, out InputFrame previous)
+            && frame.sentAt < previous.sentAt)
+            return;
+
+        frame.receivedAt = Time.unscaledTime;
+
         pendingInputFrames[clientID] = frame;
     }
 
@@ -79,7 +86,7 @@ public class InputManager : MonoBehaviour
     {
         if (string.IsNullOrEmpty(clientID)) return null;
         if (!pendingInputFrames.TryGetValue(clientID, out InputFrame frame)) return null;
-        if (Time.unscaledTime - frame.timestamp > inputTimeout) return null;
+        if (Time.unscaledTime - frame.receivedAt > inputTimeout) return null;
 
         return frame;
     }
@@ -93,11 +100,6 @@ public class InputManager : MonoBehaviour
         if (Instance) { DestroyImmediate(gameObject); return; }
         Instance = this;
         if(shouldPersist) DontDestroyOnLoad(gameObject);
-    }
-
-    private void LateUpdate()
-    {
-        pendingInputFrames.Clear();
     }
 
     #endregion

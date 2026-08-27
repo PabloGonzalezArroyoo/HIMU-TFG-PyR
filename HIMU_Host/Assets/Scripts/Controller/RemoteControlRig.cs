@@ -1,9 +1,7 @@
 using System.Collections.Generic;
-using System.Diagnostics;
-using UnityEditor.PackageManager;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class RemoteControlRig : MonoBehaviour
@@ -26,6 +24,10 @@ public class RemoteControlRig : MonoBehaviour
     /// It also defines the pixel space the normalized touches are mapped into.
     /// </summary>
     [SerializeField] private Camera controlCamera;
+
+    /// Labels showing which player this control scene belongs to.
+    /// </summary>
+    [SerializeField] private TextMeshProUGUI[] playerLabels;
 
     /// <summary>
     /// Peer whose input drives this rig. Null until Bind is called.
@@ -61,6 +63,26 @@ public class RemoteControlRig : MonoBehaviour
     #endregion
 
     #region Methods
+
+    /// <summary>
+    /// Rewrites the "PX" placeholder text of this control scene with the number of the player it
+    /// belongs to.
+    /// </summary>
+    /// <param name="number">Player number.</param>
+    public void SetPlayerNumber(int number)
+    {
+        if (playerLabels == null || playerLabels.Length == 0)
+        {
+            UnityEngine.Debug.LogWarning("[RemoteControlRig] playerLabels are not assigned.");
+            return;
+        }
+
+        foreach (TextMeshProUGUI label in playerLabels)
+        {
+            if (label == null) continue;
+            label.text = "P" + number;
+        }
+    }
 
     public void Bind(string id)
     {
@@ -120,8 +142,8 @@ public class RemoteControlRig : MonoBehaviour
             {
                 case RemoteControlAction.MoveForward: result.move.y += 1f; break;
                 case RemoteControlAction.MoveBackward: result.move.y -= 1f; break;
-                case RemoteControlAction.StrafeRight: result.move.x += 1f; break;
-                case RemoteControlAction.StrafeLeft: result.move.x -= 1f; break;
+                case RemoteControlAction.MoveRight: result.move.x += 1f; break;
+                case RemoteControlAction.MoveLeft: result.move.x -= 1f; break;
                 case RemoteControlAction.RotateRight: result.rotation += 1f; break;
                 case RemoteControlAction.RotateLeft: result.rotation -= 1f; break;
                 case RemoteControlAction.Shoot:
@@ -208,8 +230,11 @@ public class RemoteControlRig : MonoBehaviour
             // CurrentTouches returns an empty list when the peer stopped sending, so a lost
             // connection degrades to "no input" instead of latching the last known state.
             InputFrame frame = InputManager.Instance.GetInputFrame(clientID);
-            for (int i = 0; i < frame.touches.Count; i++)
-                ResolveTouch(frame.touches[i]);
+            if (frame != null)
+            {
+                for (int i = 0; i < frame.touches.Count; i++)
+                    ResolveTouch(frame.touches[i]);
+            }
         }
 
         // Edges must be computed before previousHits is overwritten.

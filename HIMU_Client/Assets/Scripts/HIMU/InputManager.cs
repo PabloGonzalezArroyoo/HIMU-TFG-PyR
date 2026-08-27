@@ -34,9 +34,9 @@ public class InputManager : MonoBehaviour
     private Accelerometer accelerometer;
 
     /// <summary>
-    /// Touches buffer for processing touches in an already allocated structure.
+    /// Input buffer in an already allocated structure.
     /// </summary>
-    private readonly List<Vector2> touches = new List<Vector2>();
+    private InputFrame inputFrame = new InputFrame();
 
     /// <summary>
     /// Whether InputManager is sending or not input to the host machine.
@@ -136,7 +136,7 @@ public class InputManager : MonoBehaviour
         }
 
         // Touches
-        touches.Clear();
+        inputFrame.touches.Clear();
 
         var activeTouches = Touch.activeTouches;
         int count = activeTouches.Count;
@@ -147,18 +147,19 @@ public class InputManager : MonoBehaviour
             {
                 Touch t = activeTouches[i];
                 Vector2 normalizedPos = new Vector2(t.screenPosition.x / Screen.width, t.screenPosition.y / Screen.height);
-                touches.Add(normalizedPos);
+                inputFrame.touches.Add(new TouchData(t.touchId, normalizedPos));
             }
         }
 
         // Accelerometer
         Vector3 accValue = Vector3.zero;
         if (accelerometer != null)
-            accValue = Accelerometer.current.acceleration.ReadValue();
+            accValue = accelerometer.acceleration.ReadValue();
+        inputFrame.accelerometer = accValue;
 
         // Sending
-        InputFrame frameInput = new InputFrame(touches, accValue);
-        receiver.SendThroughDataChannel(JsonUtility.ToJson(frameInput));
+        inputFrame.sentAt = Time.unscaledTime;
+        receiver.SendThroughDataChannel(JsonUtility.ToJson(inputFrame));
     }
 
     #endregion

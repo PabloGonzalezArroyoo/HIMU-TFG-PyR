@@ -11,6 +11,7 @@ using UnityEngine;
 public class ConnectionManager : MonoBehaviour
 {
     #region Variables
+
     public static ConnectionManager Instance { get; private set; }
 
     [SerializeField]
@@ -38,22 +39,16 @@ public class ConnectionManager : MonoBehaviour
     private volatile bool intentionalDisconnect;
 
     /// <summary>
-    /// Wether the server is running or not.
+    /// Whether the server is running or not.
     /// </summary>
     private bool running;
 
     /// <summary>
-    /// Wether this machine is connected to a host or not.
+    /// Whether this machine is connected to a host or not.
     /// </summary>
     public bool connected { get; private set; } = false;
 
     private volatile bool handshaking;
-
-    /// <summary>
-    /// What type of client this device is (STREAM or PLAYER, NONE = non existent device).
-    /// </summary>
-    [SerializeField]
-    private ClientConnectionType clientType;
 
     /// <summary>
     /// Listener used for broadcast search of devices.
@@ -236,17 +231,19 @@ public class ConnectionManager : MonoBehaviour
                 {
                     stream = hostConnection.GetStream();
                 }
+
+                currentTransport = ClientConnectionType.TCP;
+
                 if (!Handshake(stream))
                 {
                     CleanupStream();
-                    clientType = ClientConnectionType.NONE;
+                    currentTransport = ClientConnectionType.NONE;
                     if (attempt < tcpConnectMaxRetries) Thread.Sleep(tcpConnectRetryDelayMs);
                     continue;
                 }
 
-                currentState = ClientConnectionState.Connected;
-                clientType = ClientConnectionType.TCP;
                 intentionalDisconnect = false;
+                if (debug) Debug.Log("[StreamManager] Connected to host via TCP.");
 
                 UnityMainThreadDispatcher.Instance().Enqueue(() => {
                     OnConnectionStarted();
@@ -313,17 +310,17 @@ public class ConnectionManager : MonoBehaviour
                 {
                     stream = hostConnection.GetStream();
                 }
+
+                currentTransport = ClientConnectionType.ADB;
                 
-                if(!Handshake(stream, expectedHostPort: adbRemotePort))
+                if (!Handshake(stream, expectedHostPort: adbRemotePort))
                 {
                     CleanupStream();
-                    clientType = ClientConnectionType.NONE;
+                    currentTransport = ClientConnectionType.NONE;
                     if (attempt < adbConnectMaxRetries) Thread.Sleep(adbConnectRetryDelayMs);
                     continue;
                 }
 
-                currentState = ClientConnectionState.Connected;
-                clientType = ClientConnectionType.ADB;
                 intentionalDisconnect = false;
                 if (debug) Debug.Log("[StreamManager] Connected to host via ADB (USB).");
 
@@ -449,9 +446,11 @@ public class ConnectionManager : MonoBehaviour
             return false;
         }
     }
+
     #endregion
 
     #region Shared Methods
+
     /// <summary>
     /// Sends 'Handshake' message to host
     /// </summary>
@@ -464,7 +463,7 @@ public class ConnectionManager : MonoBehaviour
             return false;
         }
 
-        string json = JsonUtility.ToJson(ConnectionData.ForHandshake(ipAddress, clientType));
+        string json = JsonUtility.ToJson(ConnectionData.ForHandshake(ipAddress, currentTransport));
         NetworkUtils.WriteFramedMessage(currentStream, json);
         if (debug) Debug.Log($"[StreamManager] Handshake sent to {hostIP}:{hostPort}");
 
@@ -619,9 +618,11 @@ public class ConnectionManager : MonoBehaviour
             Debug.LogWarning($"[StreamManager] SendMessage failed: {e.Message}");
         }
     }
+
     #endregion
 
     #region Session management
+
     /// <summary>
     /// Adds the new session discovered and creates an object on scene via UIManager
     /// </summary>
@@ -642,9 +643,11 @@ public class ConnectionManager : MonoBehaviour
     {
         sessions.Remove(data.ipAddress);
     }
+
     #endregion
 
     #region CleanUp
+
     public void Disconnect()
     {
         intentionalDisconnect = true;
@@ -675,7 +678,6 @@ public class ConnectionManager : MonoBehaviour
         connected = false;
         currentState = ClientConnectionState.Disconnected;
         currentTransport = ClientConnectionType.NONE;
-        clientType = ClientConnectionType.NONE;
     }
 
     /// <summary>
@@ -715,9 +717,11 @@ public class ConnectionManager : MonoBehaviour
         listener = null;
         listenThread?.Join(500);
     }
+
     #endregion
 
     #region Monobehaviour
+
     private void Awake()
     {
         if (Instance) { Destroy(gameObject); return; }
@@ -745,5 +749,6 @@ public class ConnectionManager : MonoBehaviour
         CleanupListener();
         if (receiver) Destroy(receiver.gameObject);
     }
+
     #endregion
 }

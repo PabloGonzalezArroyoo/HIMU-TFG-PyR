@@ -272,10 +272,12 @@ public class SignalingServer : MonoBehaviour
     #endregion
 
     #region Monobehaviour
+
     void OnDestroy()
     {
         if (!running) return;
         try { StopServer(); } catch { }
     }
+
     #endregion
 }

@@ -176,15 +176,21 @@ public class InputFrame
 {
     public List<TouchData> touches;
 
-    public Vector3 accelometer;
+    public Vector3 accelerometer;
 
-    public float timestamp;
+    // Time controlled by the SENDER
+    public float sentAt;
 
-    public InputFrame(List<TouchData> t, Vector3 a, float ts)
+    // Time controller by the RECIVER
+    public float receivedAt;
+
+    public InputFrame() { }
+
+    public InputFrame(List<TouchData> t, Vector3 a, float sent)
     {
         touches = t;
-        accelometer = a;
-        timestamp = ts;
+        accelerometer = a;
+        sentAt = sent;
     }
 }
 
