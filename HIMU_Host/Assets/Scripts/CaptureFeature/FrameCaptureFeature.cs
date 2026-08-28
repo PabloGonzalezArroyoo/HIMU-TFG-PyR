@@ -126,6 +126,11 @@ public class FrameCaptureFeature : ScriptableRendererFeature
         captureEnabled = enabled;
     }
 
+    public bool IsEnabled()
+    {
+        return captureEnabled;
+    }
+
     /// <summary>
     /// Returns the frame captured by the pass.
     /// </summary>

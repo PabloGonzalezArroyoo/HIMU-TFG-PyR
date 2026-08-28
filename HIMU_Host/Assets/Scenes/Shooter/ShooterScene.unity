@@ -141,7 +141,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2795216304001941400, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2795216304001941400, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
+      propertyPath: moveSpeed
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 5543962292684135086, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_Name
@@ -149,7 +153,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5543962292684135086, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5704383786046158862, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_LocalPosition.x
@@ -426,7 +430,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 256826160}
-  - component: {fileID: 256826161}
   m_Layer: 0
   m_Name: SpawnP4
   m_TagString: Untagged
@@ -450,27 +453,6 @@ Transform:
   - {fileID: 467925564}
   m_Father: {fileID: 1753753026}
   m_LocalEulerAnglesHint: {x: 0, y: -90, z: 0}
---- !u!135 &256826161
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 256826159}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &271017014
 GameObject:
   m_ObjectHideFlags: 0
@@ -939,7 +921,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 512072265}
-  - component: {fileID: 512072266}
   m_Layer: 0
   m_Name: SpawnP3
   m_TagString: Untagged
@@ -963,27 +944,6 @@ Transform:
   - {fileID: 208784483}
   m_Father: {fileID: 1753753026}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
---- !u!135 &512072266
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 512072264}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &563491232
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1002,7 +962,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2795216304001941400, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5543962292684135086, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_Name
@@ -1010,7 +970,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5543962292684135086, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5704383786046158862, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1890,7 +1850,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 944364245}
-  - component: {fileID: 944364246}
   m_Layer: 0
   m_Name: SpawnP2
   m_TagString: Untagged
@@ -1914,27 +1873,6 @@ Transform:
   - {fileID: 850244373}
   m_Father: {fileID: 1753753026}
   m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
---- !u!135 &944364246
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 944364244}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1011428969
 GameObject:
   m_ObjectHideFlags: 0
@@ -3049,6 +2987,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player1
       objectReference: {fileID: 0}
+    - target: {fileID: 5543962292684135086, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5704383786046158862, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -3849,7 +3791,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1836799191}
-  - component: {fileID: 1836799192}
   m_Layer: 0
   m_Name: SpawnP1
   m_TagString: Untagged
@@ -3873,27 +3814,6 @@ Transform:
   - {fileID: 1113865383}
   m_Father: {fileID: 1753753026}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!135 &1836799192
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1836799190}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1904633619
 GameObject:
   m_ObjectHideFlags: 0
@@ -4057,7 +3977,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2795216304001941400, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5543962292684135086, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_Name
@@ -4065,7 +3985,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5543962292684135086, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5704383786046158862, guid: 9650e6db42626d04bab37b2b2e57da53, type: 3}
       propertyPath: m_LocalPosition.x

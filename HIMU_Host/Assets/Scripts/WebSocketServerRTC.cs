@@ -96,18 +96,23 @@ public class WebSocketServerRTC : MonoBehaviour
                 string output = netstat.StandardOutput.ReadToEnd();
                 netstat.WaitForExit();
 
+                int selfPid = Process.GetCurrentProcess().Id;
+
                 var seenPids = new HashSet<string>();
                 foreach (string line in output.Split('\n'))
                 {
                     string trimmed = line.Trim();
                     if (string.IsNullOrEmpty(trimmed)) continue;
 
-                    // Ultima columna de netstat -ano es el PID
+                    // netstat -ano TCP: Proto | Local | Foreign | State | PID
                     string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length < 1) continue;
+                    if (parts.Length < 5) continue;
+                    if (!parts[1].EndsWith(":" + port)) continue;   // el puerto debe ser el LOCAL, no el remoto
+                    if (!parts[3].Equals("LISTENING", StringComparison.OrdinalIgnoreCase)) continue;
 
                     string pid = parts[parts.Length - 1];
-                    if (!int.TryParse(pid, out _)) continue;
+                    if (!int.TryParse(pid, out int pidInt)) continue;
+                    if (pidInt == selfPid || pidInt <= 4) continue; // nunca a nosotros ni a System/Idle
                     if (!seenPids.Add(pid)) continue; // evitar matar el mismo PID varias veces
 
                     ProcessStartInfo killPsi = new ProcessStartInfo
@@ -401,7 +406,9 @@ public class WebSocketServerRTC : MonoBehaviour
         if (!running) return;
         try
         {
-            _ = DisconnectToNode();
+            ws?.Abort();
+            ws?.Dispose();
+            _cts?.Cancel();
             StopServer();
         }
         catch { }

@@ -42,6 +42,7 @@ public class FrameCapturePass : ScriptableRenderPass
     {
         // BGRA32 -> format expected by WebRTC
         OutputTexture = new RenderTexture(width, height, 0, RenderTextureFormat.BGRA32);
+        OutputTexture.name = "_FrameCaptureOutput";
 
         // The feature that owns this pass is an asset and survives Play Mode transitions.
         // Without DontSave, Unity destroys this texture on those transitions while the
@@ -49,7 +50,7 @@ public class FrameCapturePass : ScriptableRenderPass
         OutputTexture.hideFlags = HideFlags.HideAndDontSave;
         OutputTexture.Create();
 
-        outputHandle = RTHandles.Alloc(OutputTexture, "_FrameCaptureOutput");
+        outputHandle = RTHandles.Alloc(OutputTexture);
 
         // Forces URP to render into an intermediate texture instead of straight to the
         // backbuffer. Without this, activeColorTexture may be the backbuffer, which

@@ -1,7 +1,5 @@
-using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class ShooterUIManager : MonoBehaviour
 {
@@ -14,8 +12,8 @@ public class ShooterUIManager : MonoBehaviour
         victoryCanvas.SetActive(true);
         TextMeshProUGUI shadow = victoryCanvas.transform.GetChild(1).GetComponent<TextMeshProUGUI>();
         TextMeshProUGUI text = victoryCanvas.transform.GetChild(2).GetComponent<TextMeshProUGUI>();
-        shadow.text = "PLAYER " + player + " WINS!!!";
-        text.text = "PLAYER " + player + " WINS!!!";
+        shadow.text = "PLAYER " + (player + 1) + " WINS!!!";
+        text.text = "PLAYER " + (player + 1) + " WINS!!!";
     }
 
     private void Awake()

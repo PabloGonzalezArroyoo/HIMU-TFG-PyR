@@ -2152,7 +2152,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49be8a3cade8f294f80411cbccd59e4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SinMovementComponent
-  amplitude: 2
+  amplitude: 2.5
   frequency: 0.5
   axis: {x: 0, y: 1, z: 0}
 --- !u!1 &1930428335

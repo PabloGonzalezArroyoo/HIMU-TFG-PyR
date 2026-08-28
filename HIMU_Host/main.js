@@ -73,11 +73,11 @@ async function connect() {
         console.log("RAW received:", json); 
         const msg = JSON.parse(json);
         
-        if (msg.type === 4)
+        if (msg.type === 2)
             cleanup('Unity disconnected');
         
         // Unity manda la offer dentro de msg.body como JSON string
-        else if (msg.type === 5) { // ConnectionEvent.SDP
+        else if (msg.type === 3) { // ConnectionEvent.SDP
             const sdpData = JSON.parse(msg.body);
 
             pc = new RTCPeerConnection({
@@ -94,7 +94,7 @@ async function connect() {
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
                     ws?.send(JSON.stringify({
-                        type: 6, // ConnectionEvent.ICE
+                        type: 4, // ConnectionEvent.ICE
                         body: JSON.stringify({
                             candidate: event.candidate.candidate,
                             sdpMid: event.candidate.sdpMid,
@@ -123,13 +123,13 @@ async function connect() {
             await pc.setLocalDescription(answer);
 
             ws?.send(JSON.stringify({
-                type: 5, // ConnectionEvent.SDP
+                type: 3, // ConnectionEvent.SDP
                 body: JSON.stringify({ type: 'answer', sdp: answer.sdp })
             }));
 
             setStatus('Answer sent, negotiating ICE...');
         }
-        else if (msg.type === 6) { // ConnectionEvent.ICE
+        else if (msg.type === 4) { // ConnectionEvent.ICE
             const iceData = JSON.parse(msg.body);
             const candidate = {
                 candidate: iceData.candidate,

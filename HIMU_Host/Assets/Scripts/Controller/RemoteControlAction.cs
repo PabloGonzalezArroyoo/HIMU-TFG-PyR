@@ -1,11 +1,6 @@
 /// <summary>
-/// Abstract intention declared by a button of a remote control scene.
+/// Asbtract representation declared by a button of a remote control scene.
 /// The button does not know which player it drives: it only declares what it means.
-/// The <see cref="RemoteControlRig"/> of its scene translates the set of pressed
-/// actions into a <see cref="ControlState"/>, and the gameplay layer consumes that state.
-/// This indirection is what allows a button (authored at edit time, inside the control
-/// scene) to drive a player object that lives in a different scene and is only resolved
-/// at runtime.
 /// </summary>
 public enum RemoteControlAction
 {

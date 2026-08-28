@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -224,9 +223,27 @@ public class StreamManager : MonoBehaviour
     {
         if (!clients.TryGetValue(clientID, out var peer)) return;
 
+        if (peer.himuClient == null)
+        {
+            Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} arrived before its HIMUClient existed. Dropping.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(msg.body))
+        {
+            Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} arrived with an empty body. Dropping.");
+            return;
+        }
+
         if (msg.type == ConnectionEvent.ICE)
         {
             IceCandidateData data = JsonUtility.FromJson<IceCandidateData>(msg.body);
+            if (data == null)
+            {
+                Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} couldn't be converted to a valid JSON format. Dropping.");
+                return;
+            }
+
             RTCIceCandidateInit init = new RTCIceCandidateInit
             {
                 candidate = data.candidate,
@@ -238,12 +255,22 @@ public class StreamManager : MonoBehaviour
         else if (msg.type == ConnectionEvent.SDP)
         {
             SessionDescriptionData data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
+            if (data == null)
+            {
+                Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} couldn't be converted to a valid JSON format. Dropping.");
+                return;
+            }
+
             RTCSessionDescription answer = data.ToRTCDesc();
             StartCoroutine(peer.himuClient.SetRemoteAnswer(answer));
         }
         else if (msg.type == ConnectionEvent.DISCONNECT)
         {
             RemovePeer(clientID);
+        }
+        else
+        {
+            Debug.LogWarning($"[StreamManager] Unhandled signaling type " + msg.type + " from " + clientID + ".");
         }
     }
     #endregion

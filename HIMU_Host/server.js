@@ -106,7 +106,7 @@ wss.on('connection', (ws, req) => {
     else { // Browser Client: musts indicate which Unity session it wants to connect to
         if (!sessionId || !SESSION_ID_REGEX.test(sessionId)) {
             console.log(`ERR: Browser tried to connect with non-valid session ID ("${sessionId}")`);
-            ws.close(1008, 'Muist indicate ?id=XXXX with Unity session ID');
+            ws.close(1008, 'Must indicate ?id=XXXX with Unity session ID');
             return;
         }
 
@@ -145,7 +145,7 @@ wss.on('connection', (ws, req) => {
 
             const unity = unityClients.get(sessionId);
             if (unity?.readyState === WebSocket.OPEN) {
-                unity.send(JSON.stringify({ type: 4, clientId })); // 4 = ConnectionEvent.DISCONNECT
+                unity.send(JSON.stringify({ type: 2, clientId })); // 4 = ConnectionEvent.DISCONNECT
             }
         });
     }

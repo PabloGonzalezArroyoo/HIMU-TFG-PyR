@@ -145,7 +145,7 @@ wss.on('connection', (ws, req) => {
 
             const unity = unityClients.get(sessionId);
             if (unity?.readyState === WebSocket.OPEN) {
-                unity.send(JSON.stringify({ type: 4, clientId })); // 4 = ConnectionEvent.DISCONNECT
+                unity.send(JSON.stringify({ type: 2, clientId })); // 4 = ConnectionEvent.DISCONNECT
             }
         });
     }

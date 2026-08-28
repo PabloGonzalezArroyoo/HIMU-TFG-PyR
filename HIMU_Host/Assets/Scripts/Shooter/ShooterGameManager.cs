@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -47,6 +46,25 @@ public class ShooterGameManager : MonoBehaviour
 
     #region OnGameStart
 
+    public void OnSceneChanged(Scene loadedScene, LoadSceneMode mode)
+    {
+        if (FrameCaptureFeature.Instance != null && FrameCaptureFeature.Instance.IsEnabled() && loadedScene.name == "ShooterScene")
+        {
+            FrameCaptureComponent fccomp = GetComponent<FrameCaptureComponent>();
+            FrameCaptureFeature.Instance.SetSourceCamera(Camera.main);
+            ChangeStreamTextures();
+        }
+    }
+
+    public void ChangeStreamTextures()
+    {
+        List<ClientData> browserClients = StreamManager.Instance.GetBrowserClients();
+        foreach (ClientData client in browserClients)
+        {
+            client.himuClient.ChangeTexture(FrameCaptureFeature.Instance.GetFrame());
+        }
+    }
+
     private void OrganizePeers()
     {
         players.Clear();
@@ -67,6 +85,7 @@ public class ShooterGameManager : MonoBehaviour
         {
             string clientID = playerPeers[i].clientID;
             Transform player = spawnPositions[i].GetChild(0);
+            player.gameObject.SetActive(true);
 
             PlayerLifeComponent life = player.GetComponent<PlayerLifeComponent>();
             if (life != null) life.SetClientID(clientID);
@@ -217,8 +236,13 @@ public class ShooterGameManager : MonoBehaviour
     {
         players.Remove(player);
 
-        if (players.Count == 1)
-            ShooterUIManager.Instance.SetVictoryUIState(players.First().Value.playerN);
+        if (players.Count == 1) SetWinState();
+    }
+
+    private void SetWinState()
+    {
+        ShooterUIManager.Instance.SetVictoryUIState(players.First().Value.playerN);
+        players.Values.First().controller.enabled = false;
     }
 
     #endregion

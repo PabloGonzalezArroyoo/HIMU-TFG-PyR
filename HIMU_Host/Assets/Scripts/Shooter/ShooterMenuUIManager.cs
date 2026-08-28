@@ -10,7 +10,7 @@ public class ShooterMenuUIManager : MonoBehaviour
 
     public void GoToConnections()
     {
-        fadeOutImage.StartFading("ShooterConnectionsScene", ShooterGameManager.Instance.ChangeScene);
+        fadeOutImage.StartFading("ShooterConnectionsScene", LoadScene);
     }
 
     private void LoadScene(string scene)
