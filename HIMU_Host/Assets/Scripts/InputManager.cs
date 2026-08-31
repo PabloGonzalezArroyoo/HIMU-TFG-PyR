@@ -94,13 +94,14 @@ public class InputManager : MonoBehaviour
     #endregion
 
     #region Monobehaviour
-
     private void Awake()
     {
-        if (Instance) { DestroyImmediate(gameObject); return; }
+        if (Instance) {
+            try { DestroyImmediate(Instance.gameObject); }
+            catch { }
+        }
         Instance = this;
         if(shouldPersist) DontDestroyOnLoad(gameObject);
     }
-
     #endregion
 }

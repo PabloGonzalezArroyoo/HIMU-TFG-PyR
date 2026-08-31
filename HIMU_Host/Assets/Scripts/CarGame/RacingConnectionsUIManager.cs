@@ -65,6 +65,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
     private IEnumerator SearchForDevices()
     {
         StreamManager.Instance.FlagADBConnection();
+        StreamManager.Instance.FlagADBAcceptConnections(true);
         while (!deviceFound)
         {
             deviceFound = StreamManager.Instance.GetADBClients().Count > 0;
@@ -75,6 +76,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
         adbStatusText.text = "PHONE FOUND";
         adbStatusText.color = Color.green;
         RacingGameManager.Instance.SetPlayerID(StreamManager.Instance.GetADBClients()[0].clientID);
+        StreamManager.Instance.FlagADBAcceptConnections(false);
         StartCoroutine(CheckADBClient());
     }
 

@@ -62,7 +62,7 @@ public class RacingGameManager : MonoBehaviour
         List<ClientData> browserClients = StreamManager.Instance.GetBrowserClients();
         foreach (ClientData client in browserClients)
         {
-            client.himuClient.ChangeTexture(gameTexture);
+            client.himuClient.ChangeTexture(FrameCaptureFeature.Instance.GetFrame());
         }
     }
 
@@ -132,10 +132,10 @@ public class RacingGameManager : MonoBehaviour
         }
 
         // Cuando se carga la escena de juego -> seteamos la camara de los clientes WebSocket
-        if (loadedScene.name.Contains("Main"))
+        if (loadedScene.name.Contains("Main") && FrameCaptureFeature.Instance != null && FrameCaptureFeature.Instance.IsEnabled())
         {
-            Camera mainCamera = FindCameraInScene(loadedScene, "StreamCamera");
-            mainCamera.targetTexture = gameTexture;
+            FrameCaptureComponent fccomp = gameObject.AddComponent<FrameCaptureComponent>();
+            FrameCaptureFeature.Instance.SetSourceCamera(Camera.main);
             ChangeStreamTextures();
         }
 
@@ -149,7 +149,6 @@ public class RacingGameManager : MonoBehaviour
 
         if (loadedScene.name.Contains("Menu"))
         {
-            Destroy(StreamManager.Instance.gameObject);
             SceneManager.sceneLoaded -= RacingGameManager.Instance.OnSceneChanged;
         }
     }
@@ -219,6 +218,9 @@ public class RacingGameManager : MonoBehaviour
     {
         gameStarted = false;
         isPaused = true;
+        RacingGameUIManager.Instance.EndGame();
+        if (streaming) StreamManager.Instance.FlagWebSocketServer();
+        StreamManager.Instance.FlagADBConnection();
     }
 
     public void PauseGame()

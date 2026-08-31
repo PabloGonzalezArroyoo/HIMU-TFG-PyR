@@ -499,7 +499,10 @@ public class StreamManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance) { DestroyImmediate(gameObject); return; }
+        if (Instance) {
+            try { Destroy(Instance.gameObject); }
+            catch { }
+        }
         Instance = this;
         if (shouldPersist) DontDestroyOnLoad(gameObject);
 

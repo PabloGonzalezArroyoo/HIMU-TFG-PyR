@@ -79,7 +79,7 @@ public class CarButtonComponent : MonoBehaviour
         switch (buttonEvent) {
             case CarInputEvent.PAUSE: RacingInputController.Instance.OnPauseButtonClick(); break;
             case CarInputEvent.STREAM: RacingGameUIManager.Instance.StreamSwitched(); break;
-            case CarInputEvent.EXIT: RacingGameUIManager.Instance.ExitGame(); break;
+            case CarInputEvent.EXIT: RacingGameManager.Instance.EndGame(); break;
         }
 
         PointerEventData eventData = new PointerEventData(EventSystem.current);
