@@ -103,7 +103,11 @@ public class UIManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance) { Destroy(gameObject); return; }
+        if (Instance)
+        {
+            try { Destroy(Instance.gameObject); }
+            catch { Debug.Log("No se pudo borrar el objeto del singleton"); }
+        }
         Instance = this;
     }
 

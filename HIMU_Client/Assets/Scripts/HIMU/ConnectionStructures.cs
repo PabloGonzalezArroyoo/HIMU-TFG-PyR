@@ -148,7 +148,7 @@ public class InputFrame
     // Time controlled by the SENDER
     public float sentAt;
 
-    // Time controller by the RECIVER
+    // Time controller by the RECEIVER
     public float receivedAt;
 
     public InputFrame() 

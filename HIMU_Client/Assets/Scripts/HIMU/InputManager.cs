@@ -52,7 +52,6 @@ public class InputManager : MonoBehaviour
     #endregion
 
     #region Methods
-
     /// <summary>
     /// Enables EnhancedTouch (API for easy tracking of touches on a screen) and the accelerometer, due to both of them being
     /// off by default. It also configures the accelerometer sampling frequency.
@@ -77,7 +76,7 @@ public class InputManager : MonoBehaviour
 
             if (accSamplingHz > 0f)
                 accelerometer.samplingFrequency = accSamplingHz;
-        }        
+        }
     }
 
     /// <summary>
@@ -92,11 +91,9 @@ public class InputManager : MonoBehaviour
         if (accelerometer != null && accelerometer.enabled)
             InputSystem.DisableDevice(accelerometer);
     }
-
     #endregion
 
     #region Monobehaviour
-
     private void OnEnable()
     {
         EnablePhoneInput();
@@ -109,12 +106,15 @@ public class InputManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance) { DestroyImmediate(gameObject); return; }
+        if (Instance)
+        {
+            try { Destroy(Instance.gameObject); }
+            catch { Debug.Log("No se pudo borrar el objeto del singleton"); }
+        }
         Instance = this;
         DontDestroyOnLoad(gameObject);
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         receiver = GetComponent<HIMUReceiver>();
@@ -123,7 +123,6 @@ public class InputManager : MonoBehaviour
         send = false;
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (!send || receiver == null) return;
@@ -161,7 +160,5 @@ public class InputManager : MonoBehaviour
         inputFrame.sentAt = Time.unscaledTime;
         receiver.SendThroughDataChannel(JsonUtility.ToJson(inputFrame));
     }
-
     #endregion
-
 }

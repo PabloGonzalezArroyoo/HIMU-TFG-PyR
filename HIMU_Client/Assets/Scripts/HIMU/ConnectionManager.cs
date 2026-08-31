@@ -353,13 +353,11 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Arranca el proceso secundario que comprueba periodicamente si el tunel 'adb reverse'
-    /// esta activo. Es independiente del hilo de conexion real (TryADBConnection): nunca toca
-    /// 'hostConnection' ni 'stream', asi que no interfiere con el intento de conexion en curso.
+    /// Checks if reverse tunnel is active
     /// </summary>
     private void StartTunnelWatcher()
     {
-        StopTunnelWatcher(); // por si quedaba uno de un intento anterior sin cerrar
+        StopTunnelWatcher();
 
         tunnelEstablished = false;
         tunnelWatcherRunning = true;
@@ -368,7 +366,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Detiene el proceso secundario de vigilancia del tunel, si estuviera activo.
+    /// Stops Tunnel watcher process
     /// </summary>
     private void StopTunnelWatcher()
     {
@@ -378,11 +376,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Proceso secundario: cada 'tunnelCheckIntervalSeconds' comprueba si el tunel 'adb reverse'
-    /// ya esta activo. Si lo detecta, activa 'tunnelEstablished' pero NO detiene el proceso -
-    /// sigue sondeando por si el estado cambiase. Solo termina cuando el handshake se completa
-    /// con exito (connected == true), cuando se agotan los reintentos, cuando hay una
-    /// desconexion intencional, o cuando el propio hilo se manda a parar desde fuera.
+    /// Method executed on secundary process. Checks for adb reverse tunnel and udpates flag. Stops when connection is established
     /// </summary>
     private void TunnelWatcherLoop()
     {
@@ -399,10 +393,6 @@ public class ConnectionManager : MonoBehaviour
 
             else if (!tunnelUp && handshaking)
             {
-                // El tunel desaparecio (p.ej. se desconecto el cable) justo mientras Handshake()
-                // estaba bloqueado esperando el ACK. No tiene sentido dejar que agote el timeout
-                // completo: forzamos el cierre del socket para que retorne ya y TryADBConnection
-                // pueda reintentar antes.
                 if (debug) UnityMainThreadDispatcher.Instance().Enqueue(() =>
                     Debug.LogWarning("[StreamManager] Tunnel lost while waiting for handshake ACK, aborting attempt."));
                 CleanupStream();
@@ -411,8 +401,6 @@ public class ConnectionManager : MonoBehaviour
             UnityMainThreadDispatcher.Instance().Enqueue(() =>
                         UIManager.Instance.UpdateADBButton(tunnelEstablished));
 
-            // Esperamos en trozos pequeños para poder reaccionar rapido a que la conexion real
-            // termine (con exito o no) sin tener que aguantar el intervalo completo.
             int intervalMs = Mathf.Max(200, Mathf.RoundToInt(tunnelCheckIntervalSeconds * 1000f));
             int waited = 0;
             while (waited < intervalMs && tunnelWatcherRunning && !connected && !intentionalDisconnect)
@@ -424,10 +412,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Abre una conexion TCP desechable a localhost:adbRemotePort solo para comprobar si hay
-    /// algo escuchando ahi (es decir, si 'adb reverse' ya mapeo ese puerto al host). Se cierra
-    /// inmediatamente sin enviar ningun handshake: la conexion real la gestiona por separado
-    /// TryADBConnection.
+    /// Opens TCP connection to localhost:adbRemotePort to check if there is a tunnel established.
     /// </summary>
     private bool CheckReverseTunnel()
     {
@@ -446,11 +431,9 @@ public class ConnectionManager : MonoBehaviour
             return false;
         }
     }
-
     #endregion
 
     #region Shared Methods
-
     /// <summary>
     /// Sends 'Handshake' message to host
     /// </summary>
@@ -554,14 +537,19 @@ public class ConnectionManager : MonoBehaviour
 
             try
             {
-                if (!NetworkUtils.TryReadFramedMessage(currentStream, out string json)) break;
+                if (!NetworkUtils.TryReadFramedMessage(currentStream, out string json))
+                {
+                    if (!intentionalDisconnect)
+                        UnityMainThreadDispatcher.Instance().Enqueue(OnConnectionLost);
+                    break;
+                }
 
                 var msg = JsonUtility.FromJson<SignalingMessage>(json);
                 UnityMainThreadDispatcher.Instance()?.Enqueue(() => HandleMessage(msg));
             }
             catch (ObjectDisposedException)
             {
-                break; // el stream se cerró desde otro hilo mientras leíamos (nuestro propio Disconnect()), salida normal
+                break; // se ejecuto Disconnect desde otro hilo
             }
             catch (Exception e)
             {
@@ -618,11 +606,9 @@ public class ConnectionManager : MonoBehaviour
             Debug.LogWarning($"[StreamManager] SendMessage failed: {e.Message}");
         }
     }
-
     #endregion
 
     #region Session management
-
     /// <summary>
     /// Adds the new session discovered and creates an object on scene via UIManager
     /// </summary>
@@ -643,11 +629,9 @@ public class ConnectionManager : MonoBehaviour
     {
         sessions.Remove(data.ipAddress);
     }
-
     #endregion
 
     #region CleanUp
-
     public void Disconnect()
     {
         intentionalDisconnect = true;
@@ -717,14 +701,16 @@ public class ConnectionManager : MonoBehaviour
         listener = null;
         listenThread?.Join(500);
     }
-
     #endregion
 
     #region Monobehaviour
 
     private void Awake()
     {
-        if (Instance) { Destroy(gameObject); return; }
+        if (Instance) {
+            try { Destroy(Instance.gameObject); }
+            catch { Debug.Log("No se pudo borrar el objeto del singleton"); }
+        }
         Instance = this;
         DontDestroyOnLoad(gameObject);
 

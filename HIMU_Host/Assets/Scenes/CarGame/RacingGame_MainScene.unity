@@ -1016,6 +1016,7 @@ GameObject:
   - component: {fileID: 168812423}
   - component: {fileID: 168812422}
   - component: {fileID: 168812421}
+  - component: {fileID: 168812425}
   m_Layer: 5
   m_Name: ResumeButton
   m_TagString: Untagged
@@ -1137,6 +1138,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 168812419}
   m_CullTransparentMesh: 1
+--- !u!114 &168812425
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 168812419}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90231c91a372d1a408618231f911bcc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarButtonComponent
+  buttonEvent: 3
+  pressed: 0
 --- !u!1001 &169874915
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5064,6 +5079,7 @@ GameObject:
   - component: {fileID: 706628387}
   - component: {fileID: 706628386}
   - component: {fileID: 706628385}
+  - component: {fileID: 706628389}
   m_Layer: 5
   m_Name: StreamButton
   m_TagString: Untagged
@@ -5134,19 +5150,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 706628386}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1741512787}
-        m_TargetAssemblyTypeName: RacingGameUIManager, Assembly-CSharp
-        m_MethodName: StreamSwitched
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!114 &706628386
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5185,6 +5189,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 706628383}
   m_CullTransparentMesh: 1
+--- !u!114 &706628389
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706628383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90231c91a372d1a408618231f911bcc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarButtonComponent
+  buttonEvent: 4
+  pressed: 0
 --- !u!1 &727851593
 GameObject:
   m_ObjectHideFlags: 0
@@ -5635,6 +5653,100 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4021494074433550, guid: 23f312332b5cd5542ba196450880e89b, type: 3}
   m_PrefabInstance: {fileID: 764019924}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &767836378
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 767836379}
+  - component: {fileID: 767836381}
+  - component: {fileID: 767836380}
+  - component: {fileID: 767836383}
+  m_Layer: 5
+  m_Name: Pointer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &767836379
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 767836378}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1166151824}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 3, y: -289}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &767836380
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 767836378}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: b080410aa5775bc41922b2895b7a2c29, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &767836381
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 767836378}
+  m_CullTransparentMesh: 1
+--- !u!114 &767836383
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 767836378}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3804b9ebe3999334b870ffe5c4cd578b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PointerComponent
+  screenPositions:
+  - {x: -330, y: -80}
+  - {x: 200, y: -80}
+  - {x: 650, y: -80}
+  backgroundRaycaster: {fileID: 1029681772}
+  myCamera: {fileID: 1610536719}
 --- !u!1001 &770836050
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8356,7 +8468,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1166151824
 RectTransform:
   m_ObjectHideFlags: 0
@@ -8375,6 +8487,7 @@ RectTransform:
   - {fileID: 706628384}
   - {fileID: 168812420}
   - {fileID: 1529831435}
+  - {fileID: 767836379}
   m_Father: {fileID: 1029681771}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -13773,6 +13886,7 @@ GameObject:
   - component: {fileID: 1864810918}
   - component: {fileID: 1864810917}
   - component: {fileID: 1864810916}
+  - component: {fileID: 1864810920}
   m_Layer: 5
   m_Name: ExitButton
   m_TagString: Untagged
@@ -13843,19 +13957,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1864810917}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1741512787}
-        m_TargetAssemblyTypeName: RacingGameUIManager, Assembly-CSharp
-        m_MethodName: ExitGame
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!114 &1864810917
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13894,6 +13996,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1864810914}
   m_CullTransparentMesh: 1
+--- !u!114 &1864810920
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1864810914}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90231c91a372d1a408618231f911bcc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarButtonComponent
+  buttonEvent: 5
+  pressed: 0
 --- !u!1001 &1871634262
 PrefabInstance:
   m_ObjectHideFlags: 0

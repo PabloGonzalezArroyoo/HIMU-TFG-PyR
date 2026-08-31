@@ -15,12 +15,9 @@ public class RacingInputController : MonoBehaviour
 
     public GraphicRaycaster backgroundRaycaster;
 
-    [SerializeField] CarController carController;
-
     private Dictionary<int, CarButtonComponent> previousButtonsPressed = new Dictionary<int, CarButtonComponent>();
 
     private List<CarButtonComponent> buttonsPressed = new List<CarButtonComponent>();
-
 
     public void OnPauseButtonClick()
     {
@@ -39,6 +36,11 @@ public class RacingInputController : MonoBehaviour
 
     private void ProcessInput()
     {
+        foreach (var button in previousButtonsPressed)
+        {
+            button.Value.pressed = false;
+        }
+
         InputFrame inputEvent = InputManager.Instance.GetInputFrame(RacingGameManager.Instance.GetPlayerID());
 
         if (inputEvent == null) return;
@@ -47,11 +49,20 @@ public class RacingInputController : MonoBehaviour
             TryClickBackgroundUI(touch.x, touch.y);
         }
 
+        List<CarButtonComponent> buttonsToRemove = new List<CarButtonComponent>();
         foreach (var button in previousButtonsPressed)
         {
-            if (!button.Value.pressed) button.Value.ReleasePressing();
+            if (!button.Value.pressed)
+            {
+                button.Value.ReleasePressing();
+                buttonsToRemove.Add(button.Value);
+            }
         }
-        previousButtonsPressed.Clear();
+
+        for (int i = 0; i < buttonsToRemove.Count; i++) { 
+            previousButtonsPressed.Remove(buttonsToRemove[i].buttonID);
+        }
+        buttonsToRemove.Clear();
 
         for (int i = 0; i < buttonsPressed.Count; i++)
         {
@@ -73,7 +84,7 @@ public class RacingInputController : MonoBehaviour
         }
 
         // Desnormalizamos las coordenadas del click
-        Vector2 virtualScreenPos = new Vector2(screenPositionX * 1280, screenPositionY * 720);
+        Vector2 virtualScreenPos = new Vector2(screenPositionX * Screen.width, screenPositionY * Screen.height);
 
         // Lanzamos el raycast
         PointerEventData pointerData = new PointerEventData(EventSystem.current) { position = virtualScreenPos };
@@ -90,8 +101,12 @@ public class RacingInputController : MonoBehaviour
                 if (carButton != null)
                 {
                     if (!previousButtonsPressed.ContainsKey(carButton.buttonID))
+                    {
                         carButton.StartPressing();
-                    buttonsPressed.Add(carButton);
+                        buttonsPressed.Add(carButton);
+                    }
+                    else 
+                        previousButtonsPressed.GetValueOrDefault(carButton.buttonID).pressed = true;
                 }
             }
         }

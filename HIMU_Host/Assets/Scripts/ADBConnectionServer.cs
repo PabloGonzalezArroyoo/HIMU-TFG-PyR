@@ -376,7 +376,6 @@ public class ADBConnectionServer : MonoBehaviour
 
                 var sigMsg = JsonUtility.FromJson<SignalingMessage>(incoming);
 
-                // Runs on the main thread, same as SignalingServer, since WebRTC peers need it.
                 UnityMainThreadDispatcher.Instance().Enqueue(() =>
                     StreamManager.Instance?.HandleIncomingSignaling(clientID, sigMsg));
             }

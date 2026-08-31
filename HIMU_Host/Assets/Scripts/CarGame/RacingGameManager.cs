@@ -11,6 +11,8 @@ public class RacingGameManager : MonoBehaviour
     private RenderTexture gameTexture;
     private RenderTexture controlTexture;
 
+    private PointerComponent pausePointer;
+
     public bool gameStarted = false;
     public bool isPaused = false;
     public bool streaming = false;
@@ -41,6 +43,16 @@ public class RacingGameManager : MonoBehaviour
     public void SetPlayerID(string id)
     {
         clientID = id;
+    }
+
+    public PointerComponent GetPauseMenuPointer()
+    {
+        return pausePointer;
+    }
+
+    public void SetPauseMenuPointer(PointerComponent pointer)
+    {
+        pausePointer = pointer;
     }
     #endregion
 
@@ -90,11 +102,8 @@ public class RacingGameManager : MonoBehaviour
     {
         AsyncOperation op = SceneManager.LoadSceneAsync("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
 
-        // Esperamos a que termine de cargar
         while (!op.isDone)
-        {
             yield return null;
-        }
 
         Scene loadedScene = SceneManager.GetSceneByName("RacingGame_RemoteControlScene");
     }
@@ -102,7 +111,6 @@ public class RacingGameManager : MonoBehaviour
     public void OnGameStarted(Scene current, Scene next)
     {
         if (next.name != "RacingGame_MainScene") return;
-        SceneManager.LoadScene("RacingGame_RemoteControlScene", LoadSceneMode.Additive);
         StartCoroutine(LoadBackgroundSceneAsync());
 
         SceneManager.activeSceneChanged -= RacingGameManager.Instance.OnGameStarted;

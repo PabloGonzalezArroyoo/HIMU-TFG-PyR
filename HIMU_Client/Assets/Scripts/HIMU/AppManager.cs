@@ -94,7 +94,11 @@ public class AppManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance) Destroy(Instance.gameObject);
+        if (Instance)
+        {
+            try { Destroy(Instance.gameObject); }
+            catch { Debug.Log("No se pudo borrar el objeto del singleton"); }
+        }
         Instance = this;
         DontDestroyOnLoad(gameObject);
     }

@@ -58,7 +58,6 @@ public class RacingGameUIManager : MonoBehaviour
         if (!isChangingScene) {
             isChangingScene = true;
             fadeOutImage.StartFading("RacingGame_MenuScene", RacingGameManager.Instance.ChangeScene);
-            // StreamManager KABOOM
             UnityMainThreadDispatcher.Instance().Enqueue(() => Destroy(StreamManager.Instance.gameObject));
         }
     }
@@ -84,6 +83,7 @@ public class RacingGameUIManager : MonoBehaviour
     private void Start()
     {
         streamingText.gameObject.SetActive(RacingGameManager.Instance.streaming);
+        pauseMenu.SetActive(false);
     }
 
     void Update()

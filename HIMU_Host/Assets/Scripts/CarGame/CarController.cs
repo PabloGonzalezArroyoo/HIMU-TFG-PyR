@@ -9,6 +9,8 @@ using UnityEngine.InputSystem; // Requiere el paquete "Input System" instalado
 /// </summary>
 public class CarController : MonoBehaviour
 {
+    public static CarController Instance { get; private set; }
+
     [SerializeField]
     public float maxSpeed = 20f;
 
@@ -39,34 +41,13 @@ public class CarController : MonoBehaviour
     private float brakeDecelerationMagnitude;
 
     public bool isAccelerating;
+    public bool turnLeft = false;
+    public bool turnRight = false;
     private float turnInput;
 
-    void Awake()
-    {
-        rb = GetComponent<Rigidbody>();
-        groundDetector.SetLayer(groundLayer);
-
-        // Evita que el coche vuelque; solo se mueve y gira en el plano horizontal.
-        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-
-        // Baja el centro de masa para dar más estabilidad al coche.
-        rb.centerOfMass = new Vector3(0f, -0.5f, 0f);
-    }
-
-    void Start()
-    {
-        RecalculateForces();
-    }
-
-    void OnValidate()
-    {
-        // Recalcula las fuerzas si se cambian los valores desde el Inspector.
-        RecalculateForces();
-    }
-
+    #region Physics
     /// <summary>
     /// Calcula la fuerza de aceleración y la deceleración de frenado
-    /// a partir de los tiempos configurados, usando F = m * a, con a = v / t.
     /// </summary>
     private void RecalculateForces()
     {
@@ -75,37 +56,12 @@ public class CarController : MonoBehaviour
         brakeDecelerationMagnitude = maxSpeed / Mathf.Max(timeToStop, 0.01f);
     }
 
-    void Update()
-    {
-        // Lectura de input usando el nuevo Input System (paquete "Input System")
-        var keyboard = Keyboard.current;
-        if (keyboard == null) return; // Por si no hay teclado disponible (ej. build en otra plataforma)
-
-        isAccelerating = keyboard.spaceKey.isPressed;
-
-        turnInput = 0f;
-        if (keyboard.leftArrowKey.isPressed) turnInput -= 1f;
-        if (keyboard.rightArrowKey.isPressed) turnInput += 1f;
-    }
-
-    void FixedUpdate()
-    {
-        if (RacingGameManager.Instance.gameStarted && !RacingGameManager.Instance.isPaused)
-        {
-            ApplyLateralGrip();
-            HandleAcceleration();
-            HandleSteering();
-        }
-    }
-
     /// <summary>
-    /// Simula el agarre de los neumáticos: elimina (total o parcialmente) la componente
-    /// de la velocidad que es perpendicular al coche, para que no derrape en curvas
-    /// como si estuviera sobre hielo.
+    /// Simula el agarre de las ruedas para evitar derrape
     /// </summary>
     private void ApplyLateralGrip()
     {
-        if (!groundDetector.isGrounded) return; // En el aire no hay neumáticos agarrando nada
+        if (!groundDetector.isGrounded) return;
 
         Vector3 lateralVelocity = Vector3.Dot(rb.linearVelocity, transform.right) * transform.right;
         rb.linearVelocity -= lateralVelocity * lateralGrip;
@@ -113,17 +69,13 @@ public class CarController : MonoBehaviour
 
     private void HandleAcceleration()
     {
-        // Proyectamos el forward del coche sobre el plano horizontal.
-        // Así, si el coche queda inclinado (ej. tras un choque), la fuerza de propulsión
-        // sigue siendo horizontal y nunca "empuja hacia arriba".
+        // Proyectamos el vector forward del coche sobre el plano horizontal para evitar volar
         Vector3 flatForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
 
-        // rb.linearVelocity es el nuevo nombre de rb.velocity en Unity 6
         float currentForwardSpeed = Vector3.Dot(rb.linearVelocity, flatForward);
 
         if (isAccelerating && groundDetector.isGrounded)
         {
-            // Aplica fuerza hacia delante mientras no se haya alcanzado la velocidad máxima.
             if (currentForwardSpeed < maxSpeed)
             {
                 rb.AddForce(flatForward * accelerationForceMagnitude, ForceMode.Force);
@@ -132,7 +84,6 @@ public class CarController : MonoBehaviour
         else if (!isAccelerating)
         {
             // Frenado progresivo: aplica una fuerza contraria a la velocidad actual
-            // hasta que el coche pierde toda su inercia (velocidad = 0).
             if (rb.linearVelocity.sqrMagnitude > 0.0025f)
             {
                 Vector3 brakeDirection = -rb.linearVelocity.normalized;
@@ -140,8 +91,7 @@ public class CarController : MonoBehaviour
 
                 rb.AddForce(brakeDirection * brakeForceMag, ForceMode.Force);
 
-                // Evita overshoot: si el frenado va a invertir el sentido del movimiento
-                // en este mismo paso de física, directamente detenemos el coche.
+                // Si frenar invierte el movimiento del coche (marcha atras), directamente lo detenemos
                 Vector3 estimatedVelocity = rb.linearVelocity + (brakeDirection * brakeForceMag / rb.mass) * Time.fixedDeltaTime;
                 if (Vector3.Dot(estimatedVelocity, rb.linearVelocity) < 0f)
                 {
@@ -173,4 +123,53 @@ public class CarController : MonoBehaviour
             rb.MoveRotation(rb.rotation * turnRotation);
         }
     }
+
+    public void StopCar()
+    {
+        isAccelerating = false;
+        rb.linearVelocity = Vector3.zero;
+    }
+    #endregion
+
+    #region Monobehaviour
+    void Awake()
+    {
+        if (Instance != null)
+            DestroyImmediate(this);
+        Instance = this;
+
+        rb = GetComponent<Rigidbody>();
+        groundDetector.SetLayer(groundLayer);
+        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+        rb.centerOfMass = new Vector3(0f, -0.5f, 0f);
+    }
+
+    void Start()
+    {
+        RecalculateForces();
+    }
+
+    void OnValidate()
+    {
+        // Recalcula las fuerzas si se cambian los valores desde el Inspector.
+        RecalculateForces();
+    }
+
+    void Update()
+    {
+        turnInput = 0f;
+        if (turnLeft) turnInput -= 1f;
+        if (turnRight) turnInput += 1f;
+    }
+
+    void FixedUpdate()
+    {
+        if (RacingGameManager.Instance.gameStarted && !RacingGameManager.Instance.isPaused)
+        {
+            ApplyLateralGrip();
+            HandleAcceleration();
+            HandleSteering();
+        }
+    }
+    #endregion
 }
