@@ -13,7 +13,9 @@ public class PointerComponent : MonoBehaviour
 
     private int currentPos;
 
-    private RectTransform myTransform;
+    private RectTransform myTransform = null;
+
+    private Canvas myCanvas = null;
 
     private CarButtonComponent currentButton = null;
 
@@ -25,7 +27,7 @@ public class PointerComponent : MonoBehaviour
         myTransform.GetWorldCorners(corners);
         Vector3 upperLeftWorld = corners[1];
 
-        return RectTransformUtility.WorldToScreenPoint(null, upperLeftWorld);
+        return RectTransformUtility.WorldToScreenPoint(myCanvas.worldCamera, upperLeftWorld);
     }
 
     private void DetectButton()
@@ -75,6 +77,7 @@ public class PointerComponent : MonoBehaviour
     private void Start()
     {
         myTransform = GetComponent<RectTransform>();
+        myCanvas = backgroundRaycaster.gameObject.GetComponent<Canvas>();
         currentPos = 0;
         myTransform.anchoredPosition = screenPositions[currentPos];
         DetectButton();
