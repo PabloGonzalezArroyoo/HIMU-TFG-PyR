@@ -36,9 +36,9 @@ public class SignalingServer : MonoBehaviour
     private int listenPort = 7777;
 
     /// <summary>
-    /// Port from where the broadcast is going to be made
+    /// Port from where the multicast is going to be made
     /// </summary>
-    private int broadcastPort = 8053;
+    private int multicastPort = 8053;
 
     /// <summary>
     /// Listener that waits for messages from the clients
@@ -95,7 +95,7 @@ public class SignalingServer : MonoBehaviour
         listenThread.Start(); 
 
         searchingDevices = true;
-        StartCoroutine(SendBroadcast()); 
+        StartCoroutine(SendMulticast()); 
         Debug.Log("[SignalingServer] TCP server launched.");
     }
 
@@ -104,15 +104,15 @@ public class SignalingServer : MonoBehaviour
     #region Connection discovery
 
     /// <summary>
-    /// Sends a BROADCAST through the network for other devices to find this server
+    /// Sends a MULTICAST through the network for other devices to find this server
     /// </summary>
     /// <returns></returns>
-    IEnumerator SendBroadcast()
+    IEnumerator SendMulticast()
     {
         try
         {
             string ip = NetworkUtils.GetIP();
-            ConnectionData connectionData = ConnectionData.ForBroadcast(ip, listenPort);
+            ConnectionData connectionData = ConnectionData.ForMulticast(ip, listenPort);
             connectionData.sessionName = StreamManager.Instance.GetSessionName();
             connectionData.sessionID = StreamManager.Instance.GetSessionID();
             string json = JsonUtility.ToJson(connectionData);
@@ -122,7 +122,7 @@ public class SignalingServer : MonoBehaviour
             {
                 sender.Client.Bind(new IPEndPoint(IPAddress.Parse(ip), 0));
                 sender.Ttl = 4;
-                IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(MulticastGroup), broadcastPort);
+                IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(MulticastGroup), multicastPort);
                 sender.Send(data, data.Length, endpoint);
             }
         }
@@ -134,7 +134,7 @@ public class SignalingServer : MonoBehaviour
         yield return new WaitForSeconds(2f);
 
         if (searchingDevices)
-            StartCoroutine(SendBroadcast());
+            StartCoroutine(SendMulticast());
     }
 
     /// <summary>

@@ -16,7 +16,7 @@ using UnityEngine;
 /// </summary>
 public enum ConnectionEvent
 {
-    BROADCAST,
+    MULTICAST,
     HANDSHAKE,
     DISCONNECT,
     SDP,
@@ -82,13 +82,13 @@ public class ConnectionData
     }
 
     /// <summary>
-    /// Payload that the host broadcasts over UDP multicast so nearby devices can discover it.
+    /// Payload that the host multicast over UDP multicast so nearby devices can discover it.
     /// </summary>
     /// <param name="hostIP">Host's IP, so the client knows where to connect.</param>
     /// <param name="listenPort">TCP port SignalingServer is listening on.</param>
-    public static ConnectionData ForBroadcast(string hostIP, int listenPort)
+    public static ConnectionData ForMulticast(string hostIP, int listenPort)
     {
-        return new ConnectionData(hostIP, listenPort, ConnectionEvent.BROADCAST, ClientConnectionType.NONE);
+        return new ConnectionData(hostIP, listenPort, ConnectionEvent.MULTICAST, ClientConnectionType.NONE);
     }
 
     /// <summary>

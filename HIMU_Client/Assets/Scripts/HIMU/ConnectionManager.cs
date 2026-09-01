@@ -52,12 +52,12 @@ public class ConnectionManager : MonoBehaviour
     private volatile bool handshaking;
 
     /// <summary>
-    /// Listener used for broadcast search of devices.
+    /// Listener used for multicast search of devices.
     /// </summary>
     private UdpClient listener;
 
     /// <summary>
-    /// Thread where the broadcast will be done.
+    /// Thread where the multicast will be done.
     /// </summary>
     private Thread listenThread;
 
@@ -112,6 +112,7 @@ public class ConnectionManager : MonoBehaviour
     private HIMUReceiver receiver = null;
 
     [SerializeField] private GameObject clientPrefab = null;
+
     #endregion
 
     #region TCP
@@ -135,7 +136,7 @@ public class ConnectionManager : MonoBehaviour
                 SocketOptionName.AddMembership,
                 new MulticastOption(IPAddress.Parse(MulticastGroup), IPAddress.Any));
 
-            listenThread = new Thread(BroadcastListenLoop) { IsBackground = true, Name = "StreamManager TCP discovering loop" };
+            listenThread = new Thread(MulticastListenLoop) { IsBackground = true, Name = "StreamManager TCP discovering loop" };
             listenThread.Start();
         }
     }
@@ -143,7 +144,7 @@ public class ConnectionManager : MonoBehaviour
     /// <summary>
     /// Session discovery thread
     /// </summary>
-    private void BroadcastListenLoop()
+    private void MulticastListenLoop()
     {
         if (debug)
             UnityMainThreadDispatcher.Instance().Enqueue(()
@@ -164,10 +165,10 @@ public class ConnectionManager : MonoBehaviour
                 }
 
                 ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
-                if (decodedData.connType != ConnectionEvent.BROADCAST)
+                if (decodedData.connType != ConnectionEvent.MULTICAST)
                     continue;
 
-                if (debug) UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[StreamManager] Session found via BROADCAST"));
+                if (debug) UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[StreamManager] Session found via MULTICAST"));
                 StoreSession(decodedData);
             }
             catch (SocketException)
