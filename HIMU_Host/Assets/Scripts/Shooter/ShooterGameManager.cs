@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,10 +16,13 @@ class PlayerInfo
     // Virtual input device backed by controlScene
     public RemoteControlRig rig;
 
+    public bool alive;
+
     public PlayerInfo(int playerN, ShooterPlayerController controller)
     {
         this.playerN = playerN;
         this.controller = controller;
+        this.alive = true;
     }
 }
 
@@ -40,7 +44,9 @@ public class ShooterGameManager : MonoBehaviour
     /// <summary>
     /// Distance along +X between copies of the control scene.
     /// </summary>
-    [SerializeField] private float controlSceneOffset = 1000f;
+    [SerializeField] private float controlSceneOffset = 500f;
+
+    int playersRemaning;
 
     #endregion
 
@@ -81,6 +87,7 @@ public class ShooterGameManager : MonoBehaviour
             return;
         }
 
+        playersRemaning = playerPeers.Count;
         for (int i = 0; i < playerPeers.Count; i++)
         {
             string clientID = playerPeers[i].clientID;
@@ -234,20 +241,57 @@ public class ShooterGameManager : MonoBehaviour
 
     public void PlayerEliminated(string player)
     {
-        players.Remove(player);
+        if (players.TryGetValue(player, out PlayerInfo eliminated)) eliminated.alive = false;
 
-        if (players.Count == 1) SetWinState();
+        playersRemaning--;
+
+        if (playersRemaning <= 1) SetWinState();
     }
 
     private void SetWinState()
     {
-        ShooterUIManager.Instance.SetVictoryUIState(players.First().Value.playerN);
-        players.Values.First().controller.enabled = false;
+        int winner = 0;
+        foreach (var ply in players)
+        {
+            if (ply.Value.alive)
+            {
+                winner = ply.Value.playerN;
+                ply.Value.controller.enabled = false;
+                break;
+            }
+        }
+        ShooterUIManager.Instance.SetVictoryUIState(winner);
+    }
+
+    public void ResetGame()
+    {
+        playersRemaning = players.Count;
+
+        int i = 0;
+        foreach (var ply in players)
+        {
+            Transform spawn = spawnPositions[i];
+            Transform avatar = spawn.GetChild(0);
+            avatar.localPosition = Vector3.zero;
+            avatar.localRotation = Quaternion.identity;
+
+            Rigidbody rb = avatar.GetComponent<Rigidbody>();
+            rb.position = avatar.position;
+            rb.rotation = avatar.rotation;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+
+            ply.Value.controller.enabled = true;
+            ply.Value.alive = true;
+
+            avatar.gameObject.GetComponent<PlayerLifeComponent>().ResetLife();
+            avatar.gameObject.SetActive(true);
+        }
     }
 
     #endregion
 
-    #region Monobehaviour
+        #region Monobehaviour
 
     private void Awake()
     {
@@ -260,6 +304,7 @@ public class ShooterGameManager : MonoBehaviour
         Instance = this;
 
         SceneManager.activeSceneChanged += LoadRemoteControlScene;
+        playersRemaning = 0;
     }
 
     private void OnDestroy()

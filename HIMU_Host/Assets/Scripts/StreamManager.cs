@@ -22,7 +22,9 @@ public delegate RenderTexture TextureAssignmentCallback();
 /// </summary>
 public class StreamManager : MonoBehaviour
 {
+
     #region Variables
+
     /// <summary>
     /// Instance of StreamManager (Singleton)
     /// </summary>
@@ -139,9 +141,11 @@ public class StreamManager : MonoBehaviour
     /// Callback that is executed to retrieve/create client gameobject for ADB clients
     /// </summary>
     private CreateClient adbClientCallback;
+
     #endregion
 
     #region SharedMethods
+
     /// <summary>
     /// Creates the client object and completes the WebRTC connection exchange
     /// </summary>
@@ -273,9 +277,11 @@ public class StreamManager : MonoBehaviour
             if (debug) Debug.LogWarning($"[StreamManager] Unhandled signaling type " + msg.type + " from " + clientID + ".");
         }
     }
+
     #endregion
 
     #region FlaggedMethods
+
     /// <summary>
     /// Starts or stops the WebSocket server wether its checkbox is checked
     /// </summary>
@@ -328,7 +334,7 @@ public class StreamManager : MonoBehaviour
         {
             if (debug) Debug.Log("[StreamManager] Stopping ADB connection.");
             adbServer.StopServer();
-            acceptADBConnection = false;
+            adbConnectionOn = false;
         }
         else
         {
@@ -337,9 +343,11 @@ public class StreamManager : MonoBehaviour
             adbConnectionOn = true;
         }
     }
+
     #endregion
 
     #region Getters & Setters
+
     public string GetNodeServerData()
     {
         return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
@@ -410,7 +418,7 @@ public class StreamManager : MonoBehaviour
 
     public void FlagBrowserAcceptConnections(bool active)
     {
-        if (webSocketServer = null) return;
+        if (webSocketServer == null) return;
         webSocketServer.acceptsConnections = active;
     }
 
@@ -435,7 +443,7 @@ public class StreamManager : MonoBehaviour
 
     public void FlagTCPAcceptConnections(bool active)
     {
-        if (signalingServer = null) return;
+        if (signalingServer == null) return;
         signalingServer.acceptsConnections = active;
         signalingServer.searchingDevices = active;
     }
@@ -463,9 +471,11 @@ public class StreamManager : MonoBehaviour
         if (adbServer == null) return;
         adbServer.acceptsConnections = active;
     }
+
     #endregion
 
     #region BaseMethods
+
     /// <summary>
     /// Basic method for clients gameobject creation
     /// </summary>
@@ -495,7 +505,10 @@ public class StreamManager : MonoBehaviour
         rt.Create();
         return rt;
     }
+
     #endregion
+
+    #region Monobehaviour
 
     void Awake()
     {
@@ -531,4 +544,6 @@ public class StreamManager : MonoBehaviour
             adbServer = gameObject.AddComponent<ADBConnectionServer>();
         }
     }
+
+    #endregion
 }

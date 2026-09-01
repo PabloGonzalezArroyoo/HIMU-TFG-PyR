@@ -112,6 +112,7 @@ public class FrameCaptureFeature : ScriptableRendererFeature
     /// <summary>
     /// Registers the camera to capture from. Called once by the scene's game manager.
     /// </summary>
+    /// /// <param name="cam">The streamed camera.</param>
     public void SetSourceCamera(Camera cam)
     {
         sourceCamera = cam;
@@ -120,7 +121,7 @@ public class FrameCaptureFeature : ScriptableRendererFeature
     /// <summary>
     /// Marks the capture as enabled so that the pass is done when URP tries to enqueue it.
     /// </summary>
-    /// <param name="enabled"></param>
+    /// <param name="enabled">If the capture is enabled.</param>
     public void SetCaptureEnabled(bool enabled)
     {
         captureEnabled = enabled;
