@@ -258,6 +258,7 @@ public class RacingGameManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Instance != this) return;
         SceneManager.activeSceneChanged -= RacingGameManager.Instance.OnGameStarted;
         SceneManager.sceneLoaded -= RacingGameManager.Instance.OnSceneChanged;
     }
