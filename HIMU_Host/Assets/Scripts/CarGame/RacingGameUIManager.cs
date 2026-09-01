@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.UIElements.Experimental;
 
 public class RacingGameUIManager : MonoBehaviour
 {
@@ -26,6 +27,8 @@ public class RacingGameUIManager : MonoBehaviour
 
     private float startGameCounter = 6.0f;
     private float raceCounter = 0f;
+
+    private bool phoneConnected = true;
 
     private bool isChangingScene = false;
 
@@ -69,6 +72,24 @@ public class RacingGameUIManager : MonoBehaviour
         streamingText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.GetSessionID().ToString();
     }
 
+    private IEnumerator CheckControllerConnected()
+    {
+        while (phoneConnected && !isChangingScene)
+        {
+            phoneConnected = StreamManager.Instance.GetADBClients().Count > 0;
+            yield return null;
+        }
+
+        if (!phoneConnected)
+        {
+            RacingGameManager.Instance.gameStarted = false;
+            RacingGameManager.Instance.isPaused = false;
+            ShowDisconnectionText();
+            if (isChangingScene) fadeOutImage.CancelFade();
+            ExitGame();
+        }
+    }
+
     private void Awake()
     {
         if (Instance)
@@ -84,6 +105,7 @@ public class RacingGameUIManager : MonoBehaviour
     {
         streamingText.gameObject.SetActive(RacingGameManager.Instance.streaming);
         pauseMenu.SetActive(false);
+        StartCoroutine(CheckControllerConnected());
     }
 
     void Update()

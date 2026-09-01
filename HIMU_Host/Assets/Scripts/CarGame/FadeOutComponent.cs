@@ -23,8 +23,10 @@ public class FadeOutComponent : MonoBehaviour
         if (!isFading)
         {
             StartCoroutine(Fade());
-            nextScene = sceneName;
             callback = c;
+            nextScene = sceneName;
+            timer = 0f;
+            image.color = new Color(0, 0, 0, 0);
             image.raycastTarget = true;
         }
     }
@@ -34,6 +36,9 @@ public class FadeOutComponent : MonoBehaviour
         isFading = false;
         callback = null;
         nextScene = "";
+        timer = 0f;
+        image.color = new Color(0,0,0,0);
+        image.raycastTarget = false;
     }
 
     private IEnumerator Fade()

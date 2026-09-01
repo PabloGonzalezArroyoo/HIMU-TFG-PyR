@@ -70,14 +70,14 @@ public class ConnectionData
     public int sessionID;
     public string ipAddress;
     public int port;
-    public ConnectionEvent connType;
+    public ConnectionEvent connEvent;
     public ClientConnectionType clientType;
 
-    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientConnectionType clientType = ClientConnectionType.NONE)
+    private ConnectionData(string ipAddress, int port, ConnectionEvent _connEvent, ClientConnectionType clientType = ClientConnectionType.NONE)
     {
         this.ipAddress = ipAddress;
         this.port = port;
-        this.connType = connEvent;
+        this.connEvent = _connEvent;
         this.clientType = clientType;
     }
 

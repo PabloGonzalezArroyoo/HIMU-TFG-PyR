@@ -165,7 +165,7 @@ public class ConnectionManager : MonoBehaviour
                 }
 
                 ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
-                if (decodedData.connType != ConnectionEvent.MULTICAST)
+                if (decodedData.connEvent != ConnectionEvent.MULTICAST)
                     continue;
 
                 if (debug) UnityMainThreadDispatcher.Instance().Enqueue(() => Debug.Log("[StreamManager] Session found via MULTICAST"));
@@ -466,9 +466,9 @@ public class ConnectionManager : MonoBehaviour
 
             ConnectionData ack = JsonUtility.FromJson<ConnectionData>(ackJson);
 
-            if (ack.connType != ConnectionEvent.HANDSHAKE)
+            if (ack.connEvent != ConnectionEvent.HANDSHAKE)
             {
-                Debug.LogWarning($"[StreamManager] Expected HANDSHAKE_ACK, got {ack.connType} instead.");
+                Debug.LogWarning($"[StreamManager] Expected HANDSHAKE_ACK, got {ack.connEvent} instead.");
                 return false;
             }
 

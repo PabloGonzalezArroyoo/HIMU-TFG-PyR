@@ -16,7 +16,6 @@ public class RacingGameManager : MonoBehaviour
     public bool gameStarted = false;
     public bool isPaused = false;
     public bool streaming = false;
-    public bool controllerConnected = false;
 
     private string clientID = "";
 
@@ -112,8 +111,6 @@ public class RacingGameManager : MonoBehaviour
     {
         if (next.name != "RacingGame_MainScene") return;
         StartCoroutine(LoadBackgroundSceneAsync());
-
-        SceneManager.activeSceneChanged -= RacingGameManager.Instance.OnGameStarted;
     }
 
 
@@ -147,11 +144,6 @@ public class RacingGameManager : MonoBehaviour
             Camera backgroundCamera = FindCameraInScene(loadedScene, "RemoteControl_Camera");
             backgroundCamera.targetTexture = controlTexture;
             AssignADBTexture();
-        }
-
-        if (loadedScene.name.Contains("Menu"))
-        {
-            SceneManager.sceneLoaded -= RacingGameManager.Instance.OnSceneChanged;
         }
     }
 
@@ -219,7 +211,7 @@ public class RacingGameManager : MonoBehaviour
     public void EndGame()
     {
         gameStarted = false;
-        isPaused = true;
+        isPaused = false;
         RacingGameUIManager.Instance.EndGame();
         if (streaming) StreamManager.Instance.FlagWebSocketServer();
         StreamManager.Instance.FlagADBConnection();
@@ -259,5 +251,14 @@ public class RacingGameManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         PrepareTextures();
+
+        SceneManager.activeSceneChanged += Instance.OnGameStarted;
+        SceneManager.sceneLoaded += Instance.OnSceneChanged;
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.activeSceneChanged -= RacingGameManager.Instance.OnGameStarted;
+        SceneManager.sceneLoaded -= RacingGameManager.Instance.OnSceneChanged;
     }
 }

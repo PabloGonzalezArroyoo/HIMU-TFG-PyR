@@ -11,8 +11,6 @@ public class RacingMenuUIManager : MonoBehaviour
     public void GoToConnections()
     {
         fadeOutImage.StartFading("RacingGame_ConnectionsScene", RacingGameManager.Instance.ChangeScene);
-        SceneManager.activeSceneChanged += RacingGameManager.Instance.OnGameStarted;
-        SceneManager.sceneLoaded += RacingGameManager.Instance.OnSceneChanged;
     }
 
     public void ExitGame()
