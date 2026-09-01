@@ -132,11 +132,13 @@ public class RacingGameManager : MonoBehaviour
         }
 
         // Cuando se carga la escena de juego -> seteamos la camara de los clientes WebSocket
-        if (loadedScene.name.Contains("Main") && FrameCaptureFeature.Instance != null && FrameCaptureFeature.Instance.IsEnabled())
+        if (loadedScene.name.Contains("Main") && FrameCaptureFeature.Instance != null)
         {
+            FrameCaptureFeature.Instance.SetCaptureEnabled(true);
             FrameCaptureComponent fccomp = gameObject.AddComponent<FrameCaptureComponent>();
-            FrameCaptureFeature.Instance.SetSourceCamera(Camera.main);
+            FrameCaptureFeature.Instance.SetSourceCamera(FindCameraInScene(loadedScene, "PlayerCamera"));
             ChangeStreamTextures();
+            Debug.Log("Se aplican la textura del frame capture");
         }
 
         // Cuando se carga la escena de mando -> seteamos la camara del cliente adb
@@ -247,7 +249,12 @@ public class RacingGameManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance) DestroyImmediate(Instance.gameObject);
+        if (Instance)
+        {
+            gameObject.SetActive(false);
+            Destroy(gameObject);
+            return;
+        }
 
         Instance = this;
         DontDestroyOnLoad(gameObject);

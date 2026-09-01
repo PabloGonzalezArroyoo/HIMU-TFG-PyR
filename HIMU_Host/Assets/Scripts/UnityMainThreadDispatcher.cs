@@ -97,7 +97,7 @@ public class UnityMainThreadDispatcher : MonoBehaviour {
 	}
 
 	public static UnityMainThreadDispatcher Instance() {
-		if (!Exists ()) {
+		if (!Exists()) {
 			throw new Exception ("UnityMainThreadDispatcher could not find the UnityMainThreadDispatcher object. Please ensure you have added the MainThreadExecutor Prefab to your scene.");
 		}
 		return _instance;
@@ -107,16 +107,10 @@ public class UnityMainThreadDispatcher : MonoBehaviour {
 	void Awake() {
         if (Exists())
         {
-            try { Destroy(Instance().gameObject); }
-            catch { }
+            Destroy(Instance().gameObject);
+			_instance = null;
         }
         _instance = this;
         DontDestroyOnLoad(this.gameObject);
     }
-
-	void OnDestroy() {
-			_instance = null;
-	}
-
-
 }

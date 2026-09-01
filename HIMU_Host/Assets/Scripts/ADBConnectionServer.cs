@@ -107,7 +107,7 @@ public class ADBConnectionServer : MonoBehaviour
             }
         }
 
-        UnityEngine.Debug.LogError("[ADBServer] adb.exe not found. Install Android Studio or the Android SDK.");
+        if (debug) UnityEngine.Debug.LogError("[ADBServer] adb.exe not found. Install Android Studio or the Android SDK.");
         return null;
     }
 
@@ -228,7 +228,7 @@ public class ADBConnectionServer : MonoBehaviour
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogWarning($"[ADBServer] Device watcher error: {ex.Message}");
+                if (debug) UnityEngine.Debug.LogWarning($"[ADBServer] Device watcher error: {ex.Message}");
             }
 
             Thread.Sleep(devicePollIntervalMs);
@@ -315,7 +315,7 @@ public class ADBConnectionServer : MonoBehaviour
             {
                 TcpClient tcp = session.listener.AcceptTcpClient();
                 session.tcpClient = tcp;
-                UnityEngine.Debug.Log($"[ADBServer] App connected through ADB tunnel for device {session.deviceId}.");
+                if(debug) UnityEngine.Debug.Log($"[ADBServer] App connected through ADB tunnel for device {session.deviceId}.");
                 HandleClient(session, tcp);
             }
             catch (SocketException)
@@ -324,7 +324,7 @@ public class ADBConnectionServer : MonoBehaviour
             }
             catch (Exception ex)
             {
-                if (running)
+                if (running && debug)
                     UnityEngine.Debug.LogWarning($"[ADBServer] Accept error for {session.deviceId}: {ex.Message}");
             }
         }
@@ -435,7 +435,6 @@ public class ADBConnectionServer : MonoBehaviour
             return false;
         }
     }
-
     #endregion
 
     #region Activation/Deactivation

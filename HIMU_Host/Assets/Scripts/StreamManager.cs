@@ -225,13 +225,13 @@ public class StreamManager : MonoBehaviour
 
         if (peer.himuClient == null)
         {
-            Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} arrived before its HIMUClient existed. Dropping.");
+            if (debug) Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} arrived before its HIMUClient existed. Dropping.");
             return;
         }
 
         if (string.IsNullOrEmpty(msg.body))
         {
-            Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} arrived with an empty body. Dropping.");
+            if (debug) Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} arrived with an empty body. Dropping.");
             return;
         }
 
@@ -240,7 +240,7 @@ public class StreamManager : MonoBehaviour
             IceCandidateData data = JsonUtility.FromJson<IceCandidateData>(msg.body);
             if (data == null)
             {
-                Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} couldn't be converted to a valid JSON format. Dropping.");
+                if (debug) Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} couldn't be converted to a valid JSON format. Dropping.");
                 return;
             }
 
@@ -257,7 +257,7 @@ public class StreamManager : MonoBehaviour
             SessionDescriptionData data = JsonUtility.FromJson<SessionDescriptionData>(msg.body);
             if (data == null)
             {
-                Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} couldn't be converted to a valid JSON format. Dropping.");
+                if (debug) Debug.LogWarning($"[StreamManager] Signaling {msg.type} for {clientID} couldn't be converted to a valid JSON format. Dropping.");
                 return;
             }
 
@@ -270,7 +270,7 @@ public class StreamManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"[StreamManager] Unhandled signaling type " + msg.type + " from " + clientID + ".");
+            if (debug) Debug.LogWarning($"[StreamManager] Unhandled signaling type " + msg.type + " from " + clientID + ".");
         }
     }
     #endregion
@@ -284,14 +284,14 @@ public class StreamManager : MonoBehaviour
         if (!acceptWebSocketConnection) return;
         if (webSocketConnectionOn)
         {
-            UnityEngine.Debug.Log("[StreamManager] Stopping WebSocket server (Node).");
+            if (debug) Debug.Log("[StreamManager] Stopping WebSocket server (Node).");
             await webSocketServer.DisconnectToNode();
             webSocketServer.StopServer();
             webSocketConnectionOn = false;
         }
         else
         {
-            UnityEngine.Debug.Log("[StreamManager] Launching WebSocket server (Node).");
+            if (debug) Debug.Log("[StreamManager] Launching WebSocket server (Node).");
             webSocketServer.LaunchServer();
             webSocketServer.ConnectToNode();
             webSocketConnectionOn = true;
@@ -306,13 +306,13 @@ public class StreamManager : MonoBehaviour
         if (!acceptTCPConnection) return;
         if (tcpConnectionOn)
         {
-            if (debug) UnityEngine.Debug.Log("[StreamManager] Stopping TCP signaling server.");
+            if (debug) Debug.Log("[StreamManager] Stopping TCP signaling server.");
             signalingServer.StopServer();
             tcpConnectionOn = false;
         }
         else
         {
-            UnityEngine.Debug.Log("[StreamManager] Launching TCP signaling server.");
+            if (debug) Debug.Log("[StreamManager] Launching TCP signaling server.");
             signalingServer.StartServer();
             tcpConnectionOn = true;
         }
@@ -326,13 +326,13 @@ public class StreamManager : MonoBehaviour
         if (!acceptADBConnection) return;
         if (adbConnectionOn)
         {
-            UnityEngine.Debug.Log("[StreamManager] Stopping ADB connection.");
+            if (debug) Debug.Log("[StreamManager] Stopping ADB connection.");
             adbServer.StopServer();
             acceptADBConnection = false;
         }
         else
         {
-            UnityEngine.Debug.Log("[StreamManager] Launching ADB connection.");
+            if (debug) Debug.Log("[StreamManager] Launching ADB connection.");
             adbServer.StartServer();
             adbConnectionOn = true;
         }
@@ -460,7 +460,7 @@ public class StreamManager : MonoBehaviour
     }
     public void FlagADBAcceptConnections(bool active)
     {
-        if (adbServer = null) return;
+        if (adbServer == null) return;
         adbServer.acceptsConnections = active;
     }
     #endregion
@@ -500,8 +500,8 @@ public class StreamManager : MonoBehaviour
     void Awake()
     {
         if (Instance) {
-            try { Destroy(Instance.gameObject); }
-            catch { }
+            Instance.gameObject.SetActive(false);
+            Destroy(Instance.gameObject);
         }
         Instance = this;
         if (shouldPersist) DontDestroyOnLoad(gameObject);

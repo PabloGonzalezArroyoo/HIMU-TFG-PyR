@@ -97,8 +97,8 @@ public class InputManager : MonoBehaviour
     private void Awake()
     {
         if (Instance) {
-            try { DestroyImmediate(Instance.gameObject); }
-            catch { }
+            Instance.gameObject.SetActive(false);
+            Destroy(Instance.gameObject);
         }
         Instance = this;
         if(shouldPersist) DontDestroyOnLoad(gameObject);

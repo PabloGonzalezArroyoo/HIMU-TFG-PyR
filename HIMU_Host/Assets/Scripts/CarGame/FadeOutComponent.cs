@@ -25,6 +25,7 @@ public class FadeOutComponent : MonoBehaviour
             StartCoroutine(Fade());
             nextScene = sceneName;
             callback = c;
+            image.raycastTarget = true;
         }
     }
 
