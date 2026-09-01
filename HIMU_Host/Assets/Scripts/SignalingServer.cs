@@ -8,11 +8,13 @@ using System.Threading;
 using UnityEngine;
 
 /// <summary>
-/// Class in charge to establish WiFi connections
+/// Class incharge of establishing and handlening WiFi connections, making Unity take the role of the server in an signaling enviroment
 /// </summary>
 public class SignalingServer : MonoBehaviour
 {
+
     #region Variables
+
     /// <summary>
     /// Wether the server is running or not
     /// </summary>
@@ -23,6 +25,9 @@ public class SignalingServer : MonoBehaviour
     /// </summary>
     public bool searchingDevices = true;
 
+    /// <summary>
+    /// Whether it accepts new connections or not
+    /// </summary>
     public bool acceptsConnections = true;
 
     /// <summary>
@@ -36,12 +41,12 @@ public class SignalingServer : MonoBehaviour
     private int broadcastPort = 8053;
 
     /// <summary>
-    /// Listener para escuchar mensajes de los clientes
+    /// Listener that waits for messages from the clients
     /// </summary>
     private TcpListener listener;
 
     /// <summary>
-    /// Hilo de escucha de mensajes
+    /// Thread that listens for incoming messages
     /// </summary>
     private Thread listenThread;
     
@@ -54,9 +59,11 @@ public class SignalingServer : MonoBehaviour
     /// Multicast IP group for specific broadcasting
     /// </summary>
     private const string MulticastGroup = "239.0.0.1";
+
     #endregion
 
-    #region Conection
+    #region Activation/Deactivation
+
     /// <summary>
     /// Stops the TCP server.
     /// </summary>
@@ -71,7 +78,7 @@ public class SignalingServer : MonoBehaviour
 
         try { listener?.Stop(); } catch { }
 
-        listenThread?.Join(500); // cierra el hilo en un plazo de 500ms
+        listenThread?.Join(500); // closes the thread within 500ms
         Debug.Log("[SignalingServer] TCP server stopped.");
     }
 
@@ -92,8 +99,12 @@ public class SignalingServer : MonoBehaviour
         Debug.Log("[SignalingServer] TCP server launched.");
     }
 
+    #endregion
+
+    #region Connection discovery
+
     /// <summary>
-    /// Envia mensajes BROADCAST en la red del dispositivo
+    /// Sends a BROADCAST through the network for other devices to find this server
     /// </summary>
     /// <returns></returns>
     IEnumerator SendBroadcast()
@@ -102,8 +113,8 @@ public class SignalingServer : MonoBehaviour
         {
             string ip = NetworkUtils.GetIP();
             ConnectionData connectionData = ConnectionData.ForBroadcast(ip, listenPort);
-            connectionData.sessionName = StreamManager.Instance.sessionName;
-            connectionData.sessionID = StreamManager.Instance.sessionID;
+            connectionData.sessionName = StreamManager.Instance.GetSessionName();
+            connectionData.sessionID = StreamManager.Instance.GetSessionID();
             string json = JsonUtility.ToJson(connectionData);
             byte[] data = Encoding.UTF8.GetBytes(json);
 
@@ -127,7 +138,7 @@ public class SignalingServer : MonoBehaviour
     }
 
     /// <summary>
-    /// Bucle de recepcion de informacion de los clientes
+    /// Loop for listening to new clients and establishing their connection
     /// </summary>
     private void ListenLoop()
     {
@@ -149,7 +160,7 @@ public class SignalingServer : MonoBehaviour
             }
             catch (SocketException)
             {
-                // Thrown when listener.Stop() is called � expected during shutdown
+                // Thrown when listener.Stop() is called, expected during shutdown
                 break;
             }
             catch (Exception ex)
@@ -158,6 +169,10 @@ public class SignalingServer : MonoBehaviour
             }
         }
     }
+
+    #endregion
+
+    #region Communication
 
     /// <summary>
     /// Sends the signaling message of this project to the TCP server.
@@ -171,8 +186,6 @@ public class SignalingServer : MonoBehaviour
         try
         {
             NetworkStream stream = tcp.GetStream();
-            // Se usa el propio stream como objeto de lock: varios hilos de cliente pueden
-            // llamar a SendMessage sobre el mismo stream concurrentemente.
             NetworkUtils.WriteFramedMessage(stream, JsonUtility.ToJson(msg), syncRoot: stream);
             return true;
         }
@@ -183,6 +196,11 @@ public class SignalingServer : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Replies to the client's handshake with a HANDSHAKE_ACK. Returns whether it was sent successfully
+    /// </summary>
+    /// <param name="stream">Stream of the client's tunnel</param>
+    /// <param name="clientIP">Client's IP</param>
     private bool SendHandshake(NetworkStream stream, string clientIP)
     {
         try
@@ -199,9 +217,9 @@ public class SignalingServer : MonoBehaviour
     }
 
     /// <summary>
-    /// Gestion de los clientes (handshake y bucle de recepcion)
+    /// Handles a client: handshake first, then the message reception loop
     /// </summary>
-    /// <param name="tcp"></param>
+    /// <param name="tcp">Client's TCP connection</param>
     private void HandleClient(TcpClient tcp)
     {
         NetworkStream stream = tcp.GetStream();
@@ -219,14 +237,14 @@ public class SignalingServer : MonoBehaviour
             ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
 
             // Check if the data recieved is truly a ConnectionData class
-            if (decodedData.connType != ConnectionEvent.HANDSHAKE)
+            if (decodedData.connEvent != ConnectionEvent.HANDSHAKE)
             {
                 Debug.LogError("[SignalingServer] Not a Connection Data recieved during handshake.");
                 return;
             }
 
             string clientIP = decodedData.ipAddress;
-            // Confirmamos el handshake ANTES de registrar el cliente como activo.
+            // Confirm the handshake BEFORE registering the client as active
             if (!SendHandshake(stream, clientIP))
             {
                 Debug.LogError($"[SignalingServer] Failed to send HANDSHAKE to {decodedData.ipAddress}");
@@ -240,14 +258,12 @@ public class SignalingServer : MonoBehaviour
 
             Debug.Log($"[SignalingServer] Client connected: {decodedData.ipAddress}");
 
-            // Data process loop ---
+            // Data process loop
             while (running)
             {
                 if (!NetworkUtils.TryReadFramedMessage(stream, out string incoming)) break;
 
                 var sigMsg = JsonUtility.FromJson<SignalingMessage>(incoming);
-
-                // Ejecutar en el hilo principal de Unity (los peers WebRTC lo necesitan)
                 UnityMainThreadDispatcher.Instance().Enqueue(() =>
                     StreamManager.Instance?.HandleIncomingSignaling(clientID, sigMsg));
             }
@@ -281,4 +297,5 @@ public class SignalingServer : MonoBehaviour
     }
 
     #endregion
+
 }

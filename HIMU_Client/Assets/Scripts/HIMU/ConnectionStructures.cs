@@ -6,13 +6,13 @@ using Unity.WebRTC;
 using UnityEngine;
 
 /// <summary>
-/// HOST CONNECTION STRUCTURES
+/// CLIENT CONNECTION STRUCTURES
 /// </summary>
 
 #region Enums
 
 /// <summary>
-/// Indicates which fase the message we are sending belongs too
+/// Indicates which phase the message we are sending belongs too
 /// </summary>
 public enum ConnectionEvent
 {
@@ -44,6 +44,8 @@ public enum ClientConnectionState
     Connected
 }
 #endregion
+
+#region Connection Structures
 
 /// <summary>
 /// Class that represents each device connected via USB cable
@@ -100,7 +102,10 @@ public class ConnectionData
     }
 }
 
+#endregion
+
 #region Communication Structures
+
 /// <summary>
 /// Message shared between two devices
 /// </summary>
@@ -123,15 +128,13 @@ public class SignalingMessage
 [System.Serializable]
 public struct TouchData
 {
-    public int id;
     public float x;
     public float y;
 
-    public TouchData(int id, Vector2 position)
+    public TouchData(Vector2 position)
     {
-        this.id = id;
-        this.x = position.x;
-        this.y = position.y;
+        x = position.x;
+        y = position.y;
     }
 }
 
@@ -142,18 +145,16 @@ public struct TouchData
 public class InputFrame
 {
     public List<TouchData> touches;
-
     public Vector3 accelerometer;
+    public float sentAt;                    // Time controlled by the SENDER
+    public float receivedAt;                // Time controller by the RECIVER
 
-    // Time controlled by the SENDER
-    public float sentAt;
-
-    // Time controller by the RECEIVER
-    public float receivedAt;
-
-    public InputFrame() 
+    public InputFrame()
     {
         touches = new List<TouchData>();
+        accelerometer = Vector3.zero;
+        sentAt = 0;
+        receivedAt = 0;
     }
 
     public InputFrame(List<TouchData> t, Vector3 a, float sent)
@@ -174,11 +175,13 @@ public class WSMessage
     public int clientId;
     public string body;
 }
+
 #endregion
 
 #region WebRTC Structures
+
 /// <summary>
-/// Class inherited from 
+/// Wrapper that saves the values of an RTCIceCandidate so it can be serialized and sent
 /// </summary>
 [Serializable]
 public class IceCandidateData
@@ -195,7 +198,9 @@ public class IceCandidateData
     }
 }
 
-// Wrapper that saves the values of RTCSessionDescription
+/// <summary>
+/// Wrapper that saves the values of RTCSessionDescription
+/// </summary>
 [Serializable]
 public class SessionDescriptionData
 {
@@ -217,4 +222,5 @@ public class SessionDescriptionData
         };
     }
 }
+
 #endregion

@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 public class RemoteControlButton : MonoBehaviour
 {
+
     #region Variables
 
     /// <summary>
@@ -104,4 +105,5 @@ public class RemoteControlButton : MonoBehaviour
     }
 
     #endregion
+
 }

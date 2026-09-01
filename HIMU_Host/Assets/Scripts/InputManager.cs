@@ -52,7 +52,7 @@ public class InputManager : MonoBehaviour
             return;
         }
 
-        // Discards unordered inputs if the previous one is newer than the one recieved by comparing times
+        // Discards unordered inputs if the previous one is newer than the one received by comparing times
         if (pendingInputFrames.TryGetValue(clientID, out InputFrame previous)
             && frame.sentAt < previous.sentAt)
             return;
@@ -62,6 +62,10 @@ public class InputManager : MonoBehaviour
         pendingInputFrames[clientID] = frame;
     }
 
+    /// <summary>
+    /// Removes a client from the input data map
+    /// </summary>
+    /// <param name="clientID"></param>
     public void RemoveClient(string clientID)
     {
         if (string.IsNullOrEmpty(clientID)) return;
@@ -82,6 +86,11 @@ public class InputManager : MonoBehaviour
         return frame != null ? frame : null;
     }
 
+    /// <summary>
+    /// Returns a valid frame for a client by checking if it exists and if it passes the timeout threshold
+    /// </summary>
+    /// <param name="clientID">Client of the frame</param>
+    /// <returns>InputFrame if valid, null otherwise</returns>
     private InputFrame GetValidFrame(string clientID)
     {
         if (string.IsNullOrEmpty(clientID)) return null;
@@ -94,14 +103,19 @@ public class InputManager : MonoBehaviour
     #endregion
 
     #region Monobehaviour
+
     private void Awake()
     {
         if (Instance) {
             Instance.gameObject.SetActive(false);
             Destroy(Instance.gameObject);
         }
+
         Instance = this;
-        if(shouldPersist) DontDestroyOnLoad(gameObject);
+
+        if (shouldPersist) DontDestroyOnLoad(gameObject);
     }
+
     #endregion
+
 }

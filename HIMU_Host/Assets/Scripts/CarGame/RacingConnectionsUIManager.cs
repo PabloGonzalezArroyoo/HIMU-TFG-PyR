@@ -43,7 +43,7 @@ public class RacingConnectionsUIManager : MonoBehaviour
     {
         RacingGameManager.Instance.OnStreamButtonClicked();
         streamText.gameObject.SetActive(RacingGameManager.Instance.streaming);
-        streamText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.sessionID.ToString();
+        streamText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.GetSessionID().ToString();
         streamButtonText.text = RacingGameManager.Instance.streaming ? "STREAM ON" : "STREAM OFF";
     }
 

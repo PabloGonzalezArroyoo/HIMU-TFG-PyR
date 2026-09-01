@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class FrameCaptureComponent : MonoBehaviour
 {
+
     #region Operations
 
     /// <summary>
@@ -47,4 +48,5 @@ public class FrameCaptureComponent : MonoBehaviour
     }
 
     #endregion
+
 }

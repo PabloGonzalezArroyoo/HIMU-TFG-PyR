@@ -10,6 +10,7 @@ using UnityEngine.Rendering.Universal;
 /// </summary>
 public class FrameCapturePass : ScriptableRenderPass
 {
+
     #region Variables
 
     /// <summary>
@@ -111,5 +112,7 @@ public class FrameCapturePass : ScriptableRenderPass
         outputHandle = null;
         OutputTexture = null;
     }
+
     #endregion
+
 }

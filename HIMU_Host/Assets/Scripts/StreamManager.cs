@@ -42,9 +42,17 @@ public class StreamManager : MonoBehaviour
     [SerializeField]
     private bool shouldPersist = false;
 
-    public string sessionName = "Placeholder";
+    /// <summary>
+    /// Name of this game session 
+    /// </summary>
+    [SerializeField]
+    private string sessionName = "Placeholder";
 
-    public int sessionID { get; private set; } = 1234;
+    /// <summary>
+    /// ID of this game session, used to differ from other games that could be playing in the 
+    /// same network
+    /// </summary>
+    private int sessionID = 1234;
 
     /// <summary>
     /// All currently connected clients, keyed by their clientID (GUID for TCP clients,
@@ -74,6 +82,7 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private bool acceptWebSocketConnection = true;
+
     /// <summary>
     /// Indicates if WebSocket connections feature is activated or not
     /// </summary>
@@ -84,6 +93,7 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private bool acceptTCPConnection = true;
+
     /// <summary>
     /// Indicates if TCP connections feature is activated or not
     /// </summary>
@@ -94,6 +104,7 @@ public class StreamManager : MonoBehaviour
     /// </summary>
     [SerializeField]
     private bool acceptADBConnection = true;
+
     /// <summary>
     /// Indicates if ADB connections feature is activated or not
     /// </summary>
@@ -348,6 +359,28 @@ public class StreamManager : MonoBehaviour
 
     #region Getters & Setters
 
+    /// <summary>
+    /// Returns the session name
+    /// </summary>
+    /// <returns></returns>
+    public string GetSessionName()
+    {
+        return sessionName;
+    }
+
+    /// <summary>
+    /// Retruns the session id
+    /// </summary>
+    /// <returns></returns>
+    public int GetSessionID()
+    {
+        return sessionID;
+    }
+
+    /// <summary>
+    /// Returns the URL to the Node signaling server
+    /// </summary>
+    /// <returns></returns>
     public string GetNodeServerData()
     {
         return webSocketServer.GetNodeHost() + ":" + webSocketServer.GetBrowserPort().ToString();
@@ -366,6 +399,10 @@ public class StreamManager : MonoBehaviour
         return copy;
     }
 
+    /// <summary>
+    /// Copies the only the current WEB_SOCKET clients to the returned list.
+    /// </summary>
+    /// <returns>Copy of the WEB_SOCKET clients list.</returns>
     public List<ClientData> GetBrowserClients()
     {
         List<ClientData> browserClients = new List<ClientData>();
@@ -376,6 +413,10 @@ public class StreamManager : MonoBehaviour
         return browserClients;
     }
 
+    /// <summary>
+    /// Copies the only the current TCP clients to the returned list.
+    /// </summary>
+    /// <returns>Copy of the TCP clients list.</returns>
     public List<ClientData> GetTCPClients()
     {
         List<ClientData> tcpClients = new List<ClientData>();
@@ -386,6 +427,10 @@ public class StreamManager : MonoBehaviour
         return tcpClients;
     }
 
+    /// <summary>
+    /// Copies the only the current ADB clients to the returned list.
+    /// </summary>
+    /// <returns>Copy of the ADB clients list.</returns>
     public List<ClientData> GetADBClients()
     {
         List<ClientData> adbClients = new List<ClientData>();
@@ -426,6 +471,7 @@ public class StreamManager : MonoBehaviour
     {
         return tcpClientCallback;
     }
+
     public void SetTCPClientCallback(CreateClient newCallback)
     {
         tcpClientCallback = newCallback;
@@ -452,6 +498,7 @@ public class StreamManager : MonoBehaviour
     {
         return adbClientCallback;
     }
+
     public void SetADBClientCallback(CreateClient newCallback)
     {
         adbClientCallback = newCallback;
@@ -466,6 +513,7 @@ public class StreamManager : MonoBehaviour
     {
         adbTextureCallback = newCallback;
     }
+
     public void FlagADBAcceptConnections(bool active)
     {
         if (adbServer == null) return;
@@ -546,4 +594,5 @@ public class StreamManager : MonoBehaviour
     }
 
     #endregion
+
 }

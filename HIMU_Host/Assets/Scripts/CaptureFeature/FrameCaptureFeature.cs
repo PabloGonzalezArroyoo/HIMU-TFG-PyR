@@ -10,6 +10,7 @@ using UnityEngine.Rendering.Universal;
 /// </summary>
 public class FrameCaptureFeature : ScriptableRendererFeature
 {
+
     #region Variables
 
     /// <summary>
@@ -21,12 +22,14 @@ public class FrameCaptureFeature : ScriptableRendererFeature
     /// <summary>
     /// Width of the captured frame.
     /// </summary>
-    [SerializeField] private int width = 1280;
+    [SerializeField]
+    private int width = 1280;
 
     /// <summary>
     /// Height of the captured frame.
     /// </summary>
-    [SerializeField] private int height = 720;
+    [SerializeField]
+    private int height = 720;
 
     /// <summary>
     /// The pass incharge of capturing the frame each render cycle.
@@ -63,6 +66,8 @@ public class FrameCaptureFeature : ScriptableRendererFeature
         // Adds the pass to URP's render pipeline after everything has been rendered. This way
         // allows postprocessing and UI to be included in the captured frame because it will
         // always be the last pass the pipeline will do.
+        // NOTE: For the UI to be present in this phase -> Canvas: Screen Space Camera, with
+        // the camera as the rendertarget
         pass.renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing;
     }
 
@@ -127,6 +132,10 @@ public class FrameCaptureFeature : ScriptableRendererFeature
         captureEnabled = enabled;
     }
 
+    /// <summary>
+    /// Whether the capture is enabled or not
+    /// </summary>
+    /// <returns></returns>
     public bool IsEnabled()
     {
         return captureEnabled;
@@ -142,4 +151,5 @@ public class FrameCaptureFeature : ScriptableRendererFeature
     }
 
     #endregion
+
 }

@@ -43,6 +43,8 @@ public class InputManager : MonoBehaviour
     /// </summary>
     public bool send = false;
 
+    private Vector2 normalizedPos;
+
     /// <summary>
     /// Variables for sending frequency control.
     /// </summary>
@@ -121,6 +123,7 @@ public class InputManager : MonoBehaviour
         sendInterval = sendRateHz > 0f ? 1f / sendRateHz : 0f;
         nextSendTime = 0f;
         send = false;
+        normalizedPos = Vector2.zero;
     }
 
     void Update()
@@ -145,8 +148,9 @@ public class InputManager : MonoBehaviour
             for (int i = 0; i < count; i++)
             {
                 Touch t = activeTouches[i];
-                Vector2 normalizedPos = new Vector2(t.screenPosition.x / Screen.width, t.screenPosition.y / Screen.height);
-                inputFrame.touches.Add(new TouchData(t.touchId, normalizedPos));
+                normalizedPos.x = t.screenPosition.x / Screen.width;
+                normalizedPos.y = t.screenPosition.y / Screen.height;
+                inputFrame.touches.Add(new TouchData(normalizedPos));
             }
         }
 
@@ -160,5 +164,6 @@ public class InputManager : MonoBehaviour
         inputFrame.sentAt = Time.unscaledTime;
         receiver.SendThroughDataChannel(JsonUtility.ToJson(inputFrame));
     }
+
     #endregion
 }

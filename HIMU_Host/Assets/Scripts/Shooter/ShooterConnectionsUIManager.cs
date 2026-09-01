@@ -34,7 +34,7 @@ public class ShooterConnectionsUIManager : MonoBehaviour
     {
         streamText.SetActive(true);
         TextMeshProUGUI strText = streamText.GetComponent<TextMeshProUGUI>();
-        strText.text = $"Streaming on {NetworkUtils.GetIP()}:3000\nSession: {StreamManager.Instance.sessionID}";
+        strText.text = $"Streaming on {NetworkUtils.GetIP()}:3000\nSession: {StreamManager.Instance.GetSessionID()}";
 
         if (FrameCaptureFeature.Instance != null)
         {

@@ -13,7 +13,9 @@ using UnityEngine;
 /// </summary>
 public class ADBConnectionServer : MonoBehaviour
 {
+
     #region Variables
+      
     /// <summary>
     /// Defines whether we print information or not
     /// </summary>
@@ -49,6 +51,9 @@ public class ADBConnectionServer : MonoBehaviour
     /// </summary>
     private bool running;
 
+    /// <summary>
+    /// Whether it accepts new connections or not
+    /// </summary>
     public bool acceptsConnections = true;
 
     /// <summary>
@@ -75,9 +80,11 @@ public class ADBConnectionServer : MonoBehaviour
     /// Same sessions, keyed by the clientID StreamManager knows them by
     /// </summary>
     private readonly ConcurrentDictionary<string, WiredDeviceData> sessionsByClientID = new ConcurrentDictionary<string, WiredDeviceData>();
+
     #endregion
 
     #region ADB
+
     /// <summary>
     /// Checks common SDK install location trying to allocate adb.exe
     /// </summary>
@@ -151,9 +158,11 @@ public class ADBConnectionServer : MonoBehaviour
 
         return output.ToString();
     }
+
     #endregion
 
     #region Port administration
+
     /// <summary>
     /// Assigns an available port to a new client. If there is no room for more ports, throws exception
     /// </summary>
@@ -182,9 +191,11 @@ public class ADBConnectionServer : MonoBehaviour
         lock (usedLocalPorts)
             usedLocalPorts.Remove(port);
     }
+
     #endregion
 
     #region Device watcher
+
     /// <summary>
     /// Processes "adb devices" output into a list of available devices (ignoring "unauthorized"/"offline" devices)
     /// </summary>
@@ -300,9 +311,11 @@ public class ADBConnectionServer : MonoBehaviour
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.RemovePeer(clientID));
         }
     }
+
     #endregion
 
     #region Communication
+
     /// <summary>
     /// Waits for the phone app to connect through this device's tunnel. 
     /// If the connection drops (app closed/crashed) it keeps listening in case the app reconnects (only while the device stays connected)
@@ -315,7 +328,7 @@ public class ADBConnectionServer : MonoBehaviour
             {
                 TcpClient tcp = session.listener.AcceptTcpClient();
                 session.tcpClient = tcp;
-                if(debug) UnityEngine.Debug.Log($"[ADBServer] App connected through ADB tunnel for device {session.deviceId}.");
+                if (debug) UnityEngine.Debug.Log($"[ADBServer] App connected through ADB tunnel for device {session.deviceId}.");
                 HandleClient(session, tcp);
             }
             catch (SocketException)
@@ -348,7 +361,7 @@ public class ADBConnectionServer : MonoBehaviour
 
             ConnectionData decodedData = JsonUtility.FromJson<ConnectionData>(message);
 
-            if (decodedData.connType != ConnectionEvent.HANDSHAKE)
+            if (decodedData.connEvent != ConnectionEvent.HANDSHAKE)
             {
                 UnityEngine.Debug.LogError("[ADBServer] Did not receive a valid handshake ConnectionData");
                 return;
@@ -399,6 +412,11 @@ public class ADBConnectionServer : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Replies to the client's handshake with a HANDSHAKE_ACK. Returns whether it was sent successfully
+    /// </summary>
+    /// <param name="stream">Stream of the client's tunnel</param>
+    /// <param name="clientIP">Client's IP</param>
     private bool SendHandshake(NetworkStream stream, string clientIP)
     {
         try
@@ -435,9 +453,14 @@ public class ADBConnectionServer : MonoBehaviour
             return false;
         }
     }
+
     #endregion
 
     #region Activation/Deactivation
+
+    /// <summary>
+    /// Starts the server, launching the background thread that watches for ADB devices
+    /// </summary>
     public void StartServer()
     {
         if (running) return;
@@ -455,6 +478,9 @@ public class ADBConnectionServer : MonoBehaviour
         if (debug) UnityEngine.Debug.Log("[ADBServer] ADB server launched.");
     }
 
+    /// <summary>
+    /// Stops the server, ending the watcher thread and closing every active session
+    /// </summary>
     public void StopServer()
     {
         if (!running) return;
@@ -467,9 +493,11 @@ public class ADBConnectionServer : MonoBehaviour
 
         if (debug) UnityEngine.Debug.Log("[ADBServer] ADB server stopped.");
     }
+
     #endregion
 
     #region Monobehaviour
+
     private void Start()
     {
         adbPath = FindAdbPath();
@@ -479,5 +507,7 @@ public class ADBConnectionServer : MonoBehaviour
     {
         try { StopServer(); } catch { }
     }
+
     #endregion
+
 }

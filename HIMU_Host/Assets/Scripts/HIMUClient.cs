@@ -3,6 +3,9 @@ using System.Collections;
 using Unity.WebRTC;
 using UnityEngine;
 
+/// <summary>
+/// Representation of a client peer to this host, incharge of initializing and handling the WebRTC connection and its exchange of data.
+/// </summary>
 public class HIMUClient : MonoBehaviour
 {
 
@@ -44,9 +47,10 @@ public class HIMUClient : MonoBehaviour
     public System.Action<SignalingMessage> OnSignalingMessage;
 
     /// <summary>
-    /// Wether this client needs a DataChannel for input or not.
+    /// Whether this client needs a DataChannel for input or not.
     /// </summary>
     private bool handlesInput = false;
+
     #endregion
 
     #region Methods
@@ -65,7 +69,7 @@ public class HIMUClient : MonoBehaviour
         OnSignalingMessage = onSignalingMsg;
         handlesInput = input;
 
-        // Connection configuration. Uses STUN to discover the public IP of this device.
+        // Connection configuration. Uses STUN to discover the public IP of this device if needed due to an intermediate NAT.
         RTCConfiguration config = new RTCConfiguration
         {
             iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } }
@@ -161,18 +165,22 @@ public class HIMUClient : MonoBehaviour
         InputManager.Instance.ParseInputMessage(clientID, msg);
     }
 
-
+    /// <summary>
+    /// Swaps the RenderTexture being streamed to this client, replacing the current video
+    /// track with a new one without renegotiating the connection.
+    /// </summary>
+    /// <param name="texture">New RenderTexture to stream.</param>
     public void ChangeTexture(RenderTexture texture)
     {
         if (texture == null)
         {
-            Debug.LogError("Texture es null");
+            Debug.LogError("[HIMUClient] Texture is null");
             return;
         }
 
         if (videoSender == null)
         {
-            Debug.LogError("videoSender es null");
+            Debug.LogError("[HIMUClient] VideoSender is null");
             return;
         }
 
@@ -181,7 +189,7 @@ public class HIMUClient : MonoBehaviour
             VideoStreamTrack newVST = new VideoStreamTrack(texture);
 
             bool replaced = videoSender.ReplaceTrack(newVST);
-            Debug.Log($"ReplaceTrack devolvió: {replaced}");
+            Debug.Log($"ReplaceTrack returned: {replaced}");
 
             if (!replaced)
             {
@@ -242,5 +250,6 @@ public class HIMUClient : MonoBehaviour
         peer?.Dispose();
     }
     #endregion
+
 }
 

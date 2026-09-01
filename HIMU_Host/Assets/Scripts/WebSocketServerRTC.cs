@@ -9,55 +9,82 @@ using System.Threading.Tasks;
 using Unity.WebRTC;
 using UnityEngine;
 
+/// <summary>
+/// Class in charge of the browser clients: launches the Node server, connects to it via
+/// WebSocket and relays signaling between it and Unity
+/// </summary>
 public class WebSocketServerRTC : MonoBehaviour
 {
-    // TO-DO -> COMENTARIOS EN INGLÉS
+
     #region Variables
 
     /// <summary>
-    /// Debe ser la IP del dispositivo que corre el servidor de Node (asumimos que es esta maquina misma)
+    /// IP of the device running the Node server (assumed to be this same machine)
     /// </summary>
     public string nodeHost = "192.168.1.45";
+
+    /// <summary>
+    /// Port where the Node server listens for WebSocket connections
+    /// </summary>
     [SerializeField]
     private int nodePort = 8080;
+
+    /// <summary>
+    /// Port where the web page is served for the browsers
+    /// </summary>
     [SerializeField]
     private int browserPort = 3000;
-    private bool running = false;
-    public bool acceptsConnections = true;
+
     /// <summary>
-    /// Socket de conexion al servidor de Node
+    /// Whether the server is running or not
+    /// </summary>
+    private bool running = false;
+
+    /// <summary>
+    /// Whether it accepts new connections or not
+    /// </summary>
+    public bool acceptsConnections = true;
+
+    /// <summary>
+    /// Socket connected to the Node server
     /// </summary>
     private ClientWebSocket ws;
 
     /// <summary>
-    /// PID del proceso del bat lanzado, para poder cerrarlo directamente
-    /// sin depender de buscar por titulo de ventana (poco fiable).
+    /// PID of the launched bat process, so it can be closed directly instead of
+    /// searching by window title (unreliable)
     /// </summary>
     private Process launchedBatProcess;
 
     /// <summary>
-    /// Ruta del bat desde la carpeta raiz de la build o desde la carpeta raiz del proyecto
+    /// Path to the bat from the root folder of the build or of the project
     /// </summary>
     [SerializeField]
     private string batRelativePath = "start-server.bat";
+
+    /// <summary>
+    /// Absolute path to the bat, resolved on Start
+    /// </summary>
     private string batPath;
 
     /// <summary>
-    /// Se usa para cancelar la task asincrona del ReceiveLoop
+    /// Used to cancel the asynchronous ReceiveLoop task
     /// </summary>
     private CancellationTokenSource _cts;
 
     /// <summary>
-    /// Direccion del servidor de Node
+    /// Address of the Node server
     /// </summary>
     private Uri nodeUri;
+
     #endregion
 
     #region Bat
+
     /// <summary>
-    /// Metodo que desbloquea un archivo
+    /// Unblocks a file, removing the Zone.Identifier mark Windows adds to downloaded files
     /// </summary>
-    /// <param name="path"></param>
+    /// <param name="path">Path to the file to unblock</param>
     public static void UnblockFile(string path)
     {
         string zoneIdentifierPath = path + ":Zone.Identifier";
@@ -76,8 +103,9 @@ public class WebSocketServerRTC : MonoBehaviour
     }
 
     /// <summary>
-    /// Busca que proceso esta escuchando en un puerto TCP dado usando netstat, y lo mata por PID con taskkill
+    /// Looks up which process is listening on a given TCP port using netstat, and kills it by PID with taskkill
     /// </summary>
+    /// <param name="port">Port to free</param>
     public static void KillProcessOnPort(int port)
     {
         try
@@ -107,13 +135,13 @@ public class WebSocketServerRTC : MonoBehaviour
                     // netstat -ano TCP: Proto | Local | Foreign | State | PID
                     string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length < 5) continue;
-                    if (!parts[1].EndsWith(":" + port)) continue;   // el puerto debe ser el LOCAL, no el remoto
+                    if (!parts[1].EndsWith(":" + port)) continue;    // the port must be the LOCAL one, not the remote one
                     if (!parts[3].Equals("LISTENING", StringComparison.OrdinalIgnoreCase)) continue;
 
                     string pid = parts[parts.Length - 1];
                     if (!int.TryParse(pid, out int pidInt)) continue;
-                    if (pidInt == selfPid || pidInt <= 4) continue; // nunca a nosotros ni a System/Idle
-                    if (!seenPids.Add(pid)) continue; // evitar matar el mismo PID varias veces
+                    if (pidInt == selfPid || pidInt <= 4) continue; // never kill ourselves nor System/Idle
+                    if (!seenPids.Add(pid)) continue;   // avoid killing the same PID several times
 
                     ProcessStartInfo killPsi = new ProcessStartInfo
                     {
@@ -132,11 +160,13 @@ public class WebSocketServerRTC : MonoBehaviour
             UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar el puerto {port}: {ex.Message}");
         }
     }
+
     #endregion
 
     #region Activation/Deactivation
+
     /// <summary>
-    /// Lanza el servidor de Node ejecutando el archivo .bat
+    /// Launches the Node server by running the .bat file
     /// </summary>
     public void LaunchServer()
     {
@@ -154,16 +184,17 @@ public class WebSocketServerRTC : MonoBehaviour
         try
         {
             launchedBatProcess = Process.Start(psi);
-            UnityEngine.Debug.Log($"[ServerLauncher] Script lanzado correctamente. PID: {launchedBatProcess?.Id}");
+            UnityEngine.Debug.Log($"[WebSocketServerRTC] Server launched correctly. PID: {launchedBatProcess?.Id}");
         }
         catch (System.Exception ex)
         {
-            UnityEngine.Debug.LogError($"[ServerLauncher] Error al lanzar el bat: {ex.Message}");
+            UnityEngine.Debug.LogError($"[WebSocketServerRTC] Error running .bat: {ex.Message}");
         }
+
     }
 
     /// <summary>
-    /// Detiene el servidor de Node, el servidor HTML y la ventana del bat
+    /// Stops the Node server, the HTML server and the bat window
     /// </summary>
     public void StopServer()
     {
@@ -190,21 +221,23 @@ public class WebSocketServerRTC : MonoBehaviour
                 string output = p.StandardOutput.ReadToEnd();
                 string error = p.StandardError.ReadToEnd();
                 p.WaitForExit();
-                UnityEngine.Debug.Log($"[ServerLauncher] taskkill por titulo '{windowTitle}': {output.Trim()}{error.Trim()}");
+                UnityEngine.Debug.Log($"[WebSocketServerRTC] taskkill by title '{windowTitle}': {output.Trim()}{error.Trim()}");
             }
         }
         catch (System.Exception ex)
         {
-            UnityEngine.Debug.LogWarning($"[ServerLauncher] No se pudo cerrar la ventana '{windowTitle}': {ex.Message}");
+            UnityEngine.Debug.LogWarning($"[WebSocketServerRTC] Couldn0t close window '{windowTitle}': {ex.Message}");
         }
 
         launchedBatProcess = null;
     }
+
     #endregion
 
     #region Connection
+
     /// <summary>
-    /// Inicia la conexion al servidor de Node (con reintentos por si se llega a ejecutar antes que el LaunchServer acabe)
+    /// Starts the connection to the Node server (with retries in case it runs before LaunchServer has finished)
     /// </summary>
     public async void ConnectToNode()
     {
@@ -215,11 +248,11 @@ public class WebSocketServerRTC : MonoBehaviour
         {
             try
             {
-                ws = new ClientWebSocket(); // recrear, un ClientWebSocket fallido no se puede reusar
+                ws = new ClientWebSocket(); // recreate it, a failed ClientWebSocket cannot be reused
                 await ws.ConnectAsync(nodeUri, CancellationToken.None);
                 UnityEngine.Debug.Log($"[WebSocketServerRTC] Connected to Node: {nodeUri}");
                 _ = ReceiveLoop(_cts);
-                return; // éxito, salir
+                return; // success, exit
             }
             catch (Exception ex)
             {
@@ -232,7 +265,7 @@ public class WebSocketServerRTC : MonoBehaviour
     }
 
     /// <summary>
-    /// Detiene la conexion al servidor de Node
+    /// Closes the connection to the Node server, saying goodbye to every browser client first
     /// </summary>
     public async Task DisconnectToNode()
     {
@@ -243,7 +276,6 @@ public class WebSocketServerRTC : MonoBehaviour
         {
             SignalingMessage byeMsg = new SignalingMessage(ConnectionEvent.DISCONNECT, null);
 
-            // copia las claves para no modificar la colección mientras iteras
             foreach (var client in browserClients)
             {
                 await SendToNode(client.clientID, byeMsg);
@@ -262,14 +294,15 @@ public class WebSocketServerRTC : MonoBehaviour
 
         UnityEngine.Debug.Log("[WebSocketServerRTC] Node clients deleted.");
     }
+
     #endregion
 
     #region Communication
+
     /// <summary>
-    /// Bucle de recepcion de mensajes WebSockets
+    /// Reception loop for the WebSocket messages
     /// </summary>
-    /// <param name="token">Token que actua como FLAG para poder cancelar el proceso</param>
-    /// <returns></returns>
+    /// <param name="token">Token that acts as a FLAG to be able to cancel the process</param>
     async Task ReceiveLoop(CancellationTokenSource token)
     {
         var buffer = new byte[8192];
@@ -310,9 +343,9 @@ public class WebSocketServerRTC : MonoBehaviour
     }
 
     /// <summary>
-    /// Manejo de informacion recibida del servidor de Node
+    /// Handles the information received from the Node server
     /// </summary>
-    /// <param name="rawJson"></param>
+    /// <param name="rawJson">Raw WSMessage JSON received</param>
     void HandleWebIncoming(string rawJson)
     {
         WSMessage msg = JsonUtility.FromJson<WSMessage>(rawJson);
@@ -325,14 +358,14 @@ public class WebSocketServerRTC : MonoBehaviour
             UnityMainThreadDispatcher.Instance().Enqueue(() => StreamManager.Instance?.CreatePeer(client));
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser registered: {clientKey}");
         }
-        else if (msg.type == (int)ConnectionEvent.DISCONNECT) // un navegador se desconectó del lado de Node
+        else if (msg.type == (int)ConnectionEvent.DISCONNECT) // a browser disconnected on Node's side
         {
             string clientKey = msg.clientId.ToString();
 
             StreamManager.Instance?.RemovePeer(clientKey);
             UnityEngine.Debug.Log($"[WebSocketServerRTC] Browser deleted from register: {clientKey}");
         }
-        else // SDP o ICE de un browser existente
+        else // SDP or ICE from an existing browser
         {
             SignalingMessage sigMsg = new SignalingMessage((ConnectionEvent)msg.type, msg.body);
             string clientKey = msg.clientId.ToString();
@@ -341,11 +374,10 @@ public class WebSocketServerRTC : MonoBehaviour
     }
 
     /// <summary>
-    /// Sends date to node's server.
+    /// Sends data to Node's server.
     /// </summary>
+    /// <param name="clientId">Client the data is addressed to.</param>
     /// <param name="msg">Signaling message.</param>
-    /// <param name="clientId">Which client seends the date.</param>
-    /// <returns></returns>
     public async Task SendToNode(string clientId, SignalingMessage msg)
     {
         if (ws?.State != WebSocketState.Open) return;
@@ -367,37 +399,37 @@ public class WebSocketServerRTC : MonoBehaviour
             UnityEngine.Debug.LogError($"[WebSocketServerRTC] Error sending message to Node (clientId={clientId}): {ex.Message}");
         }
     }
+
     #endregion
 
-    public void ChangeVideoTrack(VideoStreamTrack newTrack)
-    {
-        foreach (var client in StreamManager.Instance.GetClients()
-            .Where(c => c.type == ClientConnectionType.WEB_SOCKET))
-        {
-            RTCRtpSender sender = client.himuClient?.GetVideoSender();
-            sender?.ReplaceTrack(newTrack);
-        }
-    }
+    #region Getters & Setters
 
-    #region Getters&Setters
+    /// <summary>
+    /// Returns the IP of the device running the Node server
+    /// </summary>
     public string GetNodeHost()
     {
         return nodeHost;
     }
 
+    /// <summary>
+    /// Returns the port where the web page is served for the browsers
+    /// </summary>
     public int GetBrowserPort()
     {
         return browserPort;
     }
+
     #endregion
 
     #region Monobehaviour
+
     public void Start()
     {
         nodeHost = NetworkUtils.GetIP();
-        batPath = System.IO.Path.Combine(Application.streamingAssetsPath, batRelativePath); ;
+        batPath = System.IO.Path.Combine(Application.streamingAssetsPath, batRelativePath);
         ws = new ClientWebSocket();
-        nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity&id={StreamManager.Instance.sessionID}");
+        nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity&id={StreamManager.Instance.GetSessionID()}");
         _cts = new CancellationTokenSource();
     }
 
@@ -413,5 +445,7 @@ public class WebSocketServerRTC : MonoBehaviour
         }
         catch { }
     }
+
     #endregion
+
 }

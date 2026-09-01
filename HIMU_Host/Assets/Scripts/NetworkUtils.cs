@@ -58,9 +58,7 @@ public static class NetworkUtils
 
     /// <summary>
     /// Gets and assigns the IP Address of this device. The method used depends on the platform
-    /// the code is running of.
-    /// IMPORTANT: This method should be called ONLY ONCE. To get the IP externaly the 'GetIp()'
-    /// method is the one that should be used.
+    /// the code is running of. This method should be called ONLY ONCE.
     /// </summary>
     private static string ResolveLocalIPAddress()
     {
@@ -208,4 +206,5 @@ public static class NetworkUtils
     }
 
     #endregion
+
 }

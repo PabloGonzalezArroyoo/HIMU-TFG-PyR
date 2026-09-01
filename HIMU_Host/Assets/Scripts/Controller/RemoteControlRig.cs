@@ -25,6 +25,7 @@ public class RemoteControlRig : MonoBehaviour
     /// </summary>
     [SerializeField] private Camera controlCamera;
 
+    /// <summary> 
     /// Labels showing which player this control scene belongs to.
     /// </summary>
     [SerializeField] private TextMeshProUGUI[] playerLabels;
@@ -84,6 +85,11 @@ public class RemoteControlRig : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Binds this control scene to the peer whose input will drive it. Passing null or an empty
+    /// id unbinds it, releasing every button and clearing the published state.
+    /// </summary>
+    /// <param name="id">Id of the client that controls this rig, or null to unbind it.</param>
     public void Bind(string id)
     {
         clientID = id;
@@ -190,19 +196,22 @@ public class RemoteControlRig : MonoBehaviour
 
     #region Getters
 
+    /// <summary>
+    /// Returns the input state of the shooting game
+    /// </summary>
+    /// <returns></returns>
     public ShootingState GetShootingState()
     {
         return state;
     }
-
+    
+    /// <summary>
+    /// Returns the camera of the controler scene
+    /// </summary>
+    /// <returns></returns>
     public Camera GetControlCamera()
     {
         return controlCamera;
-    }
-
-    public Canvas GetControlCanvas()
-    {
-        return controlCanvas;
     }
 
     #endregion
@@ -218,6 +227,8 @@ public class RemoteControlRig : MonoBehaviour
         // This removes the raycaster from the global RaycasterManager while keeping
         // Raycast() callable.
         if (raycaster != null) raycaster.enabled = false;
+
+        clientID = null;
     }
 
     private void Update()
@@ -256,4 +267,5 @@ public class RemoteControlRig : MonoBehaviour
     }
 
     #endregion
+
 }

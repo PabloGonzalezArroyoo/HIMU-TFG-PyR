@@ -12,7 +12,7 @@ using UnityEngine;
 #region Enums
 
 /// <summary>
-/// Indicates which fase the message we are sending belongs too
+/// Indicates which phase the message we are sending belongs too
 /// </summary>
 public enum ConnectionEvent
 {
@@ -33,7 +33,10 @@ public enum ClientConnectionType
     TCP,
     ADB
 }
+
 #endregion
+
+#region Connection Structures
 
 /// <summary>
 /// Class that represents each device connected via USB cable
@@ -58,15 +61,15 @@ public class ConnectionData
     public int sessionID;
     public string ipAddress;
     public int port;
-    public ConnectionEvent connType;
+    public ConnectionEvent connEvent;
     public ClientConnectionType clientType;
 
-    private ConnectionData(string ipAddress, int port, ConnectionEvent connEvent, ClientConnectionType clientType = ClientConnectionType.NONE)
+    private ConnectionData(string _ipAddress, int _port, ConnectionEvent _connEvent, ClientConnectionType _clientType = ClientConnectionType.NONE)
     {
-        this.ipAddress = ipAddress;
-        this.port = port;
-        this.connType = connEvent;
-        this.clientType = clientType;
+        ipAddress = _ipAddress;
+        port = _port;
+        connEvent = _connEvent;
+        clientType = _clientType;
     }
 
     /// <summary>
@@ -91,18 +94,18 @@ public class ConnectionData
 }
 
 /// <summary>
-/// Class that contains an unique identifier 
+/// Class that identifies a connected client and links it to its HIMUClient
 /// </summary>
 public class ClientData
 {
-    public string clientID;             // En el caso de WebSocket es el clientID que nos llega del servidor de Node, en los otros es un GUID
+    public string clientID;                 // For WebSocket it is the clientID sent by the Node server; for the others it is a GUID             
     public ClientConnectionType type;
     public HIMUClient himuClient;
 
-    private ClientData(ClientConnectionType type, string clientID)
+    private ClientData(ClientConnectionType _type, string _clientID)
     {
-        this.type = type;
-        this.clientID = clientID;
+        type = _type;
+        clientID = _clientID;
     }
 
     /// <summary>
@@ -117,23 +120,27 @@ public class ClientData
 
     /// <summary>
     /// Builds a ClientData for a browser client registered via the Node WebSocket.
-    /// Browsers have no IP/port visible to Unity, so the relay's session id is used directly
-    /// as the identifier instead of faking network fields through ConnectionData.
     /// </summary>
-    /// <param name="clientID">Unique key for this client received from Node server</param>
+    /// <param name="clientID">Unique key for this client received from Node server.</param>
     public static ClientData ForBrowser(string clientID)
     {
         return new ClientData(ClientConnectionType.WEB_SOCKET, clientID);
     }
 
-
+    /// <summary>
+    /// Builds a ClientData for a device connected through an ADB tunnel.
+    /// </summary>
+    /// <param name="clientID">GUID assigned by ADBConnectionServer to key this client.</param>
     public static ClientData ForADB(string clientID)
     {
         return new ClientData(ClientConnectionType.ADB, clientID);
     }
 }
 
+#endregion
+
 #region Communication Structures
+
 /// <summary>
 /// Message shared between two devices
 /// </summary>
@@ -156,15 +163,13 @@ public class SignalingMessage
 [System.Serializable]
 public struct TouchData
 {
-    public int id;
     public float x;
     public float y;
 
-    public TouchData(int id, Vector2 position)
+    public TouchData(Vector2 position)
     {
-        this.id = id;
-        this.x = position.x;
-        this.y = position.y;
+        x = position.x;
+        y = position.y;
     }
 }
 
@@ -175,16 +180,17 @@ public struct TouchData
 public class InputFrame
 {
     public List<TouchData> touches;
-
     public Vector3 accelerometer;
+    public float sentAt;                    // Time controlled by the SENDER
+    public float receivedAt;                // Time controller by the RECIVER
 
-    // Time controlled by the SENDER
-    public float sentAt;
-
-    // Time controller by the RECIVER
-    public float receivedAt;
-
-    public InputFrame() { }
+    public InputFrame() 
+    {
+        touches = new List<TouchData>();
+        accelerometer = Vector3.zero;
+        sentAt = 0;
+        receivedAt = 0;
+    }
 
     public InputFrame(List<TouchData> t, Vector3 a, float sent)
     {
@@ -204,11 +210,13 @@ public class WSMessage
     public int clientId;
     public string body;
 }
+
 #endregion
 
 #region WebRTC Structures
+
 /// <summary>
-/// Class inherited from 
+/// Wrapper that saves the values of an RTCIceCandidate so it can be serialized and sent
 /// </summary>
 [Serializable]
 public class IceCandidateData
@@ -225,7 +233,9 @@ public class IceCandidateData
     }
 }
 
-// Wrapper that saves the values of RTCSessionDescription
+/// <summary>
+/// Wrapper that saves the values of RTCSessionDescription
+/// </summary>
 [Serializable]
 public class SessionDescriptionData
 {
@@ -238,6 +248,9 @@ public class SessionDescriptionData
         sdp = desc.sdp;
     }
 
+    /// <summary>
+    /// Rebuilds the original RTCSessionDescription from the stored values
+    /// </summary>
     public RTCSessionDescription ToRTCDesc()
     {
         return new RTCSessionDescription
@@ -247,4 +260,5 @@ public class SessionDescriptionData
         };
     }
 }
+
 #endregion
