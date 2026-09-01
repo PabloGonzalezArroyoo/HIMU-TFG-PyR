@@ -146,7 +146,7 @@ public class WebSocketServerRTC : MonoBehaviour
         {
             FileName = batPath,
             Arguments = $"{nodePort} {browserPort}",
-            WorkingDirectory = System.IO.Path.GetDirectoryName(batPath),
+            WorkingDirectory = Application.streamingAssetsPath,
             UseShellExecute = true,
             CreateNoWindow = false
         };
@@ -395,7 +395,7 @@ public class WebSocketServerRTC : MonoBehaviour
     public void Start()
     {
         nodeHost = NetworkUtils.GetIP();
-        batPath = System.IO.Path.Combine(Application.dataPath, "..", batRelativePath);
+        batPath = System.IO.Path.Combine(Application.streamingAssetsPath, batRelativePath); ;
         ws = new ClientWebSocket();
         nodeUri = new Uri($"ws://{nodeHost}:{nodePort}?type=unity&id={StreamManager.Instance.sessionID}");
         _cts = new CancellationTokenSource();
