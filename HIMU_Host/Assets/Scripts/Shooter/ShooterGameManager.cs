@@ -18,6 +18,8 @@ class PlayerInfo
 
     public bool alive;
 
+    public Transform avatar;
+
     public PlayerInfo(int playerN, ShooterPlayerController controller)
     {
         this.playerN = playerN;
@@ -291,7 +293,7 @@ public class ShooterGameManager : MonoBehaviour
 
     #endregion
 
-        #region Monobehaviour
+    #region Monobehaviour
 
     private void Awake()
     {

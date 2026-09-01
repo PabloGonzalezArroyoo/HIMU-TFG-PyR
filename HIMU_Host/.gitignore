@@ -11,7 +11,7 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 *.log
-/node_modules/
+/Assets/StreamingAssets/node_modules/
 package.json
 package-lock.json
 
