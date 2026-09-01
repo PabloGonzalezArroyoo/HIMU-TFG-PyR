@@ -8087,7 +8087,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e3140c153e0a444381fdc465540fada, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FadeOutComponent
-  timeToFade: 2
+  timeToFade: 1.5
   nextScene: RacingGame_EndScene
 --- !u!1 &1123738080
 GameObject:

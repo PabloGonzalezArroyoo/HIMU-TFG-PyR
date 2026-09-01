@@ -119,6 +119,8 @@ public class RacingGameManager : MonoBehaviour
         // Cuando se carga la escena de conexiones
         if (loadedScene.name.Contains("Connections"))
         {
+            streaming = false;
+
             StreamManager.Instance.SetADBClientCallback(CreateADBClient);
             StreamManager.Instance.SetBrowserClientCallback(CreateBrowserClient);
             Camera streamCamera = new GameObject().AddComponent<Camera>();
@@ -135,7 +137,8 @@ public class RacingGameManager : MonoBehaviour
             FrameCaptureComponent fccomp = gameObject.AddComponent<FrameCaptureComponent>();
             FrameCaptureFeature.Instance.SetSourceCamera(FindCameraInScene(loadedScene, "PlayerCamera"));
             ChangeStreamTextures();
-            Debug.Log("Se aplican la textura del frame capture");
+            gameStarted = false;
+            isPaused = false;
         }
 
         // Cuando se carga la escena de mando -> seteamos la camara del cliente adb

@@ -1983,7 +1983,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e3140c153e0a444381fdc465540fada, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FadeOutComponent
-  timeToFade: 3
+  timeToFade: 2
   nextScene: RacingGame_MainScene
 --- !u!1 &1962163972
 GameObject:

@@ -97,9 +97,9 @@ public class RacingConnectionsUIManager : MonoBehaviour
             {
                 fading = false;
                 fadeOutImage.CancelFade();
-                StreamManager.Instance.FlagADBConnection(); // Desactivamos busqueda de dispositivos para notificar al usuario
-                StartCoroutine(WaitAfterDisconnection());
             }
+            StreamManager.Instance.FlagADBConnection(); // Desactivamos busqueda de dispositivos para notificar al usuario
+            StartCoroutine(WaitAfterDisconnection());
         }
     }
 
