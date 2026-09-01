@@ -41,7 +41,7 @@ public class RacingInputController : MonoBehaviour
             button.Value.pressed = false;
         }
 
-        InputFrame inputEvent = InputManager.Instance.GetInputFrame(RacingGameManager.Instance.GetPlayerID());
+        InputFrame inputEvent = HostInputManager.Instance.GetInputFrame(RacingGameManager.Instance.GetPlayerID());
 
         if (inputEvent == null) return;
 

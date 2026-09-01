@@ -236,11 +236,11 @@ public class RemoteControlRig : MonoBehaviour
         currentHits.Clear();
         justPressed.Clear();
 
-        if (!string.IsNullOrEmpty(clientID) && controlCamera != null && raycaster != null && InputManager.Instance != null)
+        if (!string.IsNullOrEmpty(clientID) && controlCamera != null && raycaster != null && HostInputManager.Instance != null)
         {
             // CurrentTouches returns an empty list when the peer stopped sending, so a lost
             // connection degrades to "no input" instead of latching the last known state.
-            InputFrame frame = InputManager.Instance.GetInputFrame(clientID);
+            InputFrame frame = HostInputManager.Instance.GetInputFrame(clientID);
             if (frame != null)
             {
                 for (int i = 0; i < frame.touches.Count; i++)

@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Parses input events received from clients. It stores them into a list that is accessible for other scripts and flushes the events at lateUpdate (all processing must be done in update)
 /// </summary>
-public class InputManager : MonoBehaviour
+public class HostInputManager : MonoBehaviour
 {
 
     #region Variables
@@ -12,7 +12,7 @@ public class InputManager : MonoBehaviour
     /// <summary>
     /// Instance of InputManager (Singleton)
     /// </summary>
-    public static InputManager Instance { get; private set; }
+    public static HostInputManager Instance { get; private set; }
 
     /// <summary>
     /// Defines whether this scripts object persists between scenes or not

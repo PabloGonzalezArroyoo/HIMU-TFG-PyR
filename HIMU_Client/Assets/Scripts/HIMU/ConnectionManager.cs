@@ -10,6 +10,7 @@ using UnityEngine;
 
 public class ConnectionManager : MonoBehaviour
 {
+
     #region Variables
 
     public static ConnectionManager Instance { get; private set; }
@@ -551,7 +552,7 @@ public class ConnectionManager : MonoBehaviour
             {
                 break; // se ejecuto Disconnect desde otro hilo
             }
-            catch (Exception e)
+            catch
             {
                 if (!intentionalDisconnect) UnityMainThreadDispatcher.Instance().Enqueue(OnConnectionLost);
                 break;
@@ -737,4 +738,5 @@ public class ConnectionManager : MonoBehaviour
     }
 
     #endregion
+
 }

@@ -43,7 +43,7 @@ public class DisplayCanvasController : MonoBehaviour
     private void OnGameStarted(Scene current, Scene next)
     {
         if (next.name.Contains("Game")) {
-            InputManager.Instance.send = true;
+            ClientInputManager.Instance.send = true;
             canvas.worldCamera = FindCameraInScene(next, "Main camera");
             canvas.gameObject.SetActive(true);
             SceneManager.activeSceneChanged -= OnGameStarted;

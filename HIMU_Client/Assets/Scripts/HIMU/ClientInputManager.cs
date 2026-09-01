@@ -1,18 +1,24 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
-public class InputManager : MonoBehaviour
+/// <summary>
+/// Class in charge of capturing this device's input (touches and accelerometer) and sending it
+/// to the host through the DataChannel
+/// </summary>
+public class ClientInputManager : MonoBehaviour
 {
 
     #region Variable
 
-    public static InputManager Instance { get; private set; }
+    /// <summary>
+    /// Instance of InputManager (Singleton)
+    /// </summary>
+    public static ClientInputManager Instance { get; private set; }
 
     /// <summary>
-    /// 
+    /// Frequency in which input frames are sent to the host, in hz.
     /// </summary>
     [SerializeField]
     private float sendRateHz = 60f;
@@ -43,6 +49,9 @@ public class InputManager : MonoBehaviour
     /// </summary>
     public bool send = false;
 
+    /// <summary>
+    /// Reused touch position in normalized coordinates, so no allocation is made per touch.
+    /// </summary>
     private Vector2 normalizedPos;
 
     /// <summary>
@@ -54,6 +63,7 @@ public class InputManager : MonoBehaviour
     #endregion
 
     #region Methods
+
     /// <summary>
     /// Enables EnhancedTouch (API for easy tracking of touches on a screen) and the accelerometer, due to both of them being
     /// off by default. It also configures the accelerometer sampling frequency.
@@ -93,9 +103,11 @@ public class InputManager : MonoBehaviour
         if (accelerometer != null && accelerometer.enabled)
             InputSystem.DisableDevice(accelerometer);
     }
+
     #endregion
 
     #region Monobehaviour
+
     private void OnEnable()
     {
         EnablePhoneInput();
@@ -111,7 +123,7 @@ public class InputManager : MonoBehaviour
         if (Instance)
         {
             try { Destroy(Instance.gameObject); }
-            catch { Debug.Log("No se pudo borrar el objeto del singleton"); }
+            catch { }
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
@@ -148,6 +160,7 @@ public class InputManager : MonoBehaviour
             for (int i = 0; i < count; i++)
             {
                 Touch t = activeTouches[i];
+                // Positions are normalized so the host can map them into its own resolution
                 normalizedPos.x = t.screenPosition.x / Screen.width;
                 normalizedPos.y = t.screenPosition.y / Screen.height;
                 inputFrame.touches.Add(new TouchData(normalizedPos));
@@ -166,4 +179,5 @@ public class InputManager : MonoBehaviour
     }
 
     #endregion
+
 }

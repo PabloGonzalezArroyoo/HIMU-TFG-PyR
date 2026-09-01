@@ -156,13 +156,13 @@ public class HIMUClient : MonoBehaviour
     /// <param name="msg"></param>
     private void DeliverInputMessage(string msg)
     {
-        if (InputManager.Instance == null)
+        if (HostInputManager.Instance == null)
         {
             Debug.LogError("[HIMUClient] No InputManager in the scene: input from " + clientID + " is being dropped.");
             return;
         }
 
-        InputManager.Instance.ParseInputMessage(clientID, msg);
+        HostInputManager.Instance.ParseInputMessage(clientID, msg);
     }
 
     /// <summary>

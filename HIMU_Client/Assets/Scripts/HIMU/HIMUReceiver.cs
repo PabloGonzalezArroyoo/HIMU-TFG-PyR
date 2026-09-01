@@ -8,7 +8,9 @@ using UnityEngine.UI;
 /// </summary>
 public class HIMUReceiver : MonoBehaviour
 {
+
     #region Variables
+
     /// <summary>
     /// Object that represents the P2P connection.
     /// </summary>
@@ -29,15 +31,17 @@ public class HIMUReceiver : MonoBehaviour
     /// Callback for when a signaling message is received.
     /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
+
     #endregion
 
-    #region Methods
+    #region SetUp
+
     /// <summary>
     /// Initializes the WebRTC connection and overrides callbacks for when data is sent through it.
     /// </summary>
     private void Initialize()
     {
-        Debug.Log("[WebRTCReceiver] Initializing client.");
+        Debug.Log("[HIMUReceiver] Initializing client.");
 
         RTCConfiguration config = new RTCConfiguration
         {
@@ -52,9 +56,9 @@ public class HIMUReceiver : MonoBehaviour
             OnSignalingMessage?.Invoke(msg);
         };
 
-        peer.OnIceConnectionChange = state => Debug.Log($"[WebRTCReceiver] ICE -> {state}");
+        peer.OnIceConnectionChange = state => Debug.Log($"[HIMUReceiver] ICE -> {state}");
 
-        // Aquí llega el track de vídeo cuando la conexión P2P se establece
+        // Callback for when video is received from the host
         peer.OnTrack = e =>
         {
             if (e.Track is VideoStreamTrack videoTrack)
@@ -62,19 +66,24 @@ public class HIMUReceiver : MonoBehaviour
                     UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessVideo(tex));
         };
 
-        // Configuración del callback de datos
+        // Callback for the input channel
         peer.OnDataChannel = channel =>
         {
             dataChannel = channel;
-            Debug.Log($"[WebRTCReceiver] DataChannel received: {channel.Label}");
+            Debug.Log($"[HIMUReceiver] DataChannel received: {channel.Label}");
 
-            channel.OnOpen = () => Debug.Log("[DataChannel] Opened in client.");
-            channel.OnClose = () => Debug.Log("[DataChannel] Closed in client.");
+            channel.OnOpen = () => Debug.Log("[HIMUReceiver-DataChannel] Opened in client.");
+            channel.OnClose = () => Debug.Log("[HIMUReceiver-DataChannel] Closed in client.");
             channel.OnMessage = bytes =>
                 UnityMainThreadDispatcher.Instance().Enqueue(() => ProcessData(bytes));
         };
     }
 
+    /// <summary>
+    /// Assigns the callback used to send signaling messages back to the host and initializes
+    /// the WebRTC connection.
+    /// </summary>
+    /// <param name="action">Callback invoked when this client produces a SignalingMessage.</param>
     public void SetUpAndInitialize(System.Action<SignalingMessage> action)
     {
         OnSignalingMessage = action;
@@ -99,8 +108,8 @@ public class HIMUReceiver : MonoBehaviour
         RTCSetSessionDescriptionAsyncOperation setLocal = peer.SetLocalDescription(ref answer);
         yield return setLocal;
 
-        // Enviamos la answer de vuelta al servidor por TCP
-        SignalingMessage msg = 
+        // Send the answer back to the host
+        SignalingMessage msg =
             new SignalingMessage(ConnectionEvent.SDP, JsonUtility.ToJson(new SessionDescriptionData(answer)));
         OnSignalingMessage?.Invoke(msg);
     }
@@ -114,29 +123,9 @@ public class HIMUReceiver : MonoBehaviour
         peer.AddIceCandidate(new RTCIceCandidate(init));
     }
 
-    /// <summary>
-    /// Processes data received form a DataChannel.
-    /// </summary>
-    /// <param name="b">Block of data.</param>
-    private void ProcessData(byte[] b)
-    {
-        string msg = System.Text.Encoding.UTF8.GetString(b);
-        Debug.Log($"[DataChannel] Mensaje recibido: {msg}");
-    }
+    #endregion
 
-    /// <summary>
-    /// Processes the video texture that has been received from the VideoTrack object.
-    /// </summary>
-    /// <param name="tex">Texture received.</param>
-    private void ProcessVideo(Texture tex)
-    {
-        Debug.Log("[WebRTCReceiver] Receiving video...");
-        if (displayTarget != null)
-        {
-            Debug.Log("[WebRTCReceiver] Applying stream.");
-            displayTarget.texture = tex;
-        }
-    }
+    #region Communication
 
     /// <summary>
     /// Sends a JSON through the opened DataChannel
@@ -150,6 +139,35 @@ public class HIMUReceiver : MonoBehaviour
             dataChannel.Send(json);
         }
     }
+
+    #endregion
+
+    #region Processed
+
+    /// <summary>
+    /// Processes data received form a DataChannel.
+    /// </summary>
+    /// <param name="b">Block of data.</param>
+    private void ProcessData(byte[] b)
+    {
+        string msg = System.Text.Encoding.UTF8.GetString(b);
+        Debug.Log($"[HIMUReceiver-DataChannel] Mensaje recibido: {msg}");
+    }
+
+    /// <summary>
+    /// Processes the video texture that has been received from the VideoTrack object.
+    /// </summary>
+    /// <param name="tex">Texture received.</param>
+    private void ProcessVideo(Texture tex)
+    {
+        Debug.Log("[HIMUReceiver] Receiving video...");
+        if (displayTarget != null)
+        {
+            Debug.Log("[HIMUReceiver] Applying stream.");
+            displayTarget.texture = tex;
+        }
+    }
+
     #endregion
 
     #region MonoBehaviour
@@ -161,4 +179,5 @@ public class HIMUReceiver : MonoBehaviour
         peer?.Dispose();
     }
     #endregion
+
 }
