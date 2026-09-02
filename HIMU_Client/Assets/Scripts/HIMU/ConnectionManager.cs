@@ -175,7 +175,7 @@ public class ConnectionManager : MonoBehaviour
             multicastListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             multicastListener.Client.Bind(new IPEndPoint(IPAddress.Any, listenPort));
 
-            //listener.JoinMulticastGroup(IPAddress.Parse(MulticastGroup), IPAddress.Parse(ipAddress));
+            multicastListener.Client.SetSocketOption(
                 SocketOptionLevel.IP,
                 SocketOptionName.AddMembership,
                 new MulticastOption(IPAddress.Parse(MulticastGroup), IPAddress.Any));
