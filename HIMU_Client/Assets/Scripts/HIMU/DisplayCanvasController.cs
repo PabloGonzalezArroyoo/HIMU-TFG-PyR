@@ -7,15 +7,28 @@ using UnityEngine.UI;
 
 public class DisplayCanvasController : MonoBehaviour
 {
+    #region Variables
+    /// <summary>
+    /// Reference to teh UI element used for fade out
+    /// </summary>
     [SerializeField] private RawImage fadeOutImage;
+    /// <summary>
+    /// Reference to the canvas where we apply the video received
+    /// </summary>
     [SerializeField] private Canvas canvas;
+    #endregion
 
+    #region Methods
+    /// <summary>
+    /// Method that finds the camera in the current scene
+    /// </summary>
+    /// <param name="scene">Scene where to search for the camera</param>
+    /// <param name="cameraName">Camera name</param>
+    /// <returns></returns>
     private Camera FindCameraInScene(UnityEngine.SceneManagement.Scene scene, string cameraName)
     {
-        // Recorremos los objetos raíz de la escena buscando la cámara
         foreach (GameObject rootObj in scene.GetRootGameObjects())
         {
-            // Si se especificó un nombre concreto, priorizamos búsqueda exacta
             if (!string.IsNullOrEmpty(cameraName))
             {
                 if (rootObj.name == cameraName)
@@ -32,7 +45,6 @@ public class DisplayCanvasController : MonoBehaviour
                 }
             }
 
-            // Fallback: cualquier Camera dentro del árbol de este root
             Camera anyCam = rootObj.GetComponentInChildren<Camera>(true);
             if (anyCam != null) return anyCam;
         }
@@ -40,6 +52,11 @@ public class DisplayCanvasController : MonoBehaviour
         return null;
     }
 
+    /// <summary>
+    /// Method that spoecifies what to do when we transition to main scene. We activate the process to send input and set the camera to render the video we receive
+    /// </summary>
+    /// <param name="current">Current scene</param>
+    /// <param name="next">Next scene</param>
     private void OnGameStarted(Scene current, Scene next)
     {
         if (next.name.Contains("Game")) {
@@ -49,7 +66,9 @@ public class DisplayCanvasController : MonoBehaviour
             SceneManager.activeSceneChanged -= OnGameStarted;
         }
     }
+    #endregion
 
+    #region Monobehaviour
     private void Start()
     {
         canvas.gameObject.SetActive(false);
@@ -64,4 +83,5 @@ public class DisplayCanvasController : MonoBehaviour
             AppManager.Instance.StartFading(fadeOutImage, "MainMenuScene");
         }
     }
+    #endregion
 }

@@ -10,7 +10,6 @@ public class HIMUReceiver : MonoBehaviour
 {
 
     #region Variables
-
     /// <summary>
     /// Object that represents the P2P connection.
     /// </summary>
@@ -24,18 +23,15 @@ public class HIMUReceiver : MonoBehaviour
     /// <summary>
     /// UI where the streamed image is displayed.
     /// </summary>
-    [SerializeField]
-    private RawImage displayTarget;
+    [SerializeField] private RawImage displayTarget;
 
     /// <summary>
     /// Callback for when a signaling message is received.
     /// </summary>
     public System.Action<SignalingMessage> OnSignalingMessage;
-
     #endregion
 
     #region SetUp
-
     /// <summary>
     /// Initializes the WebRTC connection and overrides callbacks for when data is sent through it.
     /// </summary>
@@ -122,11 +118,9 @@ public class HIMUReceiver : MonoBehaviour
     {
         peer.AddIceCandidate(new RTCIceCandidate(init));
     }
-
     #endregion
 
     #region Communication
-
     /// <summary>
     /// Sends a JSON through the opened DataChannel
     /// </summary>
@@ -139,11 +133,9 @@ public class HIMUReceiver : MonoBehaviour
             dataChannel.Send(json);
         }
     }
-
     #endregion
 
     #region Processed
-
     /// <summary>
     /// Processes data received form a DataChannel.
     /// </summary>
@@ -167,10 +159,8 @@ public class HIMUReceiver : MonoBehaviour
             displayTarget.texture = tex;
         }
     }
-
     #endregion
 
-    #region MonoBehaviour
     void OnDestroy()
     {
         dataChannel?.Close();
@@ -178,6 +168,4 @@ public class HIMUReceiver : MonoBehaviour
         peer?.Close();
         peer?.Dispose();
     }
-    #endregion
-
 }

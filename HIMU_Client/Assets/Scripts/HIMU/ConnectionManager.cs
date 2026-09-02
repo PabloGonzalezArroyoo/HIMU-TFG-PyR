@@ -10,109 +10,154 @@ using UnityEngine;
 
 public class ConnectionManager : MonoBehaviour
 {
-
     #region Variables
-
+    /// <summary>
+    /// Instance of ConnectionManager (singleton)
+    /// </summary>
     public static ConnectionManager Instance { get; private set; }
 
-    [SerializeField]
-    private bool debug = false;
+    /// <summary>
+    /// Variable that indicates whether we should print debug information or not
+    /// </summary>
+    [SerializeField] private bool debug = false;
 
+    /// <summary>
+    /// Current of status of the connection
+    /// </summary>
     public ClientConnectionState currentState { get; private set; } = ClientConnectionState.Disconnected;
+
+    /// <summary>
+    /// Current form of transport selected
+    /// </summary>
     public ClientConnectionType currentTransport { get; private set; } = ClientConnectionType.NONE;
 
+    /// <summary>
+    /// Port used for adb communication. Even when it says "remote" it actually is a port of this device (host listen on this port thanks to adb reverse tunnel)
+    /// </summary>
     [SerializeField] private int adbRemotePort = 7778;
+    /// <summary>
+    /// Number of maximun attemps to establish adb connection
+    /// </summary>
     [SerializeField] private int adbConnectMaxRetries = 5;
+    /// <summary>
+    /// Time between adb connection attemps
+    /// </summary>
     [SerializeField] private int adbConnectRetryDelayMs = 1500;
 
-    [SerializeField] private float tunnelCheckIntervalSeconds = 2f;
+    /// <summary>
+    /// Time between adb reverse tunnel checks
+    /// </summary>
+    [SerializeField] private float tunnelCheckIntervalSeconds = 1f;
+    /// <summary>
+    /// Time we spend checking adb reverse tunnel in each attemp
+    /// </summary>
     [SerializeField] private int tunnelProbeTimeoutMs = 500;
+    /// <summary>
+    /// Variable that indicates whether we have an adb reverse tunnel established or not
+    /// </summary>
     public bool tunnelEstablished { get; private set; }
+    /// <summary>
+    /// Thread where we check for adb tunnel
+    /// </summary>
     private Thread tunnelWatcherThread;
+    /// <summary>
+    /// Variable that indicates whether we are currently checking for adb tunnel or not
+    /// </summary>
     private volatile bool tunnelWatcherRunning;
 
+    /// <summary>
+    /// Port where this device will listen to upcoming network data during TCP connection
+    /// </summary>
+    private int listenPort = 8053;
+    /// <summary>
+    /// Number of maximun attemps to establish tcp connection
+    /// </summary>
     [SerializeField] private int tcpConnectMaxRetries = 5;
+    /// <summary>
+    /// Time between tcp connection attemps
+    /// </summary>
     [SerializeField] private int tcpConnectRetryDelayMs = 1500;
+    /// <summary>
+    /// Time we spend trying to establish TCP connection in each attemp
+    /// </summary>
     [SerializeField] private int tcpConnectTimeoutMs = 1500;
+    /// <summary>
+    /// Multicast IP group for specific broadcasting
+    /// </summary>
+    private const string MulticastGroup = "239.0.0.1";
+    /// <summary>
+    /// Listener used for multicast listen of devices
+    /// </summary>
+    private UdpClient multicastListener;
+    /// <summary>
+    /// Thread where the multicast messages will be processed
+    /// </summary>
+    private Thread multicastListenThread;
 
-    [SerializeField] private int handshakeTimeoutMs = 3000;
-
-    private volatile bool intentionalDisconnect;
 
     /// <summary>
-    /// Whether the server is running or not.
+    /// Variable that indicates whether we are waiting for handshake response or not
     /// </summary>
-    private bool running;
-
-    /// <summary>
-    /// Whether this machine is connected to a host or not.
-    /// </summary>
-    public bool connected { get; private set; } = false;
-
     private volatile bool handshaking;
-
     /// <summary>
-    /// Listener used for multicast search of devices.
+    /// Time we spend waiting for handshake response
     /// </summary>
-    private UdpClient listener;
-
+    [SerializeField] private int handshakeTimeoutMs = 3000;
     /// <summary>
-    /// Thread where the multicast will be done.
+    /// Variable that indicates whether we disconnected intentionally or not
     /// </summary>
-    private Thread listenThread;
-
+    private volatile bool intentionalDisconnect;
+    /// <summary>
+    /// Host device's port for communication
+    /// </summary>
+    private int hostPort;
+    /// <summary>
+    /// IP of host device
+    /// </summary>
+    private string hostIP;
     /// <summary>
     /// Host's TCP connection
     /// </summary>
     private TcpClient hostConnection;
-
     /// <summary>
-    /// TCP stream from where the communication (mainly on handshake, ICE and SDP offers) will happen.
+    /// Thread where we communicate with host device
+    /// </summary>
+    private Thread readThread;
+    /// <summary>
+    /// TCP stream from where message exchange (mainly handshake, ICE and SDP offers) will happen
     /// </summary>
     private NetworkStream stream;
 
     /// <summary>
-    /// Thread where the communication will happen.
+    /// Variable that indicates whether the server is running or not
     /// </summary>
-    private Thread readThread;
-
+    private bool running;
+    /// <summary>
+    /// Variable that indicates whether this machine is connected to a host or not
+    /// </summary>
+    public bool connected { get; private set; } = false;
+    /// <summary>
+    /// Variable that grants access to network stream
+    /// </summary>
     private readonly object socketLock = new object();
-
     /// <summary>
-    /// Port where this device will listen to upcoming network data.
-    /// </summary>
-    private int listenPort = 8053;
-
-    /// <summary>
-    /// Port where the host is located.
-    /// </summary>
-    private int hostPort;
-
-    /// <summary>
-    /// Host's IP.
-    /// </summary>
-    private string hostIP;
-
-    /// <summary>
-    /// This machine's IP.
+    /// This machine's IP
     /// </summary>
     private string ipAddress;
 
     /// <summary>
-    /// Multicast IP group for specific broadcasting.
+    /// Structure that grants access to ConnectionData of devices found (via multicast) by its IP
     /// </summary>
-    private const string MulticastGroup = "239.0.0.1";
-
-
     private Dictionary<string, ConnectionData> sessions = new Dictionary<string, ConnectionData>();
 
     /// <summary>
-    /// Component that allows the WebRTC communication.
+    /// Reference to prefab object that represents this client in the communication with host
+    /// </summary>
+    [SerializeField] private GameObject clientPrefab = null;
+    /// <summary>
+    /// Component that allows the WebRTC communication
     /// </summary>
     private HIMUReceiver receiver = null;
-
-    [SerializeField] private GameObject clientPrefab = null;
-
     #endregion
 
     #region TCP
@@ -126,18 +171,17 @@ public class ConnectionManager : MonoBehaviour
             if(debug) Debug.Log("[StreamManager] Launching TCP session discovery");
             running = true;
 
-            listener = new UdpClient();
-            listener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            listener.Client.Bind(new IPEndPoint(IPAddress.Any, listenPort));
+            multicastListener = new UdpClient();
+            multicastListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            multicastListener.Client.Bind(new IPEndPoint(IPAddress.Any, listenPort));
 
             //listener.JoinMulticastGroup(IPAddress.Parse(MulticastGroup), IPAddress.Parse(ipAddress));
-            listener.Client.SetSocketOption(
                 SocketOptionLevel.IP,
                 SocketOptionName.AddMembership,
                 new MulticastOption(IPAddress.Parse(MulticastGroup), IPAddress.Any));
 
-            listenThread = new Thread(MulticastListenLoop) { IsBackground = true, Name = "StreamManager TCP discovering loop" };
-            listenThread.Start();
+            multicastListenThread = new Thread(MulticastListenLoop) { IsBackground = true, Name = "StreamManager TCP discovering loop" };
+            multicastListenThread.Start();
         }
     }
 
@@ -155,12 +199,12 @@ public class ConnectionManager : MonoBehaviour
             try
             {
                 var remoteEP = new IPEndPoint(IPAddress.Any, 0);
-                byte[] data = listener.Receive(ref remoteEP);
+                byte[] data = multicastListener.Receive(ref remoteEP);
                 string message = Encoding.UTF8.GetString(data);
 
                 if (string.IsNullOrEmpty(message))
                 {
-                    Debug.LogWarning("[StreamManager] Ignoring non-valid UDP package");
+                    if (debug) Debug.LogWarning("[StreamManager] Ignoring non-valid UDP package");
                     continue;
                 }
 
@@ -173,13 +217,13 @@ public class ConnectionManager : MonoBehaviour
             }
             catch (SocketException)
             {
-                break; // Socket closed
+                break;
             }
             catch (Exception e)
             {
                 if (running)
                 {
-                    Debug.LogWarning($"[StreamManager] TCP session discovery thread error: {e.Message}");
+                    if (debug) Debug.LogWarning($"[StreamManager] TCP session discovery thread error: {e.Message}");
                     CloseConnection();
                 }
             }
@@ -187,15 +231,14 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Tries to establish a connection to a selected session (host)
+    /// Initiates a TCP connection attemp adn changes status accordingly
     /// </summary>
     /// <param name="data"></param>
     public void ConnectViaTCP(ConnectionData data)
     {
-        if (currentState == ClientConnectionState.Connecting || currentState == ClientConnectionState.Connected)
-        {
-            Debug.LogWarning("[StreamManager] ConnectViaTCP ignored because other is already in progress");
-            return; // <-- falta este return, ahora mismo sigue ejecutando igual
+        if (currentState == ClientConnectionState.Connecting || currentState == ClientConnectionState.Connected) {
+            if (debug) Debug.LogWarning("[StreamManager] ConnectViaTCP ignored because other is already in progress");
+            return; 
         }
 
         intentionalDisconnect = false;
@@ -208,6 +251,10 @@ public class ConnectionManager : MonoBehaviour
         new Thread(() => TryTCPConnection(data)) { IsBackground = true, Name = "TCP Connect" }.Start();
     }
 
+    /// <summary>
+    /// Tries to establish a TCP connection to teh given session (host)
+    /// </summary>
+    /// <param name="data">Session information given to attemp connection</param>
     private void TryTCPConnection(ConnectionData data)
     {
         for (int attempt = 1; attempt <= tcpConnectMaxRetries; attempt++)
@@ -255,13 +302,13 @@ public class ConnectionManager : MonoBehaviour
             }
             catch (SocketException se)
             {
-                Debug.LogWarning($"TCP connect attempt {attempt}/{tcpConnectMaxRetries} failed: {se.Message}");
+                if (debug) Debug.LogWarning($"TCP connect attempt {attempt}/{tcpConnectMaxRetries} failed: {se.Message}");
                 CleanupStream();
                 if (attempt < tcpConnectMaxRetries) Thread.Sleep(tcpConnectRetryDelayMs);
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[StreamManager] Unexpected error during TCP connect: {ex}");
+                if (debug) Debug.LogError($"[StreamManager] Unexpected error during TCP connect: {ex}");
                 CleanupStream();
                 break;
             }
@@ -269,7 +316,7 @@ public class ConnectionManager : MonoBehaviour
 
         UnityMainThreadDispatcher.Instance().Enqueue(() =>
         {
-            Debug.LogError($"[StreamManager] Could not connect via TCP to {hostIP}:{hostPort} after {tcpConnectMaxRetries} attempts.");
+            if (debug) Debug.LogError($"[StreamManager] Could not connect via TCP to {hostIP}:{hostPort} after {tcpConnectMaxRetries} attempts.");
             RemoveSession(data);
             CloseConnection();
         });
@@ -278,13 +325,13 @@ public class ConnectionManager : MonoBehaviour
 
     #region ADB
     /// <summary>
-    ///  Starts a connection attemp via ADB
+    ///  Initiates an ADB connection attemp adn changes status accordingly
     /// </summary>
     public void ConnectViaADB()
     {
         if (currentState == ClientConnectionState.Connecting || currentState == ClientConnectionState.Connected)
         {
-            Debug.LogWarning("[StreamManager] ConnectViaADB ignored, a connection attempt is already in progress");
+            if (debug) Debug.LogWarning("[StreamManager] ConnectViaADB ignored, a connection attempt is already in progress");
             return;
         }
 
@@ -297,7 +344,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Tries to establish a connection to a connection via ADB (with an attemps limit)
+    /// Tries to establish an adb connection to teh given session (host)
     /// </summary>
     private void TryADBConnection()
     {
@@ -334,13 +381,13 @@ public class ConnectionManager : MonoBehaviour
             }
             catch (SocketException se)
             {
-                Debug.LogWarning($"TCP connect attempt {attempt}/{adbConnectMaxRetries} failed: {se.Message}");
+                if (debug) Debug.LogWarning($"TCP connect attempt {attempt}/{adbConnectMaxRetries} failed: {se.Message}");
                 CleanupStream();
                 if (attempt < adbConnectMaxRetries) Thread.Sleep(adbConnectRetryDelayMs);
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[StreamManager] Unexpected error during TCP connect: {ex}");
+                if (debug) Debug.LogError($"[StreamManager] Unexpected error during TCP connect: {ex}");
                 CleanupStream();
                 break;
             }
@@ -348,14 +395,14 @@ public class ConnectionManager : MonoBehaviour
 
         UnityMainThreadDispatcher.Instance().Enqueue(() =>
         {
-            Debug.LogError("Could not connect over ADB. Check the cable, USB debugging, and that the host has 'adb reverse' set up.");
+            if (debug) Debug.LogError("Could not connect over ADB. Check the cable, USB debugging, and that the host has 'adb reverse' set up.");
             UIManager.Instance.ConnectionFailed(ipAddress);
             CloseConnection();
         });
     }
 
     /// <summary>
-    /// Checks if reverse tunnel is active
+    /// Launches process that checks if reverse tunnel is active
     /// </summary>
     private void StartTunnelWatcher()
     {
@@ -368,7 +415,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Stops Tunnel watcher process
+    /// Stops process that checks if reverse tunnel is active
     /// </summary>
     private void StopTunnelWatcher()
     {
@@ -378,7 +425,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Method executed on secundary process. Checks for adb reverse tunnel and udpates flag. Stops when connection is established
+    /// Secundary process that checks if an adb reverse tunnel was established by host and udpates flag. Stops once a connection is established
     /// </summary>
     private void TunnelWatcherLoop()
     {
@@ -414,7 +461,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Opens TCP connection to localhost:adbRemotePort to check if there is a tunnel established.
+    /// Opens TCP connection to localhost:adbRemotePort to check if there is a tunnel established
     /// </summary>
     private bool CheckReverseTunnel()
     {
@@ -437,14 +484,17 @@ public class ConnectionManager : MonoBehaviour
 
     #region Shared Methods
     /// <summary>
-    /// Sends 'Handshake' message to host
+    /// Sends 'Handshake' message to host and waits for response from host
     /// </summary>
+    /// <param name="netStream">Netwrok stream to communicate with host</param>
+    /// <param name="expectedHostPort">Port expected from host for communication (confirmation)</param>
+    /// <returns>Whether handshake exchange was succesful or not</returns>
     private bool Handshake(NetworkStream netStream, int expectedHostPort = -1)
     {
         var currentStream = GetStreamSafe();
         if (currentStream == null)
         {
-            Debug.LogWarning("[StreamManager] SendHandshake ignored, stream is not available");
+            if (debug) Debug.LogWarning("[StreamManager] SendHandshake ignored, stream is not available");
             return false;
         }
 
@@ -460,7 +510,7 @@ public class ConnectionManager : MonoBehaviour
 
             if (!NetworkUtils.TryReadFramedMessage(netStream, out string ackJson))
             {
-                Debug.LogWarning("[StreamManager] Host closed the connection during handshake.");
+                if (debug) Debug.LogWarning("[StreamManager] Host closed the connection during handshake.");
                 return false;
             }
 
@@ -468,13 +518,13 @@ public class ConnectionManager : MonoBehaviour
 
             if (ack.connEvent != ConnectionEvent.HANDSHAKE)
             {
-                Debug.LogWarning($"[StreamManager] Expected HANDSHAKE_ACK, got {ack.connEvent} instead.");
+                if (debug) Debug.LogWarning($"[StreamManager] Expected HANDSHAKE_ACK, got {ack.connEvent} instead.");
                 return false;
             }
 
             if (expectedHostPort >= 0 && ack.port != expectedHostPort)
             {
-                Debug.LogWarning($"[StreamManager] Host reported port {ack.port} but we connected " +
+                if (debug) Debug.LogWarning($"[StreamManager] Host reported port {ack.port} but we connected " +
                     $"expecting {expectedHostPort}. Check that adbRemotePort/remotePort match between projects.");
             }
 
@@ -483,21 +533,19 @@ public class ConnectionManager : MonoBehaviour
         }
         catch (IOException)
         {
-            Debug.LogWarning("[StreamManager] Timed out waiting for HANDSHAKE_ACK.");
+            if (debug) Debug.LogWarning("[StreamManager] Timed out waiting for HANDSHAKE_ACK.");
             return false;
         }
         catch (ObjectDisposedException)
         {
-            // El proceso secundario de vigilancia del tunel detecto que ya no estaba activo y
-            // forzo el cierre del socket para no esperar aqui hasta agotar el timeout.
-            Debug.LogWarning("[StreamManager] Handshake aborted: tunnel dropped while waiting for the ACK.");
+            if (debug) Debug.LogWarning("[StreamManager] Handshake aborted: tunnel dropped while waiting for the ACK.");
             return false;
         }
         finally
         {
             handshaking = false;
             try { netStream.ReadTimeout = previousTimeout; }
-            catch { /**/}
+            catch { }
         }
     }
 
@@ -519,6 +567,10 @@ public class ConnectionManager : MonoBehaviour
         CleanupListener();
     }
 
+    /// <summary>
+    /// Grants access to network stream safely
+    /// </summary>
+    /// <returns></returns>
     private NetworkStream GetStreamSafe()
     {
         lock (socketLock)
@@ -551,7 +603,7 @@ public class ConnectionManager : MonoBehaviour
             }
             catch (ObjectDisposedException)
             {
-                break; // se ejecuto Disconnect desde otro hilo
+                break;
             }
             catch
             {
@@ -564,7 +616,7 @@ public class ConnectionManager : MonoBehaviour
     /// <summary>
     /// Process messages for WebRTC configuration
     /// </summary>
-    /// <param name="msg"></param>
+    /// <param name="msg">Message to process</param>
     private void HandleMessage(SignalingMessage msg)
     {
         if (msg.type == ConnectionEvent.SDP)
@@ -589,13 +641,13 @@ public class ConnectionManager : MonoBehaviour
     /// <summary>
     /// Sends a message to host
     /// </summary>
-    /// <param name="msg"></param>
+    /// <param name="msg">Message to send</param>
     private void SendMessage(SignalingMessage msg)
     {
         var currentStream = GetStreamSafe();
         if (currentStream == null)
         {
-            Debug.LogWarning("[StreamManager] SendMessage ignored, stream is not available");
+            if (debug) Debug.LogWarning("[StreamManager] SendMessage ignored, stream is not available");
             return;
         }
 
@@ -605,7 +657,7 @@ public class ConnectionManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[StreamManager] SendMessage failed: {e.Message}");
+            if (debug) Debug.LogWarning($"[StreamManager] SendMessage failed: {e.Message}");
         }
     }
     #endregion
@@ -614,7 +666,7 @@ public class ConnectionManager : MonoBehaviour
     /// <summary>
     /// Adds the new session discovered and creates an object on scene via UIManager
     /// </summary>
-    /// <param name="data"></param>
+    /// <param name="data">Connection data of the new session discovered</param>
     private void StoreSession(ConnectionData data)
     {
         if (sessions.TryGetValue(data.ipAddress, out ConnectionData duplicatedSession)) return;
@@ -626,7 +678,7 @@ public class ConnectionManager : MonoBehaviour
     /// <summary>
     /// Removes a session that is no longer available
     /// </summary>
-    /// <param name="data"></param>
+    /// <param name="data">ConnectionData of the session to remove</param>
     private void RemoveSession(ConnectionData data)
     {
         sessions.Remove(data.ipAddress);
@@ -634,12 +686,18 @@ public class ConnectionManager : MonoBehaviour
     #endregion
 
     #region CleanUp
+    /// <summary>
+    /// Method called for intentional disconnection
+    /// </summary>
     public void Disconnect()
     {
         intentionalDisconnect = true;
         CloseConnection();
     }
 
+    /// <summary>
+    /// Method called when connection is lost abruptly
+    /// </summary>
     private void OnConnectionLost()
     {
         intentionalDisconnect = false;
@@ -648,7 +706,7 @@ public class ConnectionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Closes sockets/threads and notifies listeners. Safe to call even if already disconnected.
+    /// Closure of all structures used on communication. If it was intentional we send a DISCONNECT message before
     /// </summary>
     private void CloseConnection()
     {
@@ -697,21 +755,23 @@ public class ConnectionManager : MonoBehaviour
         readThread?.Join(500);
     }
 
+    /// <summary>
+    /// Cleans multicast listener (in charge of session discovery)
+    /// </summary>
     private void CleanupListener()
     {
-        try { listener?.Close(); } catch { }
-        listener = null;
-        listenThread?.Join(500);
+        try { multicastListener?.Close(); } catch { }
+        multicastListener = null;
+        multicastListenThread?.Join(500);
     }
     #endregion
 
     #region Monobehaviour
-
     private void Awake()
     {
         if (Instance) {
             try { Destroy(Instance.gameObject); }
-            catch { Debug.Log("No se pudo borrar el objeto del singleton"); }
+            catch { if (debug) Debug.Log("No se pudo borrar el objeto del singleton"); }
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
@@ -737,7 +797,5 @@ public class ConnectionManager : MonoBehaviour
         CleanupListener();
         if (receiver) Destroy(receiver.gameObject);
     }
-
     #endregion
-
 }

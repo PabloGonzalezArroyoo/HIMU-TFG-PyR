@@ -10,8 +10,7 @@ using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 public class ClientInputManager : MonoBehaviour
 {
 
-    #region Variable
-
+    #region Variables
     /// <summary>
     /// Instance of InputManager (Singleton)
     /// </summary>
@@ -26,8 +25,7 @@ public class ClientInputManager : MonoBehaviour
     /// <summary>
     /// Frequency in which the accelerometer changes will be registered in hz.
     /// </summary>
-    [SerializeField]
-    private float accSamplingHz = 60f;
+    [SerializeField] private float accSamplingHz = 60f;
 
     /// <summary>
     /// Component incharged of the communication through the WebRTC protcol with the host machine.
@@ -59,11 +57,9 @@ public class ClientInputManager : MonoBehaviour
     /// </summary>
     private float sendInterval;
     private float nextSendTime;
-
     #endregion
 
     #region Methods
-
     /// <summary>
     /// Enables EnhancedTouch (API for easy tracking of touches on a screen) and the accelerometer, due to both of them being
     /// off by default. It also configures the accelerometer sampling frequency.
@@ -103,11 +99,9 @@ public class ClientInputManager : MonoBehaviour
         if (accelerometer != null && accelerometer.enabled)
             InputSystem.DisableDevice(accelerometer);
     }
-
     #endregion
 
     #region Monobehaviour
-
     private void OnEnable()
     {
         EnablePhoneInput();
@@ -177,7 +171,6 @@ public class ClientInputManager : MonoBehaviour
         inputFrame.sentAt = Time.unscaledTime;
         receiver.SendThroughDataChannel(JsonUtility.ToJson(inputFrame));
     }
-
     #endregion
 
 }
