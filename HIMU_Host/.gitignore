@@ -11,9 +11,10 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 *.log
-/Assets/StreamingAssets/node_modules/
-package.json
-package-lock.json
+Assets/StreamingAssets/node/
+Assets/StreamingAssets/node_modules/
+Assets/StreamingAssets/package.json
+Assets/StreamingAssets/package-lock.json
 
 # By default unity supports Blender asset imports, *.blend1 blender files do not need to be commited to version control.
 *.blend1

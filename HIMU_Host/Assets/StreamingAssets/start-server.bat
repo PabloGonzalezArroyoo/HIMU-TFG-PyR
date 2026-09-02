@@ -36,6 +36,12 @@ if not exist "server.js" (
     exit /b 1
 )
 
+if not exist "node_modules\serve\build\main.js" (
+    echo Error: node_modules\serve\build\main.js not found
+    pause
+    exit /b 1
+)
+
 if not exist "public\" (
     echo Error: public folder not found
     pause
@@ -46,9 +52,12 @@ title Streaming server
 
 :: 3. Launch server.js (which contains web deployment)
 echo Initiating server.js...
+echo Initiating server.js...
 set "PORT=!WS_PORT!"
-set "HTTP_PORT=!HTTP_PORT!"
-start "Server" /min "node\node.exe" server.js
+start "Server WS" /min "node\node.exe" server.js
+
+echo Initiating server HTML...
+start "Server HTML" /min "node\node.exe" "node_modules\serve\build\main.js" -l !HTTP_PORT! public
 
 echo.
 echo ---------------------------------------------

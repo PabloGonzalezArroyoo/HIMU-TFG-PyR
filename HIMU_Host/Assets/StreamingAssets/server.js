@@ -1,11 +1,4 @@
 const WebSocket = require('ws');
-const express = require('express');
-const path = require('path');
-
-// We deploy the web
-const app = express();
-app.use(express.static(path.join(__dirname, 'public')));
-app.listen(process.env.HTTP_PORT || 3000);
 
 const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port: PORT });
