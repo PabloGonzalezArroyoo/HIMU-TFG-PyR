@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering.VirtualTexturing;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.UIElements.Experimental;
@@ -103,6 +104,7 @@ public class RacingGameUIManager : MonoBehaviour
 
     private void Start()
     {
+        streamingText.text = "STREAMING ON " + StreamManager.Instance.GetNodeServerData() + "\nSession: " + StreamManager.Instance.GetSessionID().ToString();
         streamingText.gameObject.SetActive(RacingGameManager.Instance.streaming);
         pauseMenu.SetActive(false);
         StartCoroutine(CheckControllerConnected());
